@@ -17,6 +17,27 @@ interface QuizQuestion {
   options: string[];
 }
 
+interface City {
+  id: string;
+  name: string;
+  country: string;
+  icon: string;
+  color: string;
+  description: string;
+  highlights: string[];
+}
+
+interface ItineraryDay {
+  day: number;
+  title: string;
+  activities: {
+    time: string;
+    activity: string;
+    location: string;
+    description: string;
+  }[];
+}
+
 function App() {
   const [darkMode, setDarkMode] = useState(false);
   const [activeSection, setActiveSection] = useState('hero');
@@ -26,6 +47,174 @@ function App() {
   const [quizStep, setQuizStep] = useState(0);
   const [quizAnswers, setQuizAnswers] = useState<Record<number, string>>({});
   const [scrollY, setScrollY] = useState(0);
+  const [selectedCity, setSelectedCity] = useState<City | null>(null);
+  const [currentCityIndex, setCurrentCityIndex] = useState(0);
+  const [showItinerary, setShowItinerary] = useState(false);
+  const [carouselRotation, setCarouselRotation] = useState(0);
+
+  const cities: City[] = [
+    {
+      id: 'paris',
+      name: 'Paris',
+      country: 'France',
+      icon: '🗼',
+      color: '#FF6B6B',
+      description: 'The City of Light',
+      highlights: ['Eiffel Tower', 'Louvre Museum', 'Notre-Dame', 'Champs-Élysées']
+    },
+    {
+      id: 'tokyo',
+      name: 'Tokyo',
+      country: 'Japan',
+      icon: '🌸',
+      color: '#FF9FF3',
+      description: 'Modern meets Traditional',
+      highlights: ['Shibuya Crossing', 'Tokyo Tower', 'Senso-ji Temple', 'Harajuku']
+    },
+    {
+      id: 'newyork',
+      name: 'New York',
+      country: 'USA',
+      icon: '🗽',
+      color: '#54C7EC',
+      description: 'The Big Apple',
+      highlights: ['Times Square', 'Central Park', 'Brooklyn Bridge', 'Empire State']
+    },
+    {
+      id: 'london',
+      name: 'London',
+      country: 'England',
+      icon: '🏰',
+      color: '#95E1D3',
+      description: 'Royal Heritage',
+      highlights: ['Big Ben', 'London Eye', 'Tower Bridge', 'Buckingham Palace']
+    },
+    {
+      id: 'sydney',
+      name: 'Sydney',
+      country: 'Australia',
+      icon: '🏛️',
+      color: '#F38BA8',
+      description: 'Harbor City',
+      highlights: ['Opera House', 'Harbor Bridge', 'Bondi Beach', 'Darling Harbour']
+    },
+    {
+      id: 'dubai',
+      name: 'Dubai',
+      country: 'UAE',
+      icon: '🏙️',
+      color: '#FFD23F',
+      description: 'Future Metropolis',
+      highlights: ['Burj Khalifa', 'Palm Jumeirah', 'Gold Souk', 'Dubai Mall']
+    },
+    {
+      id: 'rome',
+      name: 'Rome',
+      country: 'Italy',
+      icon: '🏛️',
+      color: '#A8E6CF',
+      description: 'Eternal City',
+      highlights: ['Colosseum', 'Vatican City', 'Trevi Fountain', 'Roman Forum']
+    },
+    {
+      id: 'bali',
+      name: 'Bali',
+      country: 'Indonesia',
+      icon: '🌺',
+      color: '#FFB3BA',
+      description: 'Island Paradise',
+      highlights: ['Ubud Rice Terraces', 'Tanah Lot', 'Mount Batur', 'Seminyak Beach']
+    },
+    {
+      id: 'bangkok',
+      name: 'Bangkok',
+      country: 'Thailand',
+      icon: '🛕',
+      color: '#BFCFFF',
+      description: 'Temple City',
+      highlights: ['Grand Palace', 'Wat Pho', 'Floating Markets', 'Khao San Road']
+    },
+    {
+      id: 'santorini',
+      name: 'Santorini',
+      country: 'Greece',
+      icon: '🏖️',
+      color: '#C7CEEA',
+      description: 'Aegean Gem',
+      highlights: ['Oia Sunset', 'Blue Domes', 'Red Beach', 'Fira Caldera']
+    }
+  ];
+
+  const sampleItineraries: Record<string, ItineraryDay[]> = {
+    paris: [
+      {
+        day: 1,
+        title: "Classic Paris",
+        activities: [
+          { time: "9:00 AM", activity: "Eiffel Tower Visit", location: "Champ de Mars", description: "Start with the iconic symbol of Paris" },
+          { time: "11:30 AM", activity: "Seine River Cruise", location: "Pont Neuf", description: "See Paris from the water" },
+          { time: "2:00 PM", activity: "Louvre Museum", location: "Rue de Rivoli", description: "World's largest art museum" },
+          { time: "6:00 PM", activity: "Sunset at Sacré-Cœur", location: "Montmartre", description: "Panoramic city views" }
+        ]
+      },
+      {
+        day: 2,
+        title: "Art & Culture",
+        activities: [
+          { time: "10:00 AM", activity: "Musée d'Orsay", location: "Left Bank", description: "Impressionist masterpieces" },
+          { time: "1:00 PM", activity: "Latin Quarter Walk", location: "5th Arrondissement", description: "Historic student quarter" },
+          { time: "3:30 PM", activity: "Notre-Dame Area", location: "Île de la Cité", description: "Gothic architecture" },
+          { time: "7:00 PM", activity: "Evening Seine Stroll", location: "Quai de Seine", description: "Romantic riverside walk" }
+        ]
+      }
+    ],
+    tokyo: [
+      {
+        day: 1,
+        title: "Modern Tokyo",
+        activities: [
+          { time: "9:00 AM", activity: "Shibuya Crossing", location: "Shibuya", description: "World's busiest intersection" },
+          { time: "11:00 AM", activity: "Harajuku Fashion District", location: "Harajuku", description: "Youth culture and fashion" },
+          { time: "2:00 PM", activity: "Meiji Shrine", location: "Shibuya", description: "Peaceful Shinto shrine" },
+          { time: "5:00 PM", activity: "Tokyo Tower", location: "Minato", description: "City skyline views" }
+        ]
+      },
+      {
+        day: 2,
+        title: "Traditional Tokyo",
+        activities: [
+          { time: "8:00 AM", activity: "Tsukiji Fish Market", location: "Chuo", description: "Fresh sushi breakfast" },
+          { time: "10:30 AM", activity: "Senso-ji Temple", location: "Asakusa", description: "Tokyo's oldest temple" },
+          { time: "1:00 PM", activity: "Imperial Palace Gardens", location: "Chiyoda", description: "Royal gardens" },
+          { time: "4:00 PM", activity: "Ginza Shopping", location: "Ginza", description: "Luxury shopping district" }
+        ]
+      }
+    ],
+    newyork: [
+      {
+        day: 1,
+        title: "Manhattan Highlights",
+        activities: [
+          { time: "9:00 AM", activity: "Central Park Walk", location: "Central Park", description: "Morning in the green heart of NYC" },
+          { time: "11:00 AM", activity: "Metropolitan Museum", location: "Upper East Side", description: "World-class art collection" },
+          { time: "2:00 PM", activity: "Times Square", location: "Midtown", description: "The crossroads of the world" },
+          { time: "5:00 PM", activity: "Empire State Building", location: "Midtown", description: "Iconic city views" }
+        ]
+      }
+    ],
+    london: [
+      {
+        day: 1,
+        title: "Royal London",
+        activities: [
+          { time: "9:00 AM", activity: "Tower of London", location: "Tower Hill", description: "Historic royal fortress" },
+          { time: "12:00 PM", activity: "Tower Bridge Walk", location: "South Bank", description: "Iconic bridge crossing" },
+          { time: "2:30 PM", activity: "Westminster Abbey", location: "Westminster", description: "Royal church and history" },
+          { time: "5:00 PM", activity: "Big Ben & Parliament", location: "Westminster", description: "Political heart of Britain" }
+        ]
+      }
+    ]
+  };
 
   const testimonials: Testimonial[] = [
     { text: "BARABULA transformed my trip to Tokyo. The AI suggestions were spot-on!", name: "Sarah Chen", avatar: "👩‍💼" },
@@ -143,6 +332,33 @@ function App() {
     document.getElementById(elementId)?.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const handleCitySelect = (city: City) => {
+    setSelectedCity(city);
+    setShowItinerary(true);
+  };
+
+  const closeItinerary = () => {
+    setShowItinerary(false);
+    setSelectedCity(null);
+  };
+
+  const nextCity = () => {
+    const nextIndex = (currentCityIndex + 1) % cities.length;
+    setCurrentCityIndex(nextIndex);
+    setCarouselRotation(-(nextIndex * (360 / cities.length)));
+  };
+
+  const prevCity = () => {
+    const prevIndex = currentCityIndex === 0 ? cities.length - 1 : currentCityIndex - 1;
+    setCurrentCityIndex(prevIndex);
+    setCarouselRotation(-(prevIndex * (360 / cities.length)));
+  };
+
+  const selectCityByIndex = (index: number) => {
+    setCurrentCityIndex(index);
+    setCarouselRotation(-(index * (360 / cities.length)));
+  };
+
   return (
     <div className={`App ${darkMode ? 'dark-mode' : ''}`}>
       {/* Navigation */}
@@ -206,24 +422,87 @@ function App() {
               Start Exploring
             </button>
           </div>
-          <div className="hero-visual">
-            <div className="travel-illustration">
-              <div className="destination-card card-1">
-                <div className="card-image">🗼</div>
-                <div className="card-title">Paris</div>
+          
+          {/* Interactive City Carousel */}
+          <div className="city-carousel-container">
+            <h3 className="carousel-title">Explore Popular Destinations</h3>
+            <div className="carousel-wrapper">
+              <button className="carousel-nav prev" onClick={prevCity} aria-label="Previous city">
+                <span>←</span>
+              </button>
+              
+              <div className="city-carousel">
+                <div 
+                  className="carousel-circle" 
+                  style={{ transform: `rotate(${carouselRotation}deg)` }}
+                >
+                  {cities.map((city, index) => {
+                    const angle = (index * 360) / cities.length;
+                    const isActive = index === currentCityIndex;
+                    
+                    return (
+                      <div
+                        key={city.id}
+                        className={`city-card ${isActive ? 'active' : ''}`}
+                        style={{
+                          transform: `rotate(${angle}deg) translateX(180px) rotate(-${angle + carouselRotation}deg)`,
+                        }}
+                        onClick={() => {
+                          selectCityByIndex(index);
+                          handleCitySelect(city);
+                        }}
+                      >
+                        <div className="city-icon" style={{ backgroundColor: city.color }}>
+                          {city.icon}
+                        </div>
+                        <div className="city-info">
+                          <h4>{city.name}</h4>
+                          <p>{city.country}</p>
+                          <span className="city-description">{city.description}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+                
+                {/* Center Info Display */}
+                <div className="carousel-center">
+                  <div className="featured-city">
+                    <div className="featured-icon" style={{ backgroundColor: cities[currentCityIndex].color }}>
+                      {cities[currentCityIndex].icon}
+                    </div>
+                    <h3>{cities[currentCityIndex].name}</h3>
+                    <p>{cities[currentCityIndex].description}</p>
+                    <div className="city-highlights">
+                      {cities[currentCityIndex].highlights.slice(0, 2).map((highlight, idx) => (
+                        <span key={idx} className="highlight-tag">{highlight}</span>
+                      ))}
+                    </div>
+                    <button 
+                      className="view-itinerary-btn"
+                      onClick={() => handleCitySelect(cities[currentCityIndex])}
+                    >
+                      View Sample Itinerary
+                    </button>
+                  </div>
+                </div>
               </div>
-              <div className="destination-card card-2">
-                <div className="card-image">🌸</div>
-                <div className="card-title">Tokyo</div>
-              </div>
-              <div className="destination-card card-3">
-                <div className="card-image">🗽</div>
-                <div className="card-title">New York</div>
-              </div>
-              <div className="connecting-lines">
-                <div className="line line-1"></div>
-                <div className="line line-2"></div>
-              </div>
+              
+              <button className="carousel-nav next" onClick={nextCity} aria-label="Next city">
+                <span>→</span>
+              </button>
+            </div>
+            
+            {/* City Dots Navigation */}
+            <div className="carousel-dots">
+              {cities.map((_, index) => (
+                <button
+                  key={index}
+                  className={`dot ${index === currentCityIndex ? 'active' : ''}`}
+                  onClick={() => selectCityByIndex(index)}
+                  aria-label={`Go to ${cities[index].name}`}
+                />
+              ))}
             </div>
           </div>
         </div>
@@ -383,6 +662,67 @@ function App() {
           </div>
         </div>
       </footer>
+
+      {/* Itinerary Modal */}
+      {showItinerary && selectedCity && (
+        <div className="itinerary-modal-overlay" onClick={closeItinerary}>
+          <div className="itinerary-modal" onClick={(e) => e.stopPropagation()}>
+            <button className="modal-close" onClick={closeItinerary}>×</button>
+            <div className="modal-header">
+              <div className="modal-city-icon" style={{ backgroundColor: selectedCity.color }}>
+                {selectedCity.icon}
+              </div>
+              <div className="modal-city-info">
+                <h2>{selectedCity.name}, {selectedCity.country}</h2>
+                <p>{selectedCity.description}</p>
+                <div className="modal-highlights">
+                  {selectedCity.highlights.map((highlight, idx) => (
+                    <span key={idx} className="highlight-tag">{highlight}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+            
+            <div className="modal-content">
+              <h3>Sample Itinerary</h3>
+              {sampleItineraries[selectedCity.id] ? (
+                <div className="itinerary-days">
+                  {sampleItineraries[selectedCity.id].map((day) => (
+                    <div key={day.day} className="day-card">
+                      <h4>Day {day.day}: {day.title}</h4>
+                      <div className="activities">
+                        {day.activities.map((activity, idx) => (
+                          <div key={idx} className="activity">
+                            <div className="activity-time">{activity.time}</div>
+                            <div className="activity-details">
+                              <h5>{activity.activity}</h5>
+                              <p className="activity-location">📍 {activity.location}</p>
+                              <p className="activity-description">{activity.description}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="no-itinerary">
+                  <p>Sample itinerary coming soon for {selectedCity.name}!</p>
+                </div>
+              )}
+              
+              <div className="modal-actions">
+                <button className="btn-secondary" onClick={closeItinerary}>
+                  Close
+                </button>
+                <button className="btn-primary">
+                  Create Custom Itinerary
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
