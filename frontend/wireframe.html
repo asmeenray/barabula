@@ -1,0 +1,760 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BARABULA - Website Wireframe</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: #f8f9fa;
+            color: #333;
+            line-height: 1.6;
+        }
+
+        .wireframe-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .wireframe-header {
+            text-align: center;
+            margin-bottom: 40px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+
+        .wireframe-title {
+            font-size: 2.5rem;
+            color: #D68C45;
+            margin-bottom: 10px;
+        }
+
+        .wireframe-subtitle {
+            color: #666;
+            font-size: 1.1rem;
+        }
+
+        .section-wireframe {
+            background: white;
+            margin-bottom: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .section-header {
+            background: #A2D5F2;
+            padding: 15px 20px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            color: #333;
+            border-left: 4px solid #D68C45;
+        }
+
+        .section-content {
+            padding: 20px;
+        }
+
+        .wireframe-box {
+            border: 2px dashed #ccc;
+            padding: 20px;
+            margin: 10px 0;
+            border-radius: 4px;
+            background: #fafafa;
+            position: relative;
+        }
+
+        .wireframe-box.nav {
+            background: #e3f2fd;
+            border-color: #2196f3;
+        }
+
+        .wireframe-box.hero {
+            background: #fff3e0;
+            border-color: #ff9800;
+            min-height: 300px;
+        }
+
+        .wireframe-box.carousel {
+            background: #f3e5f5;
+            border-color: #9c27b0;
+            min-height: 200px;
+        }
+
+        .wireframe-box.feature {
+            background: #e8f5e8;
+            border-color: #4caf50;
+        }
+
+        .wireframe-box.modal {
+            background: #ffebee;
+            border-color: #f44336;
+        }
+
+        .wireframe-label {
+            position: absolute;
+            top: -10px;
+            left: 10px;
+            background: white;
+            padding: 2px 8px;
+            font-size: 0.9rem;
+            font-weight: bold;
+            color: #666;
+        }
+
+        .component-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .component-item {
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            padding: 15px;
+            background: #fafafa;
+        }
+
+        .component-title {
+            font-weight: bold;
+            color: #D68C45;
+            margin-bottom: 10px;
+        }
+
+        .component-description {
+            font-size: 0.9rem;
+            color: #666;
+        }
+
+        .layout-flow {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .flow-item {
+            display: flex;
+            align-items: center;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            border-left: 4px solid #D68C45;
+        }
+
+        .flow-number {
+            background: #D68C45;
+            color: white;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-right: 15px;
+            font-weight: bold;
+        }
+
+        .tech-stack {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .tech-item {
+            text-align: center;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 8px;
+            border: 1px solid #ddd;
+        }
+
+        .tech-icon {
+            font-size: 2rem;
+            margin-bottom: 10px;
+        }
+
+        .color-palette {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .color-item {
+            text-align: center;
+            padding: 15px;
+            border-radius: 8px;
+            color: white;
+            font-weight: bold;
+        }
+
+        .sky-blue { background: #A2D5F2; color: #333; }
+        .sand-beige { background: #FAF3DD; color: #333; }
+        .terracotta { background: #D68C45; }
+        .seafoam { background: #B8D8BA; color: #333; }
+        .charcoal { background: #333333; }
+
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+
+        .status-complete { background: #4caf50; }
+        .status-inprogress { background: #ff9800; }
+        .status-planned { background: #9e9e9e; }
+
+        .responsive-preview {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .device-frame {
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            background: white;
+            text-align: center;
+        }
+
+        .device-screen {
+            background: #f5f5f5;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            padding: 10px;
+            min-height: 200px;
+            font-size: 0.8rem;
+        }
+
+        .desktop { min-height: 300px; }
+        .tablet { min-height: 250px; }
+        .mobile { min-height: 400px; }
+
+        .update-timestamp {
+            text-align: center;
+            color: #666;
+            font-size: 0.9rem;
+            margin-top: 40px;
+            padding: 20px;
+            background: white;
+            border-radius: 8px;
+        }
+
+        @media (max-width: 768px) {
+            .wireframe-container {
+                padding: 10px;
+            }
+            
+            .responsive-preview {
+                grid-template-columns: 1fr;
+            }
+            
+            .component-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="wireframe-container">
+        <div class="wireframe-header">
+            <h1 class="wireframe-title">BARABULA</h1>
+            <p class="wireframe-subtitle">AI Travel Assistant - Website Wireframe & Design System</p>
+        </div>
+
+        <!-- Layout Overview -->
+        <div class="section-wireframe">
+            <div class="section-header">📋 Layout Overview</div>
+            <div class="section-content">
+                <div class="layout-flow">
+                    <div class="flow-item">
+                        <div class="flow-number">1</div>
+                        <div>
+                            <strong>Navigation Bar</strong> - Fixed header with logo, menu links, and dark mode toggle
+                        </div>
+                    </div>
+                    <div class="flow-item">
+                        <div class="flow-number">2</div>
+                        <div>
+                            <strong>Hero Section</strong> - Main title, subtitle, CTA button, and interactive city carousel
+                        </div>
+                    </div>
+                    <div class="flow-item">
+                        <div class="flow-number">3</div>
+                        <div>
+                            <strong>Features Section</strong> - Three main feature cards with icons and descriptions
+                        </div>
+                    </div>
+                    <div class="flow-item">
+                        <div class="flow-number">4</div>
+                        <div>
+                            <strong>Interactive Demo</strong> - AI chat demo and travel style quiz
+                        </div>
+                    </div>
+                    <div class="flow-item">
+                        <div class="flow-number">5</div>
+                        <div>
+                            <strong>How It Works</strong> - 3-step process with animated counters
+                        </div>
+                    </div>
+                    <div class="flow-item">
+                        <div class="flow-number">6</div>
+                        <div>
+                            <strong>Testimonials</strong> - Customer reviews in grid layout
+                        </div>
+                    </div>
+                    <div class="flow-item">
+                        <div class="flow-number">7</div>
+                        <div>
+                            <strong>Partners</strong> - Brand logos of travel partners
+                        </div>
+                    </div>
+                    <div class="flow-item">
+                        <div class="flow-number">8</div>
+                        <div>
+                            <strong>Footer</strong> - Social links, legal links, and newsletter signup
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Navigation Wireframe -->
+        <div class="section-wireframe">
+            <div class="section-header">🧭 Navigation Structure</div>
+            <div class="section-content">
+                <div class="wireframe-box nav">
+                    <div class="wireframe-label">Navigation Bar</div>
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div style="font-weight: bold; font-size: 1.2rem;">BARABULA Logo</div>
+                        <div style="display: flex; gap: 20px; align-items: center;">
+                            <span>Features</span>
+                            <span>How It Works</span>
+                            <span>Testimonials</span>
+                            <button style="padding: 8px 16px; background: #D68C45; color: white; border: none; border-radius: 20px;">Get Started</button>
+                            <button style="padding: 8px; background: none; border: none; font-size: 1.2rem;">🌙</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hero Section Wireframe -->
+        <div class="section-wireframe">
+            <div class="section-header">🎯 Hero Section</div>
+            <div class="section-content">
+                <div class="wireframe-box hero">
+                    <div class="wireframe-label">Hero Content</div>
+                    <div style="text-align: center; margin-bottom: 30px;">
+                        <h2 style="font-size: 2rem; margin-bottom: 15px;">WANDER SMARTER WITH BARABULA</h2>
+                        <p style="font-size: 1.1rem; margin-bottom: 20px;">Your AI-powered travel companion for personalized, context-aware journeys.</p>
+                        <button style="padding: 12px 24px; background: #D68C45; color: white; border: none; border-radius: 25px; font-size: 1rem;">Start Exploring</button>
+                    </div>
+                    
+                    <div class="wireframe-box carousel">
+                        <div class="wireframe-label">Interactive City Carousel</div>
+                        <div style="text-align: center;">
+                            <h3 style="margin-bottom: 20px;">Explore Popular Destinations</h3>
+                            <div style="display: flex; justify-content: center; align-items: center; gap: 20px;">
+                                <button style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid #D68C45;">←</button>
+                                <div style="width: 300px; height: 300px; border: 2px dashed #9c27b0; border-radius: 50%; display: flex; align-items: center; justify-content: center; position: relative;">
+                                    <div style="text-align: center;">
+                                        <div style="width: 60px; height: 60px; background: #FF6B6B; border-radius: 50%; margin: 0 auto 10px; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">🗼</div>
+                                        <strong>Paris</strong>
+                                        <p style="font-size: 0.9rem;">The City of Light</p>
+                                        <button style="padding: 6px 12px; background: #D68C45; color: white; border: none; border-radius: 15px; font-size: 0.8rem; margin-top: 10px;">View Itinerary</button>
+                                    </div>
+                                    <div style="position: absolute; top: 10px; left: 50%; transform: translateX(-50%); font-size: 0.8rem; color: #666;">🌸 Tokyo</div>
+                                    <div style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); font-size: 0.8rem; color: #666;">🗽 NYC</div>
+                                    <div style="position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); font-size: 0.8rem; color: #666;">🏰 London</div>
+                                </div>
+                                <button style="width: 40px; height: 40px; border-radius: 50%; border: 2px solid #D68C45;">→</button>
+                            </div>
+                            <div style="display: flex; justify-content: center; gap: 8px; margin-top: 20px;">
+                                <div style="width: 12px; height: 12px; border-radius: 50%; background: #D68C45;"></div>
+                                <div style="width: 12px; height: 12px; border-radius: 50%; background: #ddd;"></div>
+                                <div style="width: 12px; height: 12px; border-radius: 50%; background: #ddd;"></div>
+                                <div style="width: 12px; height: 12px; border-radius: 50%; background: #ddd;"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Interactive Components -->
+        <div class="section-wireframe">
+            <div class="section-header">⚡ Interactive Components</div>
+            <div class="section-content">
+                <div class="component-grid">
+                    <div class="component-item">
+                        <div class="component-title">
+                            <span class="status-indicator status-complete"></span>
+                            City Carousel
+                        </div>
+                        <div class="component-description">
+                            Circular carousel with 10 major cities. Users can navigate with arrows, dots, or direct clicks. Center displays featured city info.
+                        </div>
+                    </div>
+                    
+                    <div class="component-item">
+                        <div class="component-title">
+                            <span class="status-indicator status-complete"></span>
+                            Itinerary Modal
+                        </div>
+                        <div class="component-description">
+                            Modal popup showing detailed sample itinerary for selected city with day-by-day activities and timeline.
+                        </div>
+                    </div>
+                    
+                    <div class="component-item">
+                        <div class="component-title">
+                            <span class="status-indicator status-complete"></span>
+                            AI Chat Demo
+                        </div>
+                        <div class="component-description">
+                            Interactive chat interface demonstrating AI travel assistant capabilities with message bubbles.
+                        </div>
+                    </div>
+                    
+                    <div class="component-item">
+                        <div class="component-title">
+                            <span class="status-indicator status-complete"></span>
+                            Travel Style Quiz
+                        </div>
+                        <div class="component-description">
+                            Multi-step quiz with progress bar to determine user's travel preferences and style.
+                        </div>
+                    </div>
+                    
+                    <div class="component-item">
+                        <div class="component-title">
+                            <span class="status-indicator status-complete"></span>
+                            Scroll Animations
+                        </div>
+                        <div class="component-description">
+                            Intersection Observer-based animations for fade-in effects and animated number counters.
+                        </div>
+                    </div>
+                    
+                    <div class="component-item">
+                        <div class="component-title">
+                            <span class="status-indicator status-complete"></span>
+                            Dark Mode Toggle
+                        </div>
+                        <div class="component-description">
+                            Theme switcher in navigation bar with smooth transitions between light and dark modes.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Itinerary Modal Wireframe -->
+        <div class="section-wireframe">
+            <div class="section-header">📅 Itinerary Modal Structure</div>
+            <div class="section-content">
+                <div class="wireframe-box modal">
+                    <div class="wireframe-label">Modal Overlay</div>
+                    <div style="max-width: 600px; margin: 0 auto; background: white; border-radius: 8px; padding: 20px; position: relative;">
+                        <button style="position: absolute; top: 10px; right: 15px; background: none; border: none; font-size: 1.5rem;">×</button>
+                        
+                        <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px; background: linear-gradient(135deg, #FAF3DD, #A2D5F2); padding: 20px; border-radius: 8px;">
+                            <div style="width: 60px; height: 60px; background: #FF6B6B; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 1.5rem;">🗼</div>
+                            <div>
+                                <h3>Paris, France</h3>
+                                <p style="color: #666;">The City of Light</p>
+                                <div style="display: flex; gap: 8px; margin-top: 8px;">
+                                    <span style="background: white; padding: 4px 8px; border-radius: 12px; font-size: 0.8rem;">Eiffel Tower</span>
+                                    <span style="background: white; padding: 4px 8px; border-radius: 12px; font-size: 0.8rem;">Louvre Museum</span>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <h4 style="margin-bottom: 15px;">Sample Itinerary</h4>
+                        
+                        <div style="background: #f8f9fa; padding: 15px; border-radius: 8px; border-left: 4px solid #D68C45; margin-bottom: 15px;">
+                            <h5>Day 1: Classic Paris</h5>
+                            <div style="margin-top: 10px;">
+                                <div style="display: flex; gap: 15px; margin-bottom: 10px; background: white; padding: 10px; border-radius: 6px;">
+                                    <div style="background: #D68C45; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem;">9:00 AM</div>
+                                    <div>
+                                        <strong>Eiffel Tower Visit</strong>
+                                        <p style="font-size: 0.9rem; color: #D68C45;">📍 Champ de Mars</p>
+                                        <p style="font-size: 0.9rem; color: #666;">Start with the iconic symbol of Paris</p>
+                                    </div>
+                                </div>
+                                <div style="display: flex; gap: 15px; margin-bottom: 10px; background: white; padding: 10px; border-radius: 6px;">
+                                    <div style="background: #D68C45; color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem;">11:30 AM</div>
+                                    <div>
+                                        <strong>Seine River Cruise</strong>
+                                        <p style="font-size: 0.9rem; color: #D68C45;">📍 Pont Neuf</p>
+                                        <p style="font-size: 0.9rem; color: #666;">See Paris from the water</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div style="display: flex; gap: 15px; justify-content: center; margin-top: 20px; padding-top: 15px; border-top: 1px solid #eee;">
+                            <button style="padding: 10px 20px; background: transparent; border: 2px solid #ddd; border-radius: 25px;">Close</button>
+                            <button style="padding: 10px 20px; background: #D68C45; color: white; border: none; border-radius: 25px;">Create Custom Itinerary</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Design System -->
+        <div class="section-wireframe">
+            <div class="section-header">🎨 Design System</div>
+            <div class="section-content">
+                <h4>Color Palette</h4>
+                <div class="color-palette">
+                    <div class="color-item sky-blue">
+                        Sky Blue<br>#A2D5F2
+                    </div>
+                    <div class="color-item sand-beige">
+                        Sand Beige<br>#FAF3DD
+                    </div>
+                    <div class="color-item terracotta">
+                        Terracotta<br>#D68C45
+                    </div>
+                    <div class="color-item seafoam">
+                        Seafoam Green<br>#B8D8BA
+                    </div>
+                    <div class="color-item charcoal">
+                        Charcoal Gray<br>#333333
+                    </div>
+                </div>
+
+                <h4 style="margin-top: 30px;">Typography</h4>
+                <div style="background: #f8f9fa; padding: 20px; border-radius: 8px; margin: 15px 0;">
+                    <div style="font-family: 'Montserrat', sans-serif; font-size: 2rem; font-weight: 700; margin-bottom: 10px;">Montserrat (Headings)</div>
+                    <div style="font-family: 'Inter', sans-serif; font-size: 1rem; line-height: 1.6;">Inter (Body Text) - Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tech Stack -->
+        <div class="section-wireframe">
+            <div class="section-header">⚙️ Technology Stack</div>
+            <div class="section-content">
+                <div class="tech-stack">
+                    <div class="tech-item">
+                        <div class="tech-icon">⚛️</div>
+                        <strong>React 18</strong>
+                        <p>Frontend Framework</p>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-icon">📘</div>
+                        <strong>TypeScript</strong>
+                        <p>Type Safety</p>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-icon">🎨</div>
+                        <strong>CSS3</strong>
+                        <p>Styling & Animations</p>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-icon">📱</div>
+                        <strong>Responsive</strong>
+                        <p>Mobile-First Design</p>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-icon">🔧</div>
+                        <strong>React Scripts</strong>
+                        <p>Build Tools</p>
+                    </div>
+                    <div class="tech-item">
+                        <div class="tech-icon">🚀</div>
+                        <strong>Development Server</strong>
+                        <p>Hot Reload</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Responsive Design -->
+        <div class="section-wireframe">
+            <div class="section-header">📱 Responsive Breakpoints</div>
+            <div class="section-content">
+                <div class="responsive-preview">
+                    <div class="device-frame">
+                        <h4>Desktop (1200px+)</h4>
+                        <div class="device-screen desktop">
+                            <div style="margin-bottom: 10px;">✅ Full navigation menu</div>
+                            <div style="margin-bottom: 10px;">✅ Large city carousel (400px)</div>
+                            <div style="margin-bottom: 10px;">✅ 3-column feature grid</div>
+                            <div style="margin-bottom: 10px;">✅ Side-by-side demo layout</div>
+                            <div style="margin-bottom: 10px;">✅ Horizontal testimonials</div>
+                        </div>
+                    </div>
+                    
+                    <div class="device-frame">
+                        <h4>Tablet (768px - 1199px)</h4>
+                        <div class="device-screen tablet">
+                            <div style="margin-bottom: 10px;">✅ Condensed navigation</div>
+                            <div style="margin-bottom: 10px;">✅ Medium carousel (350px)</div>
+                            <div style="margin-bottom: 10px;">✅ 2-column feature grid</div>
+                            <div style="margin-bottom: 10px;">✅ Stacked demo sections</div>
+                            <div style="margin-bottom: 10px;">✅ 2-column testimonials</div>
+                        </div>
+                    </div>
+                    
+                    <div class="device-frame">
+                        <h4>Mobile (< 768px)</h4>
+                        <div class="device-screen mobile">
+                            <div style="margin-bottom: 10px;">✅ Hamburger menu</div>
+                            <div style="margin-bottom: 10px;">✅ Small carousel (300px)</div>
+                            <div style="margin-bottom: 10px;">✅ Single column layout</div>
+                            <div style="margin-bottom: 10px;">✅ Stacked components</div>
+                            <div style="margin-bottom: 10px;">✅ Single column testimonials</div>
+                            <div style="margin-bottom: 10px;">✅ Modal adjustments</div>
+                            <div style="margin-bottom: 10px;">✅ Touch-friendly buttons</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Development Status -->
+        <div class="section-wireframe">
+            <div class="section-header">📊 Development Status</div>
+            <div class="section-content">
+                <div class="component-grid">
+                    <div class="component-item">
+                        <div class="component-title">
+                            <span class="status-indicator status-complete"></span>
+                            Header & Navigation
+                        </div>
+                        <div class="component-description">
+                            ✅ Complete with responsive navigation tabs, authentication buttons, and dark mode toggle with smooth animations.
+                        </div>
+                    </div>
+                    
+                    <div class="component-item">
+                        <div class="component-title">
+                            <span class="status-indicator status-complete"></span>
+                            Hero Section with Animations
+                        </div>
+                        <div class="component-description">
+                            ✅ Implemented with fade-in animations, glassmorphism effects, and responsive design.
+                        </div>
+                    </div>
+                    
+                    <div class="component-item">
+                        <div class="component-title">
+                            <span class="status-indicator status-complete"></span>
+                            Secondary CTA Section
+                        </div>
+                        <div class="component-description">
+                            ✅ "Not sure where to go?" with seafoam green "Let BARABULA Inspire Me" button with hover animations.
+                        </div>
+                    </div>
+                    
+                    <div class="component-item">
+                        <div class="component-title">
+                            <span class="status-indicator status-complete"></span>
+                            Features Section
+                        </div>
+                        <div class="component-description">
+                            ✅ Three glassmorphic cards with line-art icons: Smart AI Recommendations, Real-time Updates, Conversational Assistant.
+                        </div>
+                    </div>
+                    
+                    <div class="component-item">
+                        <div class="component-title">
+                            <span class="status-indicator status-complete"></span>
+                            How It Works Section
+                        </div>
+                        <div class="component-description">
+                            ✅ Three-step process with numbered bubbles, connecting lines, and staggered animations.
+                        </div>
+                    </div>
+                    
+                    <div class="component-item">
+                        <div class="component-title">
+                            <span class="status-indicator status-complete"></span>
+                            Modern Footer
+                        </div>
+                        <div class="component-description">
+                            ✅ Social media icons, legal links, newsletter subscription with glassmorphism styling.
+                        </div>
+                    </div>
+                    
+                    <div class="component-item">
+                        <div class="component-title">
+                            <span class="status-indicator status-complete"></span>
+                            Animations & Interactions
+                        </div>
+                        <div class="component-description">
+                            ✅ Fade-in animations, hover effects, button pulses, and smooth transitions throughout.
+                        </div>
+                    </div>
+                    
+                    <div class="component-item">
+                        <div class="component-title">
+                            <span class="status-indicator status-complete"></span>
+                            Chat Interface
+                        </div>
+                        <div class="component-description">
+                            ✅ Interactive chat view with message bubbles, typing indicators, and smooth transitions.
+                        </div>
+                    </div>
+                    
+                    <div class="component-item">
+                        <div class="component-title">
+                            <span class="status-indicator status-inprogress"></span>
+                            Mobile Navigation Menu
+                        </div>
+                        <div class="component-description">
+                            🔄 Navigation tabs hidden on mobile - could add hamburger menu for better mobile experience.
+                        </div>
+                    </div>
+                    
+                    <div class="component-item">
+                        <div class="component-title">
+                            <span class="status-indicator status-planned"></span>
+                            Backend Integration
+                        </div>
+                        <div class="component-description">
+                            🔮 Future: Connect to AI backend for real travel recommendations and user authentication.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="update-timestamp">
+            <strong>Last Updated:</strong> <span id="timestamp"></span><br>
+            <em>This wireframe reflects the current state of the BARABULA website implementation</em>
+        </div>
+    </div>
+
+    <script>
+        // Update timestamp
+        document.getElementById('timestamp').textContent = new Date().toLocaleString();
+        
+        // Auto-refresh every 5 minutes to keep wireframe current
+        setInterval(() => {
+            document.getElementById('timestamp').textContent = new Date().toLocaleString();
+        }, 300000);
+    </script>
+</body>
+</html>

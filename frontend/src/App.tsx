@@ -4,725 +4,390 @@ import './App.css';
 interface ChatMessage {
   text: string;
   isBot: boolean;
-}
-
-interface Testimonial {
-  text: string;
-  name: string;
-  avatar: string;
-}
-
-interface QuizQuestion {
-  question: string;
-  options: string[];
-}
-
-interface City {
-  id: string;
-  name: string;
-  country: string;
-  icon: string;
-  color: string;
-  description: string;
-  highlights: string[];
-}
-
-interface ItineraryDay {
-  day: number;
-  title: string;
-  activities: {
-    time: string;
-    activity: string;
-    location: string;
-    description: string;
-  }[];
+  timestamp: Date;
 }
 
 function App() {
-  const [darkMode, setDarkMode] = useState(false);
-  const [activeSection, setActiveSection] = useState('hero');
-  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([
-    { text: "Hi! I'm your AI travel assistant. Where would you like to explore?", isBot: true }
-  ]);
-  const [quizStep, setQuizStep] = useState(0);
-  const [quizAnswers, setQuizAnswers] = useState<Record<number, string>>({});
-  const [scrollY, setScrollY] = useState(0);
-  const [selectedCity, setSelectedCity] = useState<City | null>(null);
-  const [currentCityIndex, setCurrentCityIndex] = useState(0);
-  const [showItinerary, setShowItinerary] = useState(false);
-  const [carouselRotation, setCarouselRotation] = useState(0);
+  const [inputValue, setInputValue] = useState('');
+  const [isInputFocused, setIsInputFocused] = useState(false);
+  const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
+  const [isTyping, setIsTyping] = useState(false);
+  const [showChat, setShowChat] = useState(false);
+  const [isDarkMode, setIsDarkMode] = useState(false);
+  const [email, setEmail] = useState('');
 
-  const cities: City[] = [
-    {
-      id: 'paris',
-      name: 'Paris',
-      country: 'France',
-      icon: '🗼',
-      color: '#FF6B6B',
-      description: 'The City of Light',
-      highlights: ['Eiffel Tower', 'Louvre Museum', 'Notre-Dame', 'Champs-Élysées']
-    },
-    {
-      id: 'tokyo',
-      name: 'Tokyo',
-      country: 'Japan',
-      icon: '🌸',
-      color: '#FF9FF3',
-      description: 'Modern meets Traditional',
-      highlights: ['Shibuya Crossing', 'Tokyo Tower', 'Senso-ji Temple', 'Harajuku']
-    },
-    {
-      id: 'newyork',
-      name: 'New York',
-      country: 'USA',
-      icon: '🗽',
-      color: '#54C7EC',
-      description: 'The Big Apple',
-      highlights: ['Times Square', 'Central Park', 'Brooklyn Bridge', 'Empire State']
-    },
-    {
-      id: 'london',
-      name: 'London',
-      country: 'England',
-      icon: '🏰',
-      color: '#95E1D3',
-      description: 'Royal Heritage',
-      highlights: ['Big Ben', 'London Eye', 'Tower Bridge', 'Buckingham Palace']
-    },
-    {
-      id: 'sydney',
-      name: 'Sydney',
-      country: 'Australia',
-      icon: '🏛️',
-      color: '#F38BA8',
-      description: 'Harbor City',
-      highlights: ['Opera House', 'Harbor Bridge', 'Bondi Beach', 'Darling Harbour']
-    },
-    {
-      id: 'dubai',
-      name: 'Dubai',
-      country: 'UAE',
-      icon: '🏙️',
-      color: '#FFD23F',
-      description: 'Future Metropolis',
-      highlights: ['Burj Khalifa', 'Palm Jumeirah', 'Gold Souk', 'Dubai Mall']
-    },
-    {
-      id: 'rome',
-      name: 'Rome',
-      country: 'Italy',
-      icon: '🏛️',
-      color: '#A8E6CF',
-      description: 'Eternal City',
-      highlights: ['Colosseum', 'Vatican City', 'Trevi Fountain', 'Roman Forum']
-    },
-    {
-      id: 'bali',
-      name: 'Bali',
-      country: 'Indonesia',
-      icon: '🌺',
-      color: '#FFB3BA',
-      description: 'Island Paradise',
-      highlights: ['Ubud Rice Terraces', 'Tanah Lot', 'Mount Batur', 'Seminyak Beach']
-    },
-    {
-      id: 'bangkok',
-      name: 'Bangkok',
-      country: 'Thailand',
-      icon: '🛕',
-      color: '#BFCFFF',
-      description: 'Temple City',
-      highlights: ['Grand Palace', 'Wat Pho', 'Floating Markets', 'Khao San Road']
-    },
-    {
-      id: 'santorini',
-      name: 'Santorini',
-      country: 'Greece',
-      icon: '🏖️',
-      color: '#C7CEEA',
-      description: 'Aegean Gem',
-      highlights: ['Oia Sunset', 'Blue Domes', 'Red Beach', 'Fira Caldera']
-    }
-  ];
-
-  const sampleItineraries: Record<string, ItineraryDay[]> = {
-    paris: [
-      {
-        day: 1,
-        title: "Classic Paris",
-        activities: [
-          { time: "9:00 AM", activity: "Eiffel Tower Visit", location: "Champ de Mars", description: "Start with the iconic symbol of Paris" },
-          { time: "11:30 AM", activity: "Seine River Cruise", location: "Pont Neuf", description: "See Paris from the water" },
-          { time: "2:00 PM", activity: "Louvre Museum", location: "Rue de Rivoli", description: "World's largest art museum" },
-          { time: "6:00 PM", activity: "Sunset at Sacré-Cœur", location: "Montmartre", description: "Panoramic city views" }
-        ]
-      },
-      {
-        day: 2,
-        title: "Art & Culture",
-        activities: [
-          { time: "10:00 AM", activity: "Musée d'Orsay", location: "Left Bank", description: "Impressionist masterpieces" },
-          { time: "1:00 PM", activity: "Latin Quarter Walk", location: "5th Arrondissement", description: "Historic student quarter" },
-          { time: "3:30 PM", activity: "Notre-Dame Area", location: "Île de la Cité", description: "Gothic architecture" },
-          { time: "7:00 PM", activity: "Evening Seine Stroll", location: "Quai de Seine", description: "Romantic riverside walk" }
-        ]
-      }
-    ],
-    tokyo: [
-      {
-        day: 1,
-        title: "Modern Tokyo",
-        activities: [
-          { time: "9:00 AM", activity: "Shibuya Crossing", location: "Shibuya", description: "World's busiest intersection" },
-          { time: "11:00 AM", activity: "Harajuku Fashion District", location: "Harajuku", description: "Youth culture and fashion" },
-          { time: "2:00 PM", activity: "Meiji Shrine", location: "Shibuya", description: "Peaceful Shinto shrine" },
-          { time: "5:00 PM", activity: "Tokyo Tower", location: "Minato", description: "City skyline views" }
-        ]
-      },
-      {
-        day: 2,
-        title: "Traditional Tokyo",
-        activities: [
-          { time: "8:00 AM", activity: "Tsukiji Fish Market", location: "Chuo", description: "Fresh sushi breakfast" },
-          { time: "10:30 AM", activity: "Senso-ji Temple", location: "Asakusa", description: "Tokyo's oldest temple" },
-          { time: "1:00 PM", activity: "Imperial Palace Gardens", location: "Chiyoda", description: "Royal gardens" },
-          { time: "4:00 PM", activity: "Ginza Shopping", location: "Ginza", description: "Luxury shopping district" }
-        ]
-      }
-    ],
-    newyork: [
-      {
-        day: 1,
-        title: "Manhattan Highlights",
-        activities: [
-          { time: "9:00 AM", activity: "Central Park Walk", location: "Central Park", description: "Morning in the green heart of NYC" },
-          { time: "11:00 AM", activity: "Metropolitan Museum", location: "Upper East Side", description: "World-class art collection" },
-          { time: "2:00 PM", activity: "Times Square", location: "Midtown", description: "The crossroads of the world" },
-          { time: "5:00 PM", activity: "Empire State Building", location: "Midtown", description: "Iconic city views" }
-        ]
-      }
-    ],
-    london: [
-      {
-        day: 1,
-        title: "Royal London",
-        activities: [
-          { time: "9:00 AM", activity: "Tower of London", location: "Tower Hill", description: "Historic royal fortress" },
-          { time: "12:00 PM", activity: "Tower Bridge Walk", location: "South Bank", description: "Iconic bridge crossing" },
-          { time: "2:30 PM", activity: "Westminster Abbey", location: "Westminster", description: "Royal church and history" },
-          { time: "5:00 PM", activity: "Big Ben & Parliament", location: "Westminster", description: "Political heart of Britain" }
-        ]
-      }
-    ]
-  };
-
-  const testimonials: Testimonial[] = [
-    { text: "BARABULA transformed my trip to Tokyo. The AI suggestions were spot-on!", name: "Sarah Chen", avatar: "👩‍💼" },
-    { text: "Finally, a travel app that understands my preferences and adapts in real-time.", name: "Marcus Rodriguez", avatar: "👨‍🎨" },
-    { text: "The conversational AI feels like having a local guide everywhere I go.", name: "Emma Thompson", avatar: "👩‍🔬" },
-    { text: "Best travel planning experience I've ever had. Highly recommend!", name: "David Kim", avatar: "👨‍💻" },
-    { text: "The real-time adjustments saved my vacation when weather changed.", name: "Lisa Wang", avatar: "👩‍🚀" }
-  ];
-
-  const quizQuestions: QuizQuestion[] = [
-    {
-      question: "What's your ideal vacation pace?",
-      options: ["Relaxed and slow", "Balanced mix", "Action-packed adventure"]
-    },
-    {
-      question: "Your preferred accommodation?",
-      options: ["Luxury hotels", "Local experiences", "Budget-friendly"]
-    },
-    {
-      question: "Travel style preference?",
-      options: ["Solo explorer", "Group adventures", "Romantic getaways"]
-    }
-  ];
-
-  // Scroll tracking for parallax and active section
+  // Load dark mode preference from localStorage
   useEffect(() => {
-    const handleScroll = () => {
-      const scrolled = window.scrollY;
-      setScrollY(scrolled);
-
-      // Update active section
-      const sections = ['hero', 'features', 'how-it-works', 'testimonials'];
-      const currentSection = sections.find(section => {
-        const element = document.getElementById(section);
-        if (element) {
-          const rect = element.getBoundingClientRect();
-          return rect.top <= 100 && rect.bottom >= 100;
-        }
-        return false;
-      });
-      if (currentSection) setActiveSection(currentSection);
-    };
-
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
+    const savedDarkMode = localStorage.getItem('darkMode');
+    if (savedDarkMode) {
+      setIsDarkMode(JSON.parse(savedDarkMode));
+    } else {
+      // Check system preference
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      setIsDarkMode(prefersDark);
+    }
   }, []);
 
-  // Intersection Observer for scroll animations and number counters
+  // Apply dark mode class to body
   useEffect(() => {
-    const observerOptions = {
-      threshold: 0.1,
-      rootMargin: '0px 0px -10% 0px'
-    };
-
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(entry => {
-        if (entry.isIntersecting) {
-          entry.target.classList.add('animate-in');
-          
-          // Trigger number counter animation
-          if (entry.target.classList.contains('counter')) {
-            const counter = entry.target as HTMLElement;
-            const target = parseInt(counter.getAttribute('data-target') || '0');
-            let count = 0;
-            const increment = target / 30; // Animate over ~1 second
-            
-            const timer = setInterval(() => {
-              count += increment;
-              if (count >= target) {
-                counter.textContent = target.toString();
-                clearInterval(timer);
-              } else {
-                counter.textContent = Math.floor(count).toString();
-              }
-            }, 33); // ~30 FPS
-          }
-        }
-      });
-    }, observerOptions);
-
-    document.querySelectorAll('.animate-on-scroll, .counter').forEach(el => {
-      observer.observe(el);
-    });
-
-    return () => observer.disconnect();
-  }, []);
+    if (isDarkMode) {
+      document.body.classList.add('dark-mode');
+    } else {
+      document.body.classList.remove('dark-mode');
+    }
+    // Save preference
+    localStorage.setItem('darkMode', JSON.stringify(isDarkMode));
+  }, [isDarkMode]);
 
   const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    document.body.classList.toggle('dark-mode');
+    setIsDarkMode(!isDarkMode);
   };
 
-  const handleChatSubmit = (message: string) => {
-    setChatMessages([...chatMessages, 
-      { text: message, isBot: false },
-      { text: "That sounds amazing! I can help you plan the perfect itinerary. Let me show you some personalized recommendations...", isBot: true }
-    ]);
+  const examplePrompts = [
+    "Weekend in Tokyo with kids",
+    "Best foodie experiences in Barcelona?",
+    "Plan a 5-day adventure in Peru"
+  ];
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputValue(e.target.value);
   };
 
-  const handleQuizAnswer = (answer: string) => {
-    const newAnswers = { ...quizAnswers, [quizStep]: answer };
-    setQuizAnswers(newAnswers);
-    
-    if (quizStep < quizQuestions.length - 1) {
-      setQuizStep(quizStep + 1);
-    } else {
-      // Quiz completed, show results
-      alert("Great! Based on your answers, I'd recommend exploring cultural destinations with a balanced pace and mid-range accommodations. Ready to start planning?");
-      setQuizStep(0);
-      setQuizAnswers({});
+  const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setEmail(e.target.value);
+  };
+
+  const handleInputFocus = () => {
+    setIsInputFocused(true);
+  };
+
+  const handleInputBlur = () => {
+    setIsInputFocused(false);
+  };
+
+  const handleSubmit = (message: string) => {
+    if (!message.trim()) return;
+
+    const newMessage: ChatMessage = {
+      text: message,
+      isBot: false,
+      timestamp: new Date()
+    };
+
+    setChatMessages([...chatMessages, newMessage]);
+    setInputValue('');
+    setShowChat(true);
+    setIsTyping(true);
+
+    // Simulate AI response
+    setTimeout(() => {
+      const aiResponse: ChatMessage = {
+        text: "I'd love to help you plan that adventure! Let me create a personalized itinerary based on your preferences. What's your travel style - relaxed exploration, action-packed adventures, or cultural immersion?",
+        isBot: true,
+        timestamp: new Date()
+      };
+      setChatMessages(prev => [...prev, aiResponse]);
+      setIsTyping(false);
+    }, 2000);
+  };
+
+  const handleExampleClick = (prompt: string) => {
+    setInputValue(prompt);
+    handleSubmit(prompt);
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      handleSubmit(inputValue);
     }
   };
 
-  const smoothScrollTo = (elementId: string) => {
-    document.getElementById(elementId)?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const handleCitySelect = (city: City) => {
-    setSelectedCity(city);
-    setShowItinerary(true);
-  };
-
-  const closeItinerary = () => {
-    setShowItinerary(false);
-    setSelectedCity(null);
-  };
-
-  const nextCity = () => {
-    const nextIndex = (currentCityIndex + 1) % cities.length;
-    setCurrentCityIndex(nextIndex);
-    setCarouselRotation(-(nextIndex * (360 / cities.length)));
-  };
-
-  const prevCity = () => {
-    const prevIndex = currentCityIndex === 0 ? cities.length - 1 : currentCityIndex - 1;
-    setCurrentCityIndex(prevIndex);
-    setCarouselRotation(-(prevIndex * (360 / cities.length)));
-  };
-
-  const selectCityByIndex = (index: number) => {
-    setCurrentCityIndex(index);
-    setCarouselRotation(-(index * (360 / cities.length)));
+  const handleSubscribe = () => {
+    if (email.trim()) {
+      alert(`Thank you for subscribing with ${email}!`);
+      setEmail('');
+    }
   };
 
   return (
-    <div className={`App ${darkMode ? 'dark-mode' : ''}`}>
-      {/* Navigation */}
-      <nav className="navbar">
-        <div className="nav-container">
-          <div className="nav-logo">
-            <h2>BARABULA</h2>
-          </div>
-          <div className="nav-links">
-            <a 
-              href="#features" 
-              className={activeSection === 'features' ? 'active' : ''}
-              onClick={(e) => { e.preventDefault(); smoothScrollTo('features'); }}
-            >
-              Features
-            </a>
-            <a 
-              href="#how-it-works" 
-              className={activeSection === 'how-it-works' ? 'active' : ''}
-              onClick={(e) => { e.preventDefault(); smoothScrollTo('how-it-works'); }}
-            >
-              How It Works
-            </a>
-            <a 
-              href="#testimonials" 
-              className={activeSection === 'testimonials' ? 'active' : ''}
-              onClick={(e) => { e.preventDefault(); smoothScrollTo('testimonials'); }}
-            >
-              Testimonials
-            </a>
-            <button className="nav-cta">Get Started</button>
-            <button className="dark-mode-toggle" onClick={toggleDarkMode}>
-              {darkMode ? '☀️' : '🌙'}
-            </button>
-          </div>
-        </div>
-      </nav>
+    <div className="App">
+      {/* Background Elements */}
+      <div className="background-shape"></div>
+      <div className="background-globe">
+        <svg viewBox="0 0 100 100" className="globe-svg">
+          <circle cx="50" cy="50" r="48" fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.3"/>
+          <path d="M10 50 Q30 30 50 50 Q70 70 90 50" fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.3"/>
+          <path d="M10 50 Q30 70 50 50 Q70 30 90 50" fill="none" stroke="currentColor" strokeWidth="0.5" opacity="0.3"/>
+          <circle cx="50" cy="50" r="2" fill="currentColor" opacity="0.4"/>
+        </svg>
+      </div>
 
-      {/* Hero Section */}
-      <section id="hero" className="hero">
-        <div className="hero-background" style={{ transform: `translateY(${scrollY * 0.5}px)` }}>
-          <div className="travel-shapes">
-            <div className="shape shape-1">✈️</div>
-            <div className="shape shape-2">🗺️</div>
-            <div className="shape shape-3">📍</div>
-            <div className="shape shape-4">🧳</div>
-            <div className="shape shape-5">🌍</div>
-            <div className="shape shape-6">📸</div>
-            <div className="shape shape-7">🏔️</div>
-            <div className="shape shape-8">🏖️</div>
+      {/* Header */}
+      <header className="header">
+        <div className="header-container">
+          <div className="logo">
+            <span className="logo-text">BARABULA</span>
           </div>
-          <div className="hero-gradient"></div>
-        </div>
-        <div className="hero-container">
-          <div className="hero-content animate-on-scroll">
-            <h1 className="hero-title">WANDER SMARTER WITH BARABULA</h1>
-            <p className="hero-subtitle">
-              Your AI-powered travel companion for personalized, context-aware journeys.
-            </p>
-            <button className="hero-cta" onClick={() => smoothScrollTo('demo')}>
-              Start Exploring
+          <nav className="navigation">
+            <a href="#explore" className="nav-link active">Explore</a>
+            <a href="#destinations" className="nav-link">Destinations</a>
+            <a href="#experiences" className="nav-link">Experiences</a>
+            <a href="#pricing" className="nav-link">Pricing</a>
+            <a href="#about" className="nav-link">About</a>
+            <a href="#contact" className="nav-link">Contact</a>
+          </nav>
+          <div className="header-actions">
+            <button 
+              className="dark-mode-toggle"
+              onClick={toggleDarkMode}
+              aria-label={isDarkMode ? 'Switch to light mode' : 'Switch to dark mode'}
+            >
+              {isDarkMode ? '☀️' : '🌙'}
             </button>
+            <button className="auth-button sign-in">Sign In</button>
+            <button className="auth-button sign-up">Sign Up</button>
           </div>
-          
-          {/* Interactive City Carousel */}
-          <div className="city-carousel-container">
-            <h3 className="carousel-title">Explore Popular Destinations</h3>
-            <div className="carousel-wrapper">
-              <button className="carousel-nav prev" onClick={prevCity} aria-label="Previous city">
-                <span>←</span>
-              </button>
-              
-              <div className="city-carousel">
-                <div 
-                  className="carousel-circle" 
-                  style={{ transform: `rotate(${carouselRotation}deg)` }}
-                >
-                  {cities.map((city, index) => {
-                    const angle = (index * 360) / cities.length;
-                    const isActive = index === currentCityIndex;
-                    
-                    return (
-                      <div
-                        key={city.id}
-                        className={`city-card ${isActive ? 'active' : ''}`}
-                        style={{
-                          transform: `rotate(${angle}deg) translateX(180px) rotate(-${angle + carouselRotation}deg)`,
-                        }}
-                        onClick={() => {
-                          selectCityByIndex(index);
-                          handleCitySelect(city);
-                        }}
-                      >
-                        <div className="city-icon" style={{ backgroundColor: city.color }}>
-                          {city.icon}
-                        </div>
-                        <div className="city-info">
-                          <h4>{city.name}</h4>
-                          <p>{city.country}</p>
-                          <span className="city-description">{city.description}</span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="main-content">
+        {!showChat ? (
+          <>
+            {/* Hero Section */}
+            <section className="hero-section">
+              <div className="hero-content">
+                <h1 className="hero-title">Where will your wander take you?</h1>
                 
-                {/* Center Info Display */}
-                <div className="carousel-center">
-                  <div className="featured-city">
-                    <div className="featured-icon" style={{ backgroundColor: cities[currentCityIndex].color }}>
-                      {cities[currentCityIndex].icon}
-                    </div>
-                    <h3>{cities[currentCityIndex].name}</h3>
-                    <p>{cities[currentCityIndex].description}</p>
-                    <div className="city-highlights">
-                      {cities[currentCityIndex].highlights.slice(0, 2).map((highlight, idx) => (
-                        <span key={idx} className="highlight-tag">{highlight}</span>
-                      ))}
-                    </div>
-                    <button 
-                      className="view-itinerary-btn"
-                      onClick={() => handleCitySelect(cities[currentCityIndex])}
-                    >
-                      View Sample Itinerary
-                    </button>
-                  </div>
+                <div className={`input-container ${isInputFocused ? 'focused' : ''}`}>
+                  <input
+                    type="text"
+                    value={inputValue}
+                    onChange={handleInputChange}
+                    onFocus={handleInputFocus}
+                    onBlur={handleInputBlur}
+                    onKeyPress={handleKeyPress}
+                    placeholder="Ask BARABULA..."
+                    className="main-input"
+                  />
+                  <button 
+                    className="send-button"
+                    onClick={() => handleSubmit(inputValue)}
+                    disabled={!inputValue.trim()}
+                  >
+                    <svg viewBox="0 0 24 24" className="send-icon">
+                      <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/>
+                    </svg>
+                  </button>
                 </div>
-              </div>
-              
-              <button className="carousel-nav next" onClick={nextCity} aria-label="Next city">
-                <span>→</span>
-              </button>
-            </div>
-            
-            {/* City Dots Navigation */}
-            <div className="carousel-dots">
-              {cities.map((_, index) => (
-                <button
-                  key={index}
-                  className={`dot ${index === currentCityIndex ? 'active' : ''}`}
-                  onClick={() => selectCityByIndex(index)}
-                  aria-label={`Go to ${cities[index].name}`}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      </section>
 
-      {/* Features Section */}
-      <section id="features" className="features">
-        <div className="features-container">
-          <div className="feature-card animate-on-scroll" data-delay="0">
-            <div className="feature-icon calendar-icon animated-icon">📅</div>
-            <h3>Real-time Itinerary Adjustments</h3>
-            <p>Adapt your plans instantly based on weather, crowds, and preferences.</p>
-          </div>
-          <div className="feature-card animate-on-scroll" data-delay="200">
-            <div className="feature-icon map-icon animated-icon">🗺️</div>
-            <h3>Geo-aware Recommendations</h3>
-            <p>Discover hidden gems and local favorites wherever you are.</p>
-          </div>
-          <div className="feature-card animate-on-scroll" data-delay="400">
-            <div className="feature-icon chat-icon animated-icon">💬</div>
-            <h3>Conversational AI Assistance</h3>
-            <p>Get instant answers and personalized suggestions through natural conversation.</p>
-          </div>
-        </div>
-      </section>
-
-      {/* Interactive Demo Section */}
-      <section id="demo" className="demo-section">
-        <div className="demo-container">
-          <div className="demo-chat animate-on-scroll">
-            <h3>Try Our AI Assistant</h3>
-            <div className="chat-window">
-              {chatMessages.map((msg, index) => (
-                <div key={index} className={`chat-message ${msg.isBot ? 'bot' : 'user'}`}>
-                  <div className="message-bubble">
-                    {msg.text}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="chat-input-container">
-              <input 
-                type="text" 
-                placeholder="Ask me about your next destination..."
-                onKeyPress={(e) => {
-                  if (e.key === 'Enter') {
-                    const input = e.target as HTMLInputElement;
-                    if (input.value.trim()) {
-                      handleChatSubmit(input.value);
-                      input.value = '';
-                    }
-                  }
-                }}
-              />
-              <button className="chat-send">Send</button>
-            </div>
-          </div>
-
-          <div className="quiz-section animate-on-scroll">
-            <h3>Discover Your Travel Style</h3>
-            <div className="quiz-container">
-              <div className="quiz-progress">
-                <div 
-                  className="quiz-progress-bar"
-                  style={{ width: `${((quizStep + 1) / quizQuestions.length) * 100}%` }}
-                ></div>
-              </div>
-              <div className="quiz-question">
-                <h4>{quizQuestions[quizStep].question}</h4>
-                <div className="quiz-options">
-                  {quizQuestions[quizStep].options.map((option, index) => (
-                    <button 
+                <div className="example-prompts">
+                  {examplePrompts.map((prompt, index) => (
+                    <button
                       key={index}
-                      className="quiz-option"
-                      onClick={() => handleQuizAnswer(option)}
+                      className="example-prompt"
+                      onClick={() => handleExampleClick(prompt)}
                     >
-                      {option}
+                      {prompt}
                     </button>
                   ))}
                 </div>
               </div>
-            </div>
-          </div>
-        </div>
-      </section>
+            </section>
 
-      {/* How It Works Section */}
-      <section id="how-it-works" className="how-it-works">
-        <div className="how-it-works-container">
-          <h2 className="animate-on-scroll">How It Works</h2>
-          <div className="steps">
-            <div className="step animate-on-scroll" data-delay="0">
-              <div className="step-number counter" data-target="1">1</div>
-              <div className="step-icon preferences-icon">⚙️</div>
-              <h3>Tell us your preferences</h3>
-              <p>Share your travel style, interests, and budget.</p>
-            </div>
-            <div className="step animate-on-scroll" data-delay="200">
-              <div className="step-number counter" data-target="2">2</div>
-              <div className="step-icon suggestions-icon">🎯</div>
-              <h3>Get personalized suggestions</h3>
-              <p>Receive curated recommendations tailored just for you.</p>
-            </div>
-            <div className="step animate-on-scroll" data-delay="400">
-              <div className="step-number counter" data-target="3">3</div>
-              <div className="step-icon travel-icon-step">✈️</div>
-              <h3>Travel effortlessly</h3>
-              <p>Enjoy seamless journeys with real-time assistance.</p>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Testimonials Section */}
-      <section id="testimonials" className="testimonials">
-        <div className="testimonials-container">
-          <h2 className="animate-on-scroll">What Travelers Say</h2>
-          <div className="testimonials-grid">
-            {testimonials.slice(0, 3).map((testimonial, index) => (
-              <div key={index} className="testimonial-card animate-on-scroll" data-delay={index * 100}>
-                <div className="testimonial-avatar">{testimonial.avatar}</div>
-                <p>"{testimonial.text}"</p>
-                <span className="testimonial-name">{testimonial.name}</span>
+            {/* Secondary CTA */}
+            <section className="secondary-cta">
+              <div className="cta-content">
+                <span className="cta-text">Not sure where to go?</span>
+                <button className="inspire-button">Let BARABULA Inspire Me</button>
               </div>
-            ))}
-          </div>
-        </div>
-      </section>
+            </section>
 
-      {/* Partners Section */}
-      <section className="partners">
-        <div className="partners-container animate-on-scroll">
-          <div className="partner-logo">Expedia</div>
-          <div className="partner-logo">Booking</div>
-          <div className="partner-logo">Google Maps</div>
-          <div className="partner-logo">TripAdvisor</div>
-          <div className="partner-logo">Airbnb</div>
-        </div>
-      </section>
+            {/* Features Section */}
+            <section className="features-section">
+              <div className="features-container">
+                <div className="feature-card">
+                  <div className="feature-icon">
+                    <svg viewBox="0 0 24 24" className="icon">
+                      <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+                    </svg>
+                  </div>
+                  <h3 className="feature-title">Smart AI Recommendations</h3>
+                  <p className="feature-description">Personalized suggestions based on your preferences, budget, and travel style.</p>
+                </div>
+
+                <div className="feature-card">
+                  <div className="feature-icon">
+                    <svg viewBox="0 0 24 24" className="icon">
+                      <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+                      <polyline points="9,22 9,12 15,12 15,22" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+                    </svg>
+                  </div>
+                  <h3 className="feature-title">Real-time Itinerary Updates</h3>
+                  <p className="feature-description">Dynamic plans that adapt to weather, availability, and your changing preferences.</p>
+                </div>
+
+                <div className="feature-card">
+                  <div className="feature-icon">
+                    <svg viewBox="0 0 24 24" className="icon">
+                      <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" fill="none" stroke="currentColor" strokeWidth="1.5"/>
+                    </svg>
+                  </div>
+                  <h3 className="feature-title">Conversational Travel Assistant</h3>
+                  <p className="feature-description">Chat naturally with AI to refine plans, ask questions, and get instant advice.</p>
+                </div>
+              </div>
+            </section>
+
+            {/* How It Works Section */}
+            <section className="how-it-works">
+              <div className="how-it-works-container">
+                <h2 className="section-title">How It Works</h2>
+                <div className="steps-container">
+                  <div className="step">
+                    <div className="step-number">1</div>
+                    <div className="step-content">
+                      <h3 className="step-title">Describe Your Dream Trip</h3>
+                      <p className="step-description">Tell us where you want to go, your interests, and travel style</p>
+                    </div>
+                  </div>
+                  <div className="step-connector"></div>
+                  <div className="step">
+                    <div className="step-number">2</div>
+                    <div className="step-content">
+                      <h3 className="step-title">Get Personalized Plans Instantly</h3>
+                      <p className="step-description">Our AI creates detailed itineraries tailored just for you</p>
+                    </div>
+                  </div>
+                  <div className="step-connector"></div>
+                  <div className="step">
+                    <div className="step-number">3</div>
+                    <div className="step-content">
+                      <h3 className="step-title">Explore, Book, and Enjoy</h3>
+                      <p className="step-description">Follow your personalized plan and make memories</p>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </>
+        ) : (
+          /* Chat View */
+          <div className="chat-view">
+            <button 
+              className="back-button"
+              onClick={() => setShowChat(false)}
+            >
+              ← Back to search
+            </button>
+            
+            <div className="chat-container">
+              <div className="chat-messages">
+                {chatMessages.map((message, index) => (
+                  <div key={index} className={`message ${message.isBot ? 'bot' : 'user'}`}>
+                    <div className="message-content">
+                      {message.text}
+                    </div>
+                    <div className="message-time">
+                      {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </div>
+                  </div>
+                ))}
+                
+                {isTyping && (
+                  <div className="message bot typing">
+                    <div className="message-content">
+                      <div className="typing-indicator">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="chat-input-container">
+                <input
+                  type="text"
+                  value={inputValue}
+                  onChange={handleInputChange}
+                  onKeyPress={handleKeyPress}
+                  placeholder="Continue your conversation..."
+                  className="chat-input"
+                />
+                <button 
+                  className="send-button"
+                  onClick={() => handleSubmit(inputValue)}
+                  disabled={!inputValue.trim()}
+                >
+                  <svg viewBox="0 0 24 24" className="send-icon">
+                    <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" fill="currentColor"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </main>
 
       {/* Footer */}
       <footer className="footer">
         <div className="footer-container">
-          <div className="footer-social">
-            <div className="social-icon twitter">🐦</div>
-            <div className="social-icon instagram">📷</div>
-            <div className="social-icon facebook">📘</div>
+          <div className="footer-left">
+            <div className="social-icons">
+              <button className="social-icon" aria-label="Twitter">
+                <svg viewBox="0 0 24 24" className="social-svg">
+                  <path d="M23 3a10.9 10.9 0 01-3.14 1.53 4.48 4.48 0 00-7.86 3v1A10.66 10.66 0 013 4s-4 9 5 13a11.64 11.64 0 01-7 2c9 5 20 0 20-11.5a4.5 4.5 0 00-.08-.83A7.72 7.72 0 0023 3z"/>
+                </svg>
+              </button>
+              <button className="social-icon" aria-label="Instagram">
+                <svg viewBox="0 0 24 24" className="social-svg">
+                  <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                  <path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z"/>
+                  <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+                </svg>
+              </button>
+              <button className="social-icon" aria-label="Facebook">
+                <svg viewBox="0 0 24 24" className="social-svg">
+                  <path d="M18 2h-3a5 5 0 00-5 5v3H7v4h3v8h4v-8h3l1-4h-4V7a1 1 0 011-1h3z"/>
+                </svg>
+              </button>
+            </div>
           </div>
-          <div className="footer-links">
-            <a href="#privacy">Privacy</a>
-            <a href="#terms">Terms</a>
-            <a href="#contact">Contact</a>
+          
+          <div className="footer-center">
+            <div className="footer-links">
+              <a href="#privacy">Privacy Policy</a>
+              <span className="separator">·</span>
+              <a href="#terms">Terms of Service</a>
+              <span className="separator">·</span>
+              <a href="#contact">Contact Us</a>
+            </div>
           </div>
-          <div className="footer-subscribe">
-            <input type="email" placeholder="Subscribe to updates" className="subscribe-input" />
-            <button className="subscribe-btn">Subscribe</button>
+          
+          <div className="footer-right">
+            <div className="newsletter-signup">
+              <span className="newsletter-label">Subscribe:</span>
+              <div className="newsletter-input-container">
+                <input
+                  type="email"
+                  value={email}
+                  onChange={handleEmailChange}
+                  placeholder="Enter your email"
+                  className="newsletter-input"
+                />
+                <button 
+                  className="newsletter-button"
+                  onClick={handleSubscribe}
+                >
+                  Subscribe
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </footer>
-
-      {/* Itinerary Modal */}
-      {showItinerary && selectedCity && (
-        <div className="itinerary-modal-overlay" onClick={closeItinerary}>
-          <div className="itinerary-modal" onClick={(e) => e.stopPropagation()}>
-            <button className="modal-close" onClick={closeItinerary}>×</button>
-            <div className="modal-header">
-              <div className="modal-city-icon" style={{ backgroundColor: selectedCity.color }}>
-                {selectedCity.icon}
-              </div>
-              <div className="modal-city-info">
-                <h2>{selectedCity.name}, {selectedCity.country}</h2>
-                <p>{selectedCity.description}</p>
-                <div className="modal-highlights">
-                  {selectedCity.highlights.map((highlight, idx) => (
-                    <span key={idx} className="highlight-tag">{highlight}</span>
-                  ))}
-                </div>
-              </div>
-            </div>
-            
-            <div className="modal-content">
-              <h3>Sample Itinerary</h3>
-              {sampleItineraries[selectedCity.id] ? (
-                <div className="itinerary-days">
-                  {sampleItineraries[selectedCity.id].map((day) => (
-                    <div key={day.day} className="day-card">
-                      <h4>Day {day.day}: {day.title}</h4>
-                      <div className="activities">
-                        {day.activities.map((activity, idx) => (
-                          <div key={idx} className="activity">
-                            <div className="activity-time">{activity.time}</div>
-                            <div className="activity-details">
-                              <h5>{activity.activity}</h5>
-                              <p className="activity-location">📍 {activity.location}</p>
-                              <p className="activity-description">{activity.description}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="no-itinerary">
-                  <p>Sample itinerary coming soon for {selectedCity.name}!</p>
-                </div>
-              )}
-              
-              <div className="modal-actions">
-                <button className="btn-secondary" onClick={closeItinerary}>
-                  Close
-                </button>
-                <button className="btn-primary">
-                  Create Custom Itinerary
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
