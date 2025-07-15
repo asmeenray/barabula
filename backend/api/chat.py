@@ -5,8 +5,8 @@ import openai
 from datetime import datetime, timedelta
 import json
 
-from database import get_db, get_mongodb
-from models import User as UserModel, Itinerary as ItineraryModel
+from database import get_db
+from models import User as UserModel, Itinerary as ItineraryModel, ChatHistory
 from schemas import ChatMessage, ChatResponse, ItineraryGenerationRequest
 from api.auth import get_current_active_user
 from config import settings
@@ -193,7 +193,8 @@ class AIService:
 @router.post("/message", response_model=ChatResponse)
 async def send_chat_message(
     message_data: ChatMessage,
-    current_user: UserModel = Depends(get_current_active_user)
+    current_user: UserModel = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
 ):
     """Send a message to the AI travel assistant"""
     response_data = await AIService.generate_chat_response(
@@ -202,21 +203,21 @@ async def send_chat_message(
         current_user.preferences
     )
     
-    # Store chat history in MongoDB
-    mongodb = await get_mongodb()
-    chat_record = {
-        "user_id": current_user.id,
-        "message": message_data.message,
-        "response": response_data["response"],
-        "context": message_data.context,
-        "timestamp": datetime.utcnow(),
-        "suggestions": response_data["suggestions"]
-    }
+    # Store chat history in PostgreSQL
+    chat_record = ChatHistory(
+        user_id=current_user.id,
+        message=message_data.message,
+        response=response_data["response"],
+        context=message_data.context or {},
+        suggestions=response_data["suggestions"] or []
+    )
     
     try:
-        await mongodb.chat_history.insert_one(chat_record)
+        db.add(chat_record)
+        db.commit()
     except Exception as e:
         print(f"Error storing chat history: {e}")
+        db.rollback()
     
     return ChatResponse(**response_data)
 
@@ -224,21 +225,26 @@ async def send_chat_message(
 @router.get("/history")
 async def get_chat_history(
     limit: int = 50,
-    current_user: UserModel = Depends(get_current_active_user)
+    current_user: UserModel = Depends(get_current_active_user),
+    db: Session = Depends(get_db)
 ):
     """Get user's chat history"""
-    mongodb = await get_mongodb()
-    
     try:
-        cursor = mongodb.chat_history.find(
-            {"user_id": current_user.id}
-        ).sort("timestamp", -1).limit(limit)
+        chat_records = db.query(ChatHistory).filter(
+            ChatHistory.user_id == current_user.id
+        ).order_by(ChatHistory.timestamp.desc()).limit(limit).all()
         
         history = []
-        async for record in cursor:
-            # Convert ObjectId to string
-            record["_id"] = str(record["_id"])
-            history.append(record)
+        for record in chat_records:
+            history.append({
+                "id": record.id,
+                "user_id": record.user_id,
+                "message": record.message,
+                "response": record.response,
+                "context": record.context,
+                "suggestions": record.suggestions,
+                "timestamp": record.timestamp.isoformat()
+            })
         
         return {"history": history}
     

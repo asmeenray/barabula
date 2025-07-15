@@ -13,8 +13,14 @@ from config import settings
 
 router = APIRouter()
 
-# Initialize Google Maps client
-gmaps = googlemaps.Client(key=settings.google_maps_api_key)
+# Initialize Google Maps client (only if API key is provided)
+gmaps = None
+if settings.google_maps_api_key and settings.google_maps_api_key != "your_google_maps_api_key_here":
+    try:
+        gmaps = googlemaps.Client(key=settings.google_maps_api_key)
+    except Exception as e:
+        print(f"Warning: Could not initialize Google Maps client: {e}")
+        gmaps = None
 
 
 class RecommendationService:

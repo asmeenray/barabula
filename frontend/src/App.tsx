@@ -1,4 +1,9 @@
 import React, { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { getCurrentUser, logout } from './store/authSlice';
+import { RootState, AppDispatch } from './store/store';
+import Login from './pages/Auth/Login';
+import Register from './pages/Auth/Register';
 import './App.css';
 
 interface ChatMessage {
@@ -14,6 +19,13 @@ interface TripPlan {
 }
 
 function App() {
+  // Authentication state
+  const dispatch = useDispatch<AppDispatch>();
+  const { user, isAuthenticated, loading } = useSelector((state: RootState) => state.auth);
+  const [showLoginModal, setShowLoginModal] = useState(false);
+  const [showRegisterModal, setShowRegisterModal] = useState(false);
+
+  // Existing state
   const [inputValue, setInputValue] = useState('');
   const [isInputFocused, setIsInputFocused] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
@@ -32,6 +44,19 @@ function App() {
     personalizations: []
   });
   const [newPersonalization, setNewPersonalization] = useState('');
+
+  useEffect(() => {
+    // Fetch current user on app load
+    dispatch(getCurrentUser());
+  }, [dispatch]);
+
+  // Authentication initialization
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+    if (token && !user) {
+      dispatch(getCurrentUser());
+    }
+  }, [dispatch, user]);
 
   // Load dark mode preference from localStorage
   useEffect(() => {
@@ -209,6 +234,24 @@ function App() {
     setSelectedDestination(null);
   };
 
+  // Authentication handlers
+  const handleLoginClick = () => {
+    setShowLoginModal(true);
+  };
+
+  const handleRegisterClick = () => {
+    setShowRegisterModal(true);
+  };
+
+  const handleLogout = () => {
+    dispatch(logout());
+  };
+
+  const closeAuthModals = () => {
+    setShowLoginModal(false);
+    setShowRegisterModal(false);
+  };
+
   return (
     <div className="App">
       {/* Background Elements */}
@@ -274,8 +317,14 @@ function App() {
             >
               {isDarkMode ? '☀️' : '🌙'}
             </button>
-            <button className="auth-button sign-in">Sign In</button>
-            <button className="auth-button sign-up">Sign Up</button>
+            {!isAuthenticated ? (
+              <>
+                <button className="auth-button sign-in" onClick={handleLoginClick}>Sign In</button>
+                <button className="auth-button sign-up" onClick={handleRegisterClick}>Sign Up</button>
+              </>
+            ) : (
+              <button className="auth-button logout" onClick={handleLogout}>Logout</button>
+            )}
           </div>
         </div>
       </header>
@@ -458,32 +507,6 @@ function App() {
                     </button>
                   </div>
                 )}
-
-                {/* Secondary CTA */}
-                <div className="secondary-cta">
-                  <div className="cta-content">
-                    <div className="cta-wrapper">
-                      <div className="cta-icon">
-                        <svg viewBox="0 0 24 24" className="inspire-icon">
-                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" fill="none" stroke="currentColor" strokeWidth="1.5"/>
-                        </svg>
-                      </div>
-                      <div className="cta-text-wrapper">
-                        <span className="cta-text">Feeling adventurous?</span>
-                        <span className="cta-subtext">Let our AI discover hidden gems just for you</span>
-                      </div>
-                      <button 
-                        className="inspire-button"
-                        onClick={() => setShowAdvancedForm(true)}
-                      >
-                        <span className="button-text">Inspire Me</span>
-                        <svg viewBox="0 0 24 24" className="button-arrow">
-                          <path d="M7 17l9.2-9.2M17 17V7H7" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round"/>
-                        </svg>
-                      </button>
-                    </div>
-                  </div>
-                </div>
               </div>
             </section>
 
@@ -1041,6 +1064,39 @@ function App() {
                   Plan {selectedDestination} Trip
                 </button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Authentication Modals */}
+      {showLoginModal && (
+        <div className="popup-overlay" onClick={closeAuthModals}>
+          <div className="auth-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Sign In</h2>
+              <button className="close-popup-btn" onClick={closeAuthModals}>
+                ×
+              </button>
+            </div>
+            <div className="modal-content">
+              <Login />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {showRegisterModal && (
+        <div className="popup-overlay" onClick={closeAuthModals}>
+          <div className="auth-modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h2>Sign Up</h2>
+              <button className="close-popup-btn" onClick={closeAuthModals}>
+                ×
+              </button>
+            </div>
+            <div className="modal-content">
+              <Register />
             </div>
           </div>
         </div>

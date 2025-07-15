@@ -25,6 +25,8 @@ class User(Base):
     # Relationships
     itineraries = relationship("Itinerary", back_populates="owner")
     collaborations = relationship("ItineraryCollaborator", back_populates="user")
+    chat_history = relationship("ChatHistory", back_populates="user")
+    chat_history = relationship("ChatHistory", back_populates="user")
 
 
 class Itinerary(Base):
@@ -41,7 +43,7 @@ class Itinerary(Base):
     status = Column(String, default="draft")  # draft, active, completed, cancelled
     is_public = Column(Boolean, default=False)
     ai_generated = Column(Boolean, default=False)
-    metadata = Column(JSON, default={})
+    extra_data = Column(JSON, default={})
     owner_id = Column(String, ForeignKey("users.id"), nullable=False)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
@@ -86,9 +88,24 @@ class Activity(Base):
     notes = Column(Text)
     priority = Column(Integer, default=1)  # 1=high, 2=medium, 3=low
     is_booked = Column(Boolean, default=False)
-    metadata = Column(JSON, default={})
+    extra_data = Column(JSON, default={})
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
     
     # Relationships
     itinerary = relationship("Itinerary", back_populates="activities")
+
+
+class ChatHistory(Base):
+    __tablename__ = "chat_history"
+    
+    id = Column(String, primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String, ForeignKey("users.id"), nullable=False)
+    message = Column(Text, nullable=False)
+    response = Column(Text, nullable=False)
+    context = Column(JSON, default={})
+    suggestions = Column(JSON, default=[])
+    timestamp = Column(DateTime(timezone=True), server_default=func.now())
+    
+    # Relationship
+    user = relationship("User", back_populates="chat_history")

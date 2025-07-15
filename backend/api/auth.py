@@ -91,40 +91,62 @@ async def get_current_active_user(current_user: UserModel = Depends(get_current_
     return current_user
 
 
+@router.options("/register")
+async def register_options():
+    """Handle CORS preflight for register endpoint"""
+    return {"message": "OK"}
+
+
 @router.post("/register", response_model=User, status_code=status.HTTP_201_CREATED)
 async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user"""
-    # Check if user already exists
-    if get_user_by_username(db, user_data.username):
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Username already registered"
+    try:
+        # Check if user already exists
+        if get_user_by_username(db, user_data.username):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Username already registered"
+            )
+        
+        if get_user_by_email(db, user_data.email):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered"
+            )
+        
+        # Create new user
+        hashed_password = get_password_hash(user_data.password)
+        db_user = UserModel(
+            email=user_data.email,
+            username=user_data.username,
+            full_name=user_data.full_name,
+            hashed_password=hashed_password,
+            avatar_url=user_data.avatar_url,
+            preferences=user_data.preferences,
+            language=user_data.language,
+            timezone=user_data.timezone
         )
-    
-    if get_user_by_email(db, user_data.email):
+        
+        db.add(db_user)
+        db.commit()
+        db.refresh(db_user)
+        
+        return db_user
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Registration error: {str(e)}")
+        print(f"User data: {user_data}")
         raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Email already registered"
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Registration failed: {str(e)}"
         )
-    
-    # Create new user
-    hashed_password = get_password_hash(user_data.password)
-    db_user = UserModel(
-        email=user_data.email,
-        username=user_data.username,
-        full_name=user_data.full_name,
-        hashed_password=hashed_password,
-        avatar_url=user_data.avatar_url,
-        preferences=user_data.preferences,
-        language=user_data.language,
-        timezone=user_data.timezone
-    )
-    
-    db.add(db_user)
-    db.commit()
-    db.refresh(db_user)
-    
-    return db_user
+
+
+@router.options("/login")
+async def login_options():
+    """Handle CORS preflight for login endpoint"""
+    return {"message": "OK"}
 
 
 @router.post("/login", response_model=Token)

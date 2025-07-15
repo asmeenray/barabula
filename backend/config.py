@@ -11,10 +11,6 @@ class Settings(BaseSettings):
     
     # Database Configuration
     database_url: str
-    mongodb_url: str
-    
-    # Redis Configuration
-    redis_url: str = "redis://localhost:6379"
     
     # Security
     secret_key: str
@@ -22,19 +18,19 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     
     # OpenAI Configuration
-    openai_api_key: str
+    openai_api_key: str = "your_openai_api_key_here"
     
     # External APIs
-    google_maps_api_key: str
-    openweather_api_key: str
-    amadeus_api_key: str
-    amadeus_api_secret: str
+    google_maps_api_key: str = "your_google_maps_api_key_here"
+    openweather_api_key: str = "your_openweather_api_key_here"
+    amadeus_api_key: str = "your_amadeus_api_key_here"
+    amadeus_api_secret: str = "your_amadeus_api_secret_here"
     
     # AWS Configuration
-    aws_access_key_id: str
-    aws_secret_access_key: str
+    aws_access_key_id: str = "your_aws_access_key_here"
+    aws_secret_access_key: str = "your_aws_secret_key_here"
     aws_region: str = "us-east-1"
-    s3_bucket_name: str
+    s3_bucket_name: str = "your_s3_bucket_here"
     
     # Kafka Configuration
     kafka_bootstrap_servers: str = "localhost:9092"
@@ -46,7 +42,7 @@ class Settings(BaseSettings):
     mcp_server_url: str = "http://localhost:3001"
     
     class Config:
-        env_file = ".env"
+        env_file = "/Users/asmeenray/projects/barabula/backend/.env"
         case_sensitive = False
 
 
