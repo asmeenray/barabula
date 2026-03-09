@@ -26,7 +26,6 @@ class User(Base):
     itineraries = relationship("Itinerary", back_populates="owner")
     collaborations = relationship("ItineraryCollaborator", back_populates="user")
     chat_history = relationship("ChatHistory", back_populates="user")
-    chat_history = relationship("ChatHistory", back_populates="user")
 
 
 class Itinerary(Base):

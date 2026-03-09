@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     mcp_server_url: str = "http://localhost:3001"
     
     class Config:
-        env_file = "/Users/asmeenray/projects/barabula/backend/.env"
+        env_file = os.path.join(os.path.dirname(__file__), ".env")
         case_sensitive = False
 
 
