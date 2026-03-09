@@ -37,13 +37,13 @@ Requirements for this revamp milestone. Each maps to a roadmap phase.
 
 ### Stack Migration (Phase 2)
 
-- [ ] **STACK-01**: Next.js 14+ project initialized with App Router and TypeScript (replaces Create React App)
+- [x] **STACK-01**: Next.js 14+ project initialized with App Router and TypeScript (replaces Create React App)
 - [ ] **STACK-02**: Supabase project configured with database schema matching existing data model (users, itineraries, activities, chat_history, collaborators tables with appropriate columns)
 - [ ] **STACK-03**: Supabase Auth handles email/password registration and login (replaces FastAPI auth endpoints)
 - [ ] **STACK-04**: Google OAuth is configured and working via Supabase Auth (sign in with Google on login page)
 - [ ] **STACK-05**: Next.js middleware (`middleware.ts`) enforces route protection — unauthenticated users redirected to /login with no flash of protected content
 - [ ] **STACK-06**: Vercel deployment is live with all required environment variables (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, OPENAI_API_KEY)
-- [ ] **STACK-07**: Core authenticated layout with navigation renders on all protected pages
+- [x] **STACK-07**: Core authenticated layout with navigation renders on all protected pages
 
 ### Chat UI
 
@@ -150,13 +150,13 @@ Which phases cover which requirements. Updated during roadmap creation.
 | QUAL-01 | Phase 1 | Complete |
 | QUAL-02 | Phase 1 | Complete |
 | QUAL-03 | Phase 1 | Complete |
-| STACK-01 | Phase 2 | Pending |
+| STACK-01 | Phase 2 | Complete |
 | STACK-02 | Phase 2 | Pending |
 | STACK-03 | Phase 2 | Pending |
 | STACK-04 | Phase 2 | Pending |
 | STACK-05 | Phase 2 | Pending |
 | STACK-06 | Phase 2 | Pending |
-| STACK-07 | Phase 2 | Pending |
+| STACK-07 | Phase 2 | Complete |
 | CHAT-01 | Phase 3 | Pending |
 | CHAT-02 | Phase 3 | Pending |
 | CHAT-03 | Phase 3 | Pending |

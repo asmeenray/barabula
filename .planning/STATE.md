@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Phase 2 context gathered
-last_updated: "2026-03-09T15:53:26.436Z"
+stopped_at: Completed 02-stack-setup-01-PLAN.md
+last_updated: "2026-03-09T20:18:23.978Z"
 last_activity: 2026-03-09 — Roadmap created, phases derived from requirements
 progress:
   total_phases: 6
   completed_phases: 1
-  total_plans: 3
-  completed_plans: 3
+  total_plans: 8
+  completed_plans: 4
   percent: 0
 ---
 
@@ -53,6 +53,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-foundation P03 | 2 | 2 tasks | 7 files |
 | Phase 01-foundation P01 | 4 | 3 tasks | 5 files |
 | Phase 01-foundation P02 | 3min | 3 tasks | 4 files |
+| Phase 02-stack-setup P01 | 18min | 2 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,9 @@ Recent decisions affecting current work:
 - [Phase 01-foundation]: Single non-enumerable duplicate registration message prevents user enumeration
 - [Phase 01-foundation]: isAuthenticated initial state is false — getCurrentUser must succeed before granting route access
 - [Phase 01-foundation]: fetchChatHistory thunk uses existing loading field name from ChatState interface (not isLoading)
+- [Phase 02-stack-setup]: Next.js 16.1.6 used instead of 14 — create-next-app@latest resolved to 16.x which is 14+ compatible
+- [Phase 02-stack-setup]: Manual project creation used — create-next-app blocked by existing repo directories (frontend/, mcp-server/)
+- [Phase 02-stack-setup]: tsconfig.json excludes frontend/, backend/, mcp-server/ etc to prevent legacy TS errors from polluting root build
 
 ### Pending Todos
 
@@ -84,6 +88,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-09T15:53:26.428Z
-Stopped at: Phase 2 context gathered
-Resume file: .planning/phases/02-stack-setup/02-CONTEXT.md
+Last session: 2026-03-09T20:18:23.972Z
+Stopped at: Completed 02-stack-setup-01-PLAN.md
+Resume file: None
