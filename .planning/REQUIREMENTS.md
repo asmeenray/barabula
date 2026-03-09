@@ -42,7 +42,7 @@ Requirements for this revamp milestone. Each maps to a roadmap phase.
 - [x] **STACK-03**: Supabase Auth handles email/password registration and login (replaces FastAPI auth endpoints)
 - [x] **STACK-04**: Google OAuth is configured and working via Supabase Auth (sign in with Google on login page)
 - [x] **STACK-05**: Next.js middleware (`middleware.ts`) enforces route protection — unauthenticated users redirected to /login with no flash of protected content
-- [ ] **STACK-06**: Vercel deployment is live with all required environment variables (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, OPENAI_API_KEY)
+- [x] **STACK-06**: Vercel deployment is live with all required environment variables (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, OPENAI_API_KEY)
 - [x] **STACK-07**: Core authenticated layout with navigation renders on all protected pages
 
 ### Chat UI
@@ -155,7 +155,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | STACK-03 | Phase 2 | Complete |
 | STACK-04 | Phase 2 | Complete |
 | STACK-05 | Phase 2 | Complete |
-| STACK-06 | Phase 2 | Pending |
+| STACK-06 | Phase 2 | Complete |
 | STACK-07 | Phase 2 | Complete |
 | CHAT-01 | Phase 3 | Pending |
 | CHAT-02 | Phase 3 | Pending |
