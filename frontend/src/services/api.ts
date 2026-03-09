@@ -2,7 +2,7 @@
  * API Service for BARABULA Backend
  */
 
-const API_BASE_URL = 'http://localhost:3001';
+const API_BASE_URL = 'http://localhost:8000';
 
 export interface LoginRequest {
   username: string;
