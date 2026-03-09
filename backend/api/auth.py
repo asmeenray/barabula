@@ -101,19 +101,13 @@ async def register_options():
 async def register(user_data: UserCreate, db: Session = Depends(get_db)):
     """Register a new user"""
     try:
-        # Check if user already exists
-        if get_user_by_username(db, user_data.username):
+        # Check if user already exists (single non-enumerable message — SEC-05)
+        if get_user_by_username(db, user_data.username) or get_user_by_email(db, user_data.email):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Username already registered"
+                detail="Username or email already registered."
             )
-        
-        if get_user_by_email(db, user_data.email):
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Email already registered"
-            )
-        
+
         # Create new user
         hashed_password = get_password_hash(user_data.password)
         db_user = UserModel(
@@ -134,12 +128,10 @@ async def register(user_data: UserCreate, db: Session = Depends(get_db)):
         return db_user
     except HTTPException:
         raise
-    except Exception as e:
-        print(f"Registration error: {str(e)}")
-        print(f"User data: {user_data}")
+    except Exception:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Registration failed: {str(e)}"
+            detail="Registration failed. Please try again."
         )
 
 
