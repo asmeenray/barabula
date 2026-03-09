@@ -49,13 +49,13 @@ Plans:
   4. User can sign in with Google via Supabase Auth OAuth
   5. Unauthenticated users are redirected to /login by Next.js middleware (no flash of protected content)
   6. App is deployed on Vercel with all required environment variables configured
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 02-01: Next.js project scaffolding (init, TypeScript, Tailwind, folder structure, core layout)
-- [ ] 02-02: Supabase project setup (schema migration, RLS policies, Supabase client helper)
-- [ ] 02-03: Supabase Auth (email/password + Google OAuth, login/register pages, middleware route protection)
-- [ ] 02-04: Vercel deployment (environment variables, vercel.json, production deploy)
+- [ ] 02-01-PLAN.md — Next.js project scaffolding, Supabase client helpers, route groups, authenticated layout with nav
+- [ ] 02-02-PLAN.md — Supabase schema (5 tables), RLS policies, public.users trigger
+- [ ] 02-03-PLAN.md — Supabase Auth: email/password + Google OAuth forms, middleware route protection
+- [ ] 02-04-PLAN.md — Vercel deployment with environment variables, production auth verification
 
 ### Phase 3: Core Pages
 **Goal**: Users can navigate a real Chat page, generate itineraries through conversation, browse their trips in a Dashboard, and view a structured day-by-day itinerary detail page — all in Next.js backed by Supabase
