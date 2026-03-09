@@ -1,4 +1,4 @@
-import { createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 
 interface ChatMessage {
   id: string;
@@ -14,6 +14,24 @@ interface ChatState {
   error: string | null;
   typing: boolean;
 }
+
+export const fetchChatHistory = createAsyncThunk(
+  'chat/fetchHistory',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const state = getState() as { auth: { token: string | null } };
+      const token = state.auth.token;
+      if (!token) throw new Error('No token');
+      const response = await fetch('http://localhost:8000/api/v1/chat/history', {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!response.ok) throw new Error('Failed to fetch history');
+      return await response.json();
+    } catch (error: any) {
+      return rejectWithValue(error.message);
+    }
+  }
+);
 
 const initialState: ChatState = {
   messages: [],
@@ -45,6 +63,21 @@ const chatSlice = createSlice({
     clearMessages: (state) => {
       state.messages = [];
     },
+  },
+  extraReducers: (builder) => {
+    builder
+      .addCase(fetchChatHistory.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchChatHistory.fulfilled, (state, action) => {
+        state.loading = false;
+        state.messages = action.payload;
+      })
+      .addCase(fetchChatHistory.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload as string;
+      });
   },
 });
 
