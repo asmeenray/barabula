@@ -38,7 +38,7 @@ Requirements for this revamp milestone. Each maps to a roadmap phase.
 ### Stack Migration (Phase 2)
 
 - [x] **STACK-01**: Next.js 14+ project initialized with App Router and TypeScript (replaces Create React App)
-- [ ] **STACK-02**: Supabase project configured with database schema matching existing data model (users, itineraries, activities, chat_history, collaborators tables with appropriate columns)
+- [x] **STACK-02**: Supabase project configured with database schema matching existing data model (users, itineraries, activities, chat_history, collaborators tables with appropriate columns)
 - [ ] **STACK-03**: Supabase Auth handles email/password registration and login (replaces FastAPI auth endpoints)
 - [ ] **STACK-04**: Google OAuth is configured and working via Supabase Auth (sign in with Google on login page)
 - [ ] **STACK-05**: Next.js middleware (`middleware.ts`) enforces route protection — unauthenticated users redirected to /login with no flash of protected content
@@ -151,7 +151,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | QUAL-02 | Phase 1 | Complete |
 | QUAL-03 | Phase 1 | Complete |
 | STACK-01 | Phase 2 | Complete |
-| STACK-02 | Phase 2 | Pending |
+| STACK-02 | Phase 2 | Complete |
 | STACK-03 | Phase 2 | Pending |
 | STACK-04 | Phase 2 | Pending |
 | STACK-05 | Phase 2 | Pending |

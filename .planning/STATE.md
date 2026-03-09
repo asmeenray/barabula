@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 02-stack-setup-01-PLAN.md
-last_updated: "2026-03-09T20:18:23.978Z"
+stopped_at: Completed 02-stack-setup-02-PLAN.md
+last_updated: "2026-03-09T20:21:22.008Z"
 last_activity: 2026-03-09 — Roadmap created, phases derived from requirements
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 8
-  completed_plans: 4
+  completed_plans: 5
   percent: 0
 ---
 
@@ -54,6 +54,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-foundation P01 | 4 | 3 tasks | 5 files |
 | Phase 01-foundation P02 | 3min | 3 tasks | 4 files |
 | Phase 02-stack-setup P01 | 18min | 2 tasks | 18 files |
+| Phase 02-stack-setup P02 | 1min | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -76,6 +77,9 @@ Recent decisions affecting current work:
 - [Phase 02-stack-setup]: Next.js 16.1.6 used instead of 14 — create-next-app@latest resolved to 16.x which is 14+ compatible
 - [Phase 02-stack-setup]: Manual project creation used — create-next-app blocked by existing repo directories (frontend/, mcp-server/)
 - [Phase 02-stack-setup]: tsconfig.json excludes frontend/, backend/, mcp-server/ etc to prevent legacy TS errors from polluting root build
+- [Phase 02-stack-setup]: gitignore exception added for supabase/schema.sql — *.sql rule was blocking the source-of-truth schema file from being committed
+- [Phase 02-stack-setup]: public.users.username is nullable — Google OAuth signups collect username in later onboarding
+- [Phase 02-stack-setup]: collaborators RLS minimal for now (per-user SELECT only) — full viewer/editor RLS deferred to Phase 4
 
 ### Pending Todos
 
@@ -88,6 +92,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-09T20:18:23.972Z
-Stopped at: Completed 02-stack-setup-01-PLAN.md
+Last session: 2026-03-09T20:21:22.000Z
+Stopped at: Completed 02-stack-setup-02-PLAN.md
 Resume file: None
