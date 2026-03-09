@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from typing import List, Dict, Any
-import openai
+from openai import AsyncOpenAI
 from datetime import datetime, timedelta
 import json
 
@@ -14,7 +14,7 @@ from config import settings
 router = APIRouter()
 
 # Initialize OpenAI client
-openai.api_key = settings.openai_api_key
+client = AsyncOpenAI(api_key=settings.openai_api_key)
 
 
 class AIService:
@@ -44,7 +44,7 @@ class AIService:
             if context:
                 system_prompt += f"\n\nCurrent context: {json.dumps(context)}"
             
-            response = await openai.ChatCompletion.acreate(
+            response = await client.chat.completions.create(
                 model="gpt-4",
                 messages=[
                     {"role": "system", "content": system_prompt},
@@ -144,14 +144,15 @@ class AIService:
             
             Make sure activities are realistic and well-timed throughout each day."""
             
-            response = await openai.ChatCompletion.acreate(
+            response = await client.chat.completions.create(
                 model="gpt-4",
                 messages=[
                     {"role": "system", "content": "You are a professional travel planner. Generate practical, detailed itineraries in the exact JSON format requested."},
                     {"role": "user", "content": prompt}
                 ],
                 max_tokens=2000,
-                temperature=0.3
+                temperature=0.3,
+                response_format={"type": "json_object"}
             )
             
             # Parse the AI response
@@ -273,7 +274,7 @@ async def generate_ai_itinerary(
         budget=request.budget,
         status="draft",
         ai_generated=True,
-        metadata={
+        extra_data={
             "ai_generated_data": itinerary_data,
             "generation_request": request.dict(),
             "estimated_cost": itinerary_data.get("estimated_total_cost", 0)
@@ -300,11 +301,11 @@ async def translate_text(
 ):
     """Translate text to target language"""
     try:
-        response = await openai.ChatCompletion.acreate(
+        response = await client.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=[
                 {
-                    "role": "system", 
+                    "role": "system",
                     "content": f"You are a professional translator. Translate the following text to {target_language}. Only return the translated text, nothing else."
                 },
                 {"role": "user", "content": text}
