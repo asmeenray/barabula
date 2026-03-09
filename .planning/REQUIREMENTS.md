@@ -9,29 +9,29 @@ Requirements for this revamp milestone. Each maps to a roadmap phase.
 
 ### Critical Fixes
 
-- [ ] **FIX-01**: Frontend API base URL points to FastAPI backend (port 8000), not MCP server (port 3001)
-- [ ] **FIX-02**: OpenAI SDK uses `AsyncOpenAI` client with `client.chat.completions.create()` pattern (v1 API, not v0 `ChatCompletion.acreate`)
-- [ ] **FIX-03**: OpenAI response fields accessed via attribute access (Pydantic objects), not dict key access
-- [ ] **FIX-04**: `extra_data` field name is consistent between SQLAlchemy models and Pydantic schemas (no `metadata` mismatch)
-- [ ] **FIX-05**: Duplicate `chat_history` relationship removed from `User` model
-- [ ] **FIX-06**: `get_nearby_places` and `get_place_details` in recommendations check for `None` gmaps client before calling methods
-- [ ] **FIX-07**: `test_auth.py` targets correct backend URL (port 8000)
+- [x] **FIX-01**: Frontend API base URL points to FastAPI backend (port 8000), not MCP server (port 3001)
+- [x] **FIX-02**: OpenAI SDK uses `AsyncOpenAI` client with `client.chat.completions.create()` pattern (v1 API, not v0 `ChatCompletion.acreate`)
+- [x] **FIX-03**: OpenAI response fields accessed via attribute access (Pydantic objects), not dict key access
+- [x] **FIX-04**: `extra_data` field name is consistent between SQLAlchemy models and Pydantic schemas (no `metadata` mismatch)
+- [x] **FIX-05**: Duplicate `chat_history` relationship removed from `User` model
+- [x] **FIX-06**: `get_nearby_places` and `get_place_details` in recommendations check for `None` gmaps client before calling methods
+- [x] **FIX-07**: `test_auth.py` targets correct backend URL (port 8000)
 
 ### Security
 
-- [ ] **SEC-01**: MCP server middleware and socket handlers throw startup error if `SECRET_KEY` env var is not set (no hardcoded fallback)
-- [ ] **SEC-02**: JWT verification in MCP server explicitly restricts to `algorithms: ['HS256']`
+- [x] **SEC-01**: MCP server middleware and socket handlers throw startup error if `SECRET_KEY` env var is not set (no hardcoded fallback)
+- [x] **SEC-02**: JWT verification in MCP server explicitly restricts to `algorithms: ['HS256']`
 - [ ] **SEC-03**: Registration endpoint removes `print(f"User data: {user_data}")` log statement (plaintext password risk)
 - [ ] **SEC-04**: Registration exception handler returns generic error message to client (not raw exception string)
 - [ ] **SEC-05**: Registration returns single generic error message for both duplicate username and duplicate email (prevents user enumeration)
-- [ ] **SEC-06**: MCP context endpoint (`/api/context/user/:userId`) verifies requesting user matches the requested userId
+- [x] **SEC-06**: MCP context endpoint (`/api/context/user/:userId`) verifies requesting user matches the requested userId
 - [ ] **SEC-07**: `ProtectedRoute` sets `isAuthenticated: false` on initial state and only sets `true` after `getCurrentUser` thunk resolves (prevents flash of protected content)
 
 ### AI Functionality
 
-- [ ] **AI-01**: AI chat endpoint (`POST /api/v1/chat/message`) returns real GPT-4 response (not fallback static text)
-- [ ] **AI-02**: AI itinerary generation (`POST /api/v1/chat/generate-itinerary`) produces a full structured itinerary (not template fallback)
-- [ ] **AI-03**: AI itinerary generation uses `response_format={"type": "json_object"}` for reliable JSON output
+- [x] **AI-01**: AI chat endpoint (`POST /api/v1/chat/message`) returns real GPT-4 response (not fallback static text)
+- [x] **AI-02**: AI itinerary generation (`POST /api/v1/chat/generate-itinerary`) produces a full structured itinerary (not template fallback)
+- [x] **AI-03**: AI itinerary generation uses `response_format={"type": "json_object"}` for reliable JSON output
 - [ ] **AI-04**: Chat responses are streamed token-by-token to the frontend via Server-Sent Events (SSE)
 - [ ] **AI-05**: Chat history is fetched from backend on chat page load (Redux async thunk for `GET /api/v1/chat/history`)
 
@@ -72,9 +72,9 @@ Requirements for this revamp milestone. Each maps to a roadmap phase.
 
 ### Cleanup & Quality
 
-- [ ] **QUAL-01**: SQLite fallback removed from `backend/database.py` — PostgreSQL is the only database
-- [ ] **QUAL-02**: Hardcoded `env_file` absolute path in `backend/config.py` replaced with relative path
-- [ ] **QUAL-03**: Deprecated `from sqlalchemy.ext.declarative import declarative_base` replaced with `from sqlalchemy.orm import DeclarativeBase`
+- [x] **QUAL-01**: SQLite fallback removed from `backend/database.py` — PostgreSQL is the only database
+- [x] **QUAL-02**: Hardcoded `env_file` absolute path in `backend/config.py` replaced with relative path
+- [x] **QUAL-03**: Deprecated `from sqlalchemy.ext.declarative import declarative_base` replaced with `from sqlalchemy.orm import DeclarativeBase`
 - [ ] **QUAL-04**: Node.js MCP server (`mcp-server/`) retired after REST collaboration endpoints are verified
 - [ ] **QUAL-05**: Backend has pytest test suite covering auth endpoints, AI service, itinerary CRUD, and collaboration endpoints
 - [ ] **QUAL-06**: Frontend has React Testing Library tests covering auth flow, dashboard, chat, and itinerary views
@@ -120,27 +120,27 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| FIX-01 | Phase 1 | Pending |
-| FIX-02 | Phase 1 | Pending |
-| FIX-03 | Phase 1 | Pending |
-| FIX-04 | Phase 1 | Pending |
-| FIX-05 | Phase 1 | Pending |
-| FIX-06 | Phase 1 | Pending |
-| FIX-07 | Phase 1 | Pending |
-| SEC-01 | Phase 1 | Pending |
-| SEC-02 | Phase 1 | Pending |
+| FIX-01 | Phase 1 | Complete |
+| FIX-02 | Phase 1 | Complete |
+| FIX-03 | Phase 1 | Complete |
+| FIX-04 | Phase 1 | Complete |
+| FIX-05 | Phase 1 | Complete |
+| FIX-06 | Phase 1 | Complete |
+| FIX-07 | Phase 1 | Complete |
+| SEC-01 | Phase 1 | Complete |
+| SEC-02 | Phase 1 | Complete |
 | SEC-03 | Phase 1 | Pending |
 | SEC-04 | Phase 1 | Pending |
 | SEC-05 | Phase 1 | Pending |
-| SEC-06 | Phase 1 | Pending |
+| SEC-06 | Phase 1 | Complete |
 | SEC-07 | Phase 1 | Pending |
-| AI-01 | Phase 1 | Pending |
-| AI-02 | Phase 1 | Pending |
-| AI-03 | Phase 1 | Pending |
+| AI-01 | Phase 1 | Complete |
+| AI-02 | Phase 1 | Complete |
+| AI-03 | Phase 1 | Complete |
 | AI-05 | Phase 1 | Pending |
-| QUAL-01 | Phase 1 | Pending |
-| QUAL-02 | Phase 1 | Pending |
-| QUAL-03 | Phase 1 | Pending |
+| QUAL-01 | Phase 1 | Complete |
+| QUAL-02 | Phase 1 | Complete |
+| QUAL-03 | Phase 1 | Complete |
 | CHAT-01 | Phase 2 | Pending |
 | CHAT-02 | Phase 2 | Pending |
 | CHAT-03 | Phase 2 | Pending |
