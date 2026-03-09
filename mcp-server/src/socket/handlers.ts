@@ -26,8 +26,8 @@ export function setupSocketHandlers(io: SocketIOServer, services: Services) {
         return next(new Error('Authentication required'));
       }
 
-      const secretKey = process.env.SECRET_KEY || 'your-secret-key';
-      const decoded: any = jwt.verify(token, secretKey);
+      const secretKey = process.env.SECRET_KEY!;
+      const decoded: any = jwt.verify(token, secretKey, { algorithms: ['HS256'] });
       socket.userId = decoded.sub || decoded.id;
       
       next();

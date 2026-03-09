@@ -2,6 +2,7 @@ import { Express } from 'express';
 import { CollaborationManager } from '../services/collaboration.js';
 import { ContextManager } from '../services/context.js';
 import { RealtimeManager } from '../services/realtime.js';
+import { authMiddleware } from '../middleware/auth.js';
 
 interface Services {
   collaborationManager: CollaborationManager;
@@ -82,10 +83,16 @@ export function setupRoutes(app: Express, services: Services) {
   });
 
   // User context routes
-  app.get('/api/context/user/:userId', async (req: any, res: any) => {
+  app.get('/api/context/user/:userId', authMiddleware, async (req: any, res: any) => {
     try {
       const { userId } = req.params;
-      const { type } = req.query;
+      const requestingUserId = req.user?.sub || req.user?.id;
+
+      if (requestingUserId !== userId) {
+        return res.status(403).json({});
+      }
+
+      const type = req.query.type as string | undefined;
       const contexts = await contextManager.getUserContext(userId, type);
       res.json({ contexts });
     } catch (error) {

@@ -13,8 +13,8 @@ export const authMiddleware = (req: AuthRequest, res: Response, next: NextFuncti
       return res.status(401).json({ error: 'Access denied. No token provided.' });
     }
 
-    const secretKey = process.env.SECRET_KEY || 'your-secret-key';
-    const decoded = jwt.verify(token, secretKey);
+    const secretKey = process.env.SECRET_KEY!;
+    const decoded = jwt.verify(token, secretKey, { algorithms: ['HS256'] });
     req.user = decoded;
     
     next();
@@ -28,8 +28,8 @@ export const optionalAuth = (req: AuthRequest, res: Response, next: NextFunction
     const token = req.header('Authorization')?.replace('Bearer ', '');
     
     if (token) {
-      const secretKey = process.env.SECRET_KEY || 'your-secret-key';
-      const decoded = jwt.verify(token, secretKey);
+      const secretKey = process.env.SECRET_KEY!;
+      const decoded = jwt.verify(token, secretKey, { algorithms: ['HS256'] });
       req.user = decoded;
     }
     

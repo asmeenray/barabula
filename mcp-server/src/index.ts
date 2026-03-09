@@ -17,6 +17,12 @@ import { authMiddleware } from './middleware/auth.js';
 // Load environment variables
 dotenv.config();
 
+const secretKey = process.env.SECRET_KEY;
+if (!secretKey) {
+  console.error('Fatal: SECRET_KEY environment variable is not set.');
+  process.exit(1);
+}
+
 const app = express();
 const server = createServer(app);
 const io = new SocketIOServer(server, {
