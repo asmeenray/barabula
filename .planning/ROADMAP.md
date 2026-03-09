@@ -30,12 +30,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Sending a trip description to the AI chat endpoint returns a real GPT-4 response, not a static fallback
   4. AI itinerary generation produces a complete structured itinerary retrievable from the database without field mapping errors
   5. Backend startup fails with a clear error if required environment variables (SECRET_KEY, DATABASE_URL) are not set
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: Fix API base URL, OpenAI SDK migration, and field name mismatch
-- [ ] 01-02: Apply security fixes (password logging, user enumeration, JWT algorithm pin, ProtectedRoute loading state)
-- [ ] 01-03: Database and code quality cleanup (remove SQLite fallback, fix ORM deprecations, remove duplicate relationship)
+- [ ] 01-01-PLAN.md — Fix API base URL, OpenAI SDK v1 migration, extra_data field name, gmaps None-guards, test_auth.py port
+- [ ] 01-02-PLAN.md — Harden registration endpoint, ProtectedRoute loading spinner, fetchChatHistory async thunk
+- [ ] 01-03-PLAN.md — Remove SQLite fallback, fix DeclarativeBase, relative config path, duplicate relationship, MCP server hardening
 
 ### Phase 2: Frontend UI
 **Goal**: Users can navigate a real Chat page, generate itineraries through conversation, browse their trips in a Dashboard, and view a structured day-by-day itinerary detail page
