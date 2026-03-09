@@ -12,7 +12,7 @@ interface AuthState {
 const initialState: AuthState = {
   user: null,
   token: localStorage.getItem('token'),
-  isAuthenticated: !!localStorage.getItem('token'),
+  isAuthenticated: false,
   loading: false,
   error: null,
 };
@@ -121,11 +121,16 @@ const authSlice = createSlice({
         state.error = action.payload as string;
       })
     // Get current user
+      .addCase(getCurrentUser.pending, (state) => {
+        state.loading = true;
+      })
       .addCase(getCurrentUser.fulfilled, (state, action) => {
+        state.loading = false;
         state.user = action.payload;
         state.isAuthenticated = true;
       })
       .addCase(getCurrentUser.rejected, (state) => {
+        state.loading = false;
         state.isAuthenticated = false;
         state.user = null;
         state.token = null;
