@@ -12,7 +12,7 @@ Barabula is a brownfield revamp — the architecture is sound but three cascadin
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** - Fix the three cascading blockers (API URL, OpenAI SDK, security) so end-to-end auth and AI generation work
+- [x] **Phase 1: Foundation** - Fix the three cascading blockers (API URL, OpenAI SDK, security) so end-to-end auth and AI generation work (completed 2026-03-09)
 - [ ] **Phase 2: Frontend UI** - Replace all placeholder pages with real Chat, Dashboard, and Itinerary UIs backed by the now-working API
 - [ ] **Phase 3: Collaboration** - Add REST-based group itinerary sharing, invite flow, and role enforcement
 - [ ] **Phase 4: AI Streaming** - Layer SSE streaming onto the working AI chat so responses render token-by-token
@@ -106,7 +106,7 @@ Note: Phase 4 depends only on Phase 2 and can be parallelized with Phase 3 if de
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 2/3 | In Progress|  |
+| 1. Foundation | 3/3 | Complete   | 2026-03-09 |
 | 2. Frontend UI | 0/4 | Not started | - |
 | 3. Collaboration | 0/2 | Not started | - |
 | 4. AI Streaming | 0/1 | Not started | - |

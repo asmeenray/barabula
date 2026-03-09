@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 01-03-PLAN.md
-last_updated: "2026-03-09T15:19:14.078Z"
+stopped_at: Completed 01-02-PLAN.md
+last_updated: "2026-03-09T15:25:06.365Z"
 last_activity: 2026-03-09 — Roadmap created, phases derived from requirements
 progress:
   total_phases: 5
-  completed_phases: 0
+  completed_phases: 1
   total_plans: 3
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -52,6 +52,7 @@ Progress: [░░░░░░░░░░] 0%
 *Updated after each plan completion*
 | Phase 01-foundation P03 | 2 | 2 tasks | 7 files |
 | Phase 01-foundation P01 | 4 | 3 tasks | 5 files |
+| Phase 01-foundation P02 | 3min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -68,6 +69,9 @@ Recent decisions affecting current work:
 - [Phase 01-foundation]: SEC-06 403 response has empty body to prevent userId existence leakage
 - [Phase 01-foundation]: SECRET_KEY validated at MCP startup with process.exit(1) before any routes mount
 - [Phase 01-foundation]: SQLAlchemy 2.0 DeclarativeBase class form replaces deprecated declarative_base()
+- [Phase 01-foundation]: Single non-enumerable duplicate registration message prevents user enumeration
+- [Phase 01-foundation]: isAuthenticated initial state is false — getCurrentUser must succeed before granting route access
+- [Phase 01-foundation]: fetchChatHistory thunk uses existing loading field name from ChatState interface (not isLoading)
 
 ### Pending Todos
 
@@ -80,6 +84,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-09T15:19:14.075Z
-Stopped at: Completed 01-03-PLAN.md
+Last session: 2026-03-09T15:25:06.362Z
+Stopped at: Completed 01-02-PLAN.md
 Resume file: None

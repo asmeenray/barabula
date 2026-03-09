@@ -21,11 +21,11 @@ Requirements for this revamp milestone. Each maps to a roadmap phase.
 
 - [x] **SEC-01**: MCP server middleware and socket handlers throw startup error if `SECRET_KEY` env var is not set (no hardcoded fallback)
 - [x] **SEC-02**: JWT verification in MCP server explicitly restricts to `algorithms: ['HS256']`
-- [ ] **SEC-03**: Registration endpoint removes `print(f"User data: {user_data}")` log statement (plaintext password risk)
-- [ ] **SEC-04**: Registration exception handler returns generic error message to client (not raw exception string)
-- [ ] **SEC-05**: Registration returns single generic error message for both duplicate username and duplicate email (prevents user enumeration)
+- [x] **SEC-03**: Registration endpoint removes `print(f"User data: {user_data}")` log statement (plaintext password risk)
+- [x] **SEC-04**: Registration exception handler returns generic error message to client (not raw exception string)
+- [x] **SEC-05**: Registration returns single generic error message for both duplicate username and duplicate email (prevents user enumeration)
 - [x] **SEC-06**: MCP context endpoint (`/api/context/user/:userId`) verifies requesting user matches the requested userId
-- [ ] **SEC-07**: `ProtectedRoute` sets `isAuthenticated: false` on initial state and only sets `true` after `getCurrentUser` thunk resolves (prevents flash of protected content)
+- [x] **SEC-07**: `ProtectedRoute` sets `isAuthenticated: false` on initial state and only sets `true` after `getCurrentUser` thunk resolves (prevents flash of protected content)
 
 ### AI Functionality
 
@@ -33,7 +33,7 @@ Requirements for this revamp milestone. Each maps to a roadmap phase.
 - [x] **AI-02**: AI itinerary generation (`POST /api/v1/chat/generate-itinerary`) produces a full structured itinerary (not template fallback)
 - [x] **AI-03**: AI itinerary generation uses `response_format={"type": "json_object"}` for reliable JSON output
 - [ ] **AI-04**: Chat responses are streamed token-by-token to the frontend via Server-Sent Events (SSE)
-- [ ] **AI-05**: Chat history is fetched from backend on chat page load (Redux async thunk for `GET /api/v1/chat/history`)
+- [x] **AI-05**: Chat history is fetched from backend on chat page load (Redux async thunk for `GET /api/v1/chat/history`)
 
 ### Chat UI
 
@@ -129,15 +129,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | FIX-07 | Phase 1 | Complete |
 | SEC-01 | Phase 1 | Complete |
 | SEC-02 | Phase 1 | Complete |
-| SEC-03 | Phase 1 | Pending |
-| SEC-04 | Phase 1 | Pending |
-| SEC-05 | Phase 1 | Pending |
+| SEC-03 | Phase 1 | Complete |
+| SEC-04 | Phase 1 | Complete |
+| SEC-05 | Phase 1 | Complete |
 | SEC-06 | Phase 1 | Complete |
-| SEC-07 | Phase 1 | Pending |
+| SEC-07 | Phase 1 | Complete |
 | AI-01 | Phase 1 | Complete |
 | AI-02 | Phase 1 | Complete |
 | AI-03 | Phase 1 | Complete |
-| AI-05 | Phase 1 | Pending |
+| AI-05 | Phase 1 | Complete |
 | QUAL-01 | Phase 1 | Complete |
 | QUAL-02 | Phase 1 | Complete |
 | QUAL-03 | Phase 1 | Complete |
