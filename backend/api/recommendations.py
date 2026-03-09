@@ -49,6 +49,8 @@ class RecommendationService:
     @staticmethod
     def get_nearby_places(lat: float, lng: float, place_type: str = "tourist_attraction", radius: int = 5000) -> List[Dict]:
         """Get nearby places using Google Places API"""
+        if gmaps is None:
+            return []
         try:
             places_result = gmaps.places_nearby(
                 location=(lat, lng),
@@ -78,6 +80,8 @@ class RecommendationService:
     @staticmethod
     async def get_place_details(place_id: str) -> Dict[str, Any]:
         """Get detailed information about a place"""
+        if gmaps is None:
+            return {}
         try:
             place_details = gmaps.place(
                 place_id=place_id,

@@ -6,7 +6,7 @@ import requests
 import json
 
 # Backend API base URL
-BASE_URL = "http://localhost:3001"
+BASE_URL = "http://localhost:8000"
 
 def test_health():
     """Test health endpoint"""
