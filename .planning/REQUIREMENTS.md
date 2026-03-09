@@ -35,6 +35,16 @@ Requirements for this revamp milestone. Each maps to a roadmap phase.
 - [ ] **AI-04**: Chat responses are streamed token-by-token to the frontend via Server-Sent Events (SSE)
 - [x] **AI-05**: Chat history is fetched from backend on chat page load (Redux async thunk for `GET /api/v1/chat/history`)
 
+### Stack Migration (Phase 2)
+
+- [ ] **STACK-01**: Next.js 14+ project initialized with App Router and TypeScript (replaces Create React App)
+- [ ] **STACK-02**: Supabase project configured with database schema matching existing data model (users, itineraries, activities, chat_history, collaborators tables with appropriate columns)
+- [ ] **STACK-03**: Supabase Auth handles email/password registration and login (replaces FastAPI auth endpoints)
+- [ ] **STACK-04**: Google OAuth is configured and working via Supabase Auth (sign in with Google on login page)
+- [ ] **STACK-05**: Next.js middleware (`middleware.ts`) enforces route protection — unauthenticated users redirected to /login with no flash of protected content
+- [ ] **STACK-06**: Vercel deployment is live with all required environment variables (NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, OPENAI_API_KEY)
+- [ ] **STACK-07**: Core authenticated layout with navigation renders on all protected pages
+
 ### Chat UI
 
 - [ ] **CHAT-01**: Chat page displays a functional AI conversation interface (not "coming soon" placeholder)
@@ -57,8 +67,8 @@ Requirements for this revamp milestone. Each maps to a roadmap phase.
 - [ ] **ITIN-02**: Each day in the itinerary shows its activities with name, time, description, and location
 - [ ] **ITIN-03**: User can create a new itinerary manually from the itinerary list (not only via AI generation)
 - [ ] **ITIN-04**: User can edit an itinerary's title and description
-- [ ] **ITIN-05**: `itinerarySlice` has async thunks for fetch, create, update, and delete (Redux state populated from backend)
-- [ ] **ITIN-06**: `Activity` interface in `itinerarySlice.ts` is properly typed (replaces `any[]`)
+- [ ] **ITIN-05**: Client-side state management handles fetch, create, update, and delete for itineraries with consistent loading/error states across the app
+- [ ] **ITIN-06**: `Activity` type is properly typed with name, time, description, and location fields (no `any[]`)
 
 ### Collaboration
 
@@ -75,9 +85,9 @@ Requirements for this revamp milestone. Each maps to a roadmap phase.
 - [x] **QUAL-01**: SQLite fallback removed from `backend/database.py` — PostgreSQL is the only database
 - [x] **QUAL-02**: Hardcoded `env_file` absolute path in `backend/config.py` replaced with relative path
 - [x] **QUAL-03**: Deprecated `from sqlalchemy.ext.declarative import declarative_base` replaced with `from sqlalchemy.orm import DeclarativeBase`
-- [ ] **QUAL-04**: Node.js MCP server (`mcp-server/`) retired after REST collaboration endpoints are verified
-- [ ] **QUAL-05**: Backend has pytest test suite covering auth endpoints, AI service, itinerary CRUD, and collaboration endpoints
-- [ ] **QUAL-06**: Frontend has React Testing Library tests covering auth flow, dashboard, chat, and itinerary views
+- [ ] **QUAL-04**: Old CRA frontend (`frontend/`), FastAPI backend (`backend/`), and Node.js MCP server (`mcp-server/`) are fully retired — no dangling references in the active Next.js codebase
+- [ ] **QUAL-05**: Vitest unit tests cover auth utilities, itinerary data layer, and collaboration RLS helpers
+- [ ] **QUAL-06**: Playwright E2E tests cover login flow, dashboard render, chat interaction, and itinerary detail view
 
 ## v2 Requirements
 
@@ -98,8 +108,7 @@ Deferred to after v1 is validated.
 
 ### Infrastructure
 
-- **INFV2-01**: CRA → Vite migration for frontend build tooling
-- **INFV2-02**: Real-time collaboration (Socket.IO + Redis) — only if small-group REST collab proves insufficient
+- **INFV2-01**: Real-time collaboration (Supabase Realtime) — only if small-group REST collab proves insufficient
 
 ## Out of Scope
 
@@ -141,37 +150,44 @@ Which phases cover which requirements. Updated during roadmap creation.
 | QUAL-01 | Phase 1 | Complete |
 | QUAL-02 | Phase 1 | Complete |
 | QUAL-03 | Phase 1 | Complete |
-| CHAT-01 | Phase 2 | Pending |
-| CHAT-02 | Phase 2 | Pending |
-| CHAT-03 | Phase 2 | Pending |
-| CHAT-04 | Phase 2 | Pending |
-| CHAT-05 | Phase 2 | Pending |
-| DASH-01 | Phase 2 | Pending |
-| DASH-02 | Phase 2 | Pending |
-| DASH-03 | Phase 2 | Pending |
-| DASH-04 | Phase 2 | Pending |
-| DASH-05 | Phase 2 | Pending |
-| ITIN-01 | Phase 2 | Pending |
-| ITIN-02 | Phase 2 | Pending |
-| ITIN-03 | Phase 2 | Pending |
-| ITIN-04 | Phase 2 | Pending |
-| ITIN-05 | Phase 2 | Pending |
-| ITIN-06 | Phase 2 | Pending |
-| COLLAB-01 | Phase 3 | Pending |
-| COLLAB-02 | Phase 3 | Pending |
-| COLLAB-03 | Phase 3 | Pending |
-| COLLAB-04 | Phase 3 | Pending |
-| COLLAB-05 | Phase 3 | Pending |
-| COLLAB-06 | Phase 3 | Pending |
-| COLLAB-07 | Phase 3 | Pending |
-| AI-04 | Phase 4 | Pending |
-| QUAL-04 | Phase 5 | Pending |
-| QUAL-05 | Phase 5 | Pending |
-| QUAL-06 | Phase 5 | Pending |
+| STACK-01 | Phase 2 | Pending |
+| STACK-02 | Phase 2 | Pending |
+| STACK-03 | Phase 2 | Pending |
+| STACK-04 | Phase 2 | Pending |
+| STACK-05 | Phase 2 | Pending |
+| STACK-06 | Phase 2 | Pending |
+| STACK-07 | Phase 2 | Pending |
+| CHAT-01 | Phase 3 | Pending |
+| CHAT-02 | Phase 3 | Pending |
+| CHAT-03 | Phase 3 | Pending |
+| CHAT-04 | Phase 3 | Pending |
+| CHAT-05 | Phase 3 | Pending |
+| DASH-01 | Phase 3 | Pending |
+| DASH-02 | Phase 3 | Pending |
+| DASH-03 | Phase 3 | Pending |
+| DASH-04 | Phase 3 | Pending |
+| DASH-05 | Phase 3 | Pending |
+| ITIN-01 | Phase 3 | Pending |
+| ITIN-02 | Phase 3 | Pending |
+| ITIN-03 | Phase 3 | Pending |
+| ITIN-04 | Phase 3 | Pending |
+| ITIN-05 | Phase 3 | Pending |
+| ITIN-06 | Phase 3 | Pending |
+| COLLAB-01 | Phase 4 | Pending |
+| COLLAB-02 | Phase 4 | Pending |
+| COLLAB-03 | Phase 4 | Pending |
+| COLLAB-04 | Phase 4 | Pending |
+| COLLAB-05 | Phase 4 | Pending |
+| COLLAB-06 | Phase 4 | Pending |
+| COLLAB-07 | Phase 4 | Pending |
+| AI-04 | Phase 5 | Pending |
+| QUAL-04 | Phase 6 | Pending |
+| QUAL-05 | Phase 6 | Pending |
+| QUAL-06 | Phase 6 | Pending |
 
 **Coverage:**
-- v1 requirements: 48 total
-- Mapped to phases: 48
+- v1 requirements: 55 total (48 original + 7 STACK)
+- Mapped to phases: 55
 - Unmapped: 0 ✓
 
 ---

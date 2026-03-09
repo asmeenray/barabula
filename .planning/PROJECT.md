@@ -12,70 +12,71 @@ User describes a trip, AI generates a complete itinerary that a small group can 
 
 ### Validated
 
-<!-- Shipped and confirmed valuable — inferred from existing codebase -->
+<!-- Shipped and confirmed valuable — inferred from existing codebase / Phase 1 -->
 
-- ✓ User can register and log in with email/password — existing
-- ✓ JWT-based session management (token issued by backend, stored client-side) — existing
-- ✓ Database schema for users, itineraries, activities, chat history — existing
-- ✓ Redux state management for auth, itineraries, and chat — existing
-- ✓ Backend REST API structure (FastAPI with route modules per domain) — existing
+- ✓ Database schema for users, itineraries, activities, chat history — existing (migrating to Supabase)
+- ✓ User can register and log in with email/password — Phase 1 complete (migrating to Supabase Auth)
+- ✓ AI chat and itinerary generation works end-to-end — Phase 1 complete
 
 ### Active
 
 <!-- Current scope — the revamp -->
 
-- [ ] AI chat and itinerary generation actually works (fix OpenAI SDK v0 → v1 migration)
-- [ ] Frontend auth works (fix API base URL pointing to wrong server)
-- [ ] Chat UI is implemented (replace placeholder with real AI chat interface)
-- [ ] Dashboard is implemented (replace placeholder with user's itineraries overview)
-- [ ] Itineraries page is implemented (list, view, create itineraries)
-- [ ] REST-based collaboration (share itinerary with group members, view/edit without real-time)
-- [ ] Critical bugs fixed (metadata/extra_data mismatch, duplicate ORM relationships, gmaps None crash)
-- [ ] Security issues resolved (hardcoded secrets, password logging, user enumeration, algorithm pinning)
-- [ ] Frontend and backend test coverage added
-- [ ] Node.js MCP server retired — all functionality consolidated into Python backend
-- [ ] Code is clean and follows best practices throughout
+- [ ] Stack migrated to Next.js + Supabase + Vercel (replaces CRA + FastAPI + self-hosted PostgreSQL)
+- [ ] Supabase Auth with email/password and Google OAuth
+- [ ] Chat UI implemented (real AI conversation interface)
+- [ ] Dashboard implemented (user's itineraries overview)
+- [ ] Itineraries page implemented (list, view, create itineraries)
+- [ ] REST-based collaboration (share itinerary with group members)
+- [ ] AI streaming responses (token-by-token via Vercel AI SDK)
+- [ ] Test coverage added
+- [ ] Old CRA, FastAPI, and MCP server code retired
 
 ### Out of Scope
 
-- Real-time Socket.IO collaboration — replaced by REST-based; real-time deferred to future
+- Real-time Socket.IO collaboration — replaced by REST-based; deferred to future
 - Email verification flow — small group of known users, not needed now
 - Mobile app — web-first
-- CRA → Vite migration — only if it actively blocks progress
-- New features beyond what's already partially built
+- New features beyond what's already planned
 
 ## Context
 
-Brownfield project with significant debt accumulated. The codebase has a solid architecture (React SPA + FastAPI backend) but several critical broken areas:
+Brownfield project rebuilt on a modern stack. Phase 1 fixed the broken CRA + FastAPI codebase to validate the logic. Phase 2 migrates everything to Next.js + Supabase + Vercel — a unified deployment with no separate backend server, built-in auth, and a cleaner developer experience.
 
-- **Broken AI**: OpenAI SDK v0 calling convention used with v1 SDK installed — all AI calls throw `AttributeError` at runtime
-- **Broken auth**: Frontend API URL hardcoded to port 3001 (MCP server) instead of port 8000 (FastAPI backend) — login always fails
-- **Placeholder UIs**: Chat, Dashboard, and Itineraries pages all show "coming soon" — the backend APIs for all three are fully implemented
-- **Silent data bugs**: `metadata`/`extra_data` field name mismatch between ORM models and Pydantic schemas causes silent data loss
-- **MCP Server to retire**: Node.js MCP server (port 3001) handles real-time collab and MCP protocol tools — being retired; real-time replaced by REST-based collab in Python
-- **No tests**: Testing libraries are installed but no test files exist for frontend or backend
+**Tech stack (new — Phase 2 onward):**
+- Frontend + Backend: Next.js 14+ (App Router, TypeScript, API Routes)
+- Database: Supabase (PostgreSQL with Row Level Security)
+- Auth: Supabase Auth (email/password + Google OAuth)
+- Deployment: Vercel
+- AI: OpenAI GPT-4 via Next.js API Routes
+- State management: TBD at Phase 3 (Zustand / SWR — not Redux)
 
-**Tech stack:**
-- Frontend: React 18 + TypeScript, Redux Toolkit, MUI 5, React Router 6, Create React App
-- Backend: Python 3.9, FastAPI, SQLAlchemy 2.x, PostgreSQL (SQLite fallback to be removed)
+**Tech stack (old — Phase 1 and prior, retiring in Phase 6):**
+- Frontend: React 18 + TypeScript, Redux Toolkit, MUI 5, Create React App
+- Backend: Python 3.9, FastAPI, SQLAlchemy 2.x, PostgreSQL
 - Auth: JWT (HS256), bcrypt
-- AI: OpenAI GPT-4 (SDK to be upgraded to current v1 pattern)
+- MCP Server: Node.js (retiring)
 
 ## Constraints
 
-- **Users**: Small group of known people — no public registration hardening needed, but basic security hygiene required
-- **Architecture**: Two-tier after revamp (React + FastAPI); MCP/Node.js layer retired
-- **AI provider**: OpenAI — keep GPT-4/GPT-4o, fix the SDK usage
-- **Modernization**: Only upgrade/migrate dependencies when they directly block progress — no refactoring for its own sake
+- **Users**: Small group of known people — no public registration hardening beyond Supabase Auth defaults
+- **Architecture**: Next.js full-stack on Vercel; no separate backend server
+- **AI provider**: OpenAI — GPT-4/GPT-4o via API Routes
+- **Database**: Supabase-hosted PostgreSQL
+- **Auth**: Supabase Auth (handles JWT, OAuth, sessions)
 
 ## Key Decisions
 
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
-| Retire Node.js MCP server | Three services for a small-group app is unnecessary complexity; real-time collab deferred | — Pending |
-| REST-based collaboration instead of Socket.IO | Simpler to build and maintain; real-time can be added later if needed | — Pending |
-| Keep OpenAI, upgrade SDK | GPT-4 works well for itinerary generation; just need to fix the v0→v1 calling convention | — Pending |
-| Fix before modernize | CRA is unmaintained but it works; Vite migration is not worth the risk without a clear blocker | — Pending |
+| Migrate to Next.js + Supabase + Vercel | Unified deployment, built-in auth, no separate server to manage | Phase 2 |
+| Supabase Auth (replaces custom JWT) | Handles Google OAuth, session management, and JWT out of the box | Phase 2 |
+| Supabase as DB host | Managed PostgreSQL, compatible with existing schema, pairs with Supabase Auth | Phase 2 |
+| Deploy on Vercel | First-class Next.js support, Vercel AI SDK for streaming | Phase 2 + 5 |
+| Retire FastAPI backend | Replaced by Next.js API Routes — one codebase, one deployment | Phase 6 |
+| Retire Node.js MCP server | No longer needed after REST collaboration via Next.js API routes | Phase 6 |
+| REST-based collaboration | Simpler than Socket.IO; real-time can be added later if needed | Phase 4 |
+| Fix before modernize (Phase 1) | Validated the logic in the old stack before migrating | Complete |
 
 ---
-*Last updated: 2026-03-09 after initialization*
+*Last updated: 2026-03-09 — stack decision: Next.js + Supabase + Vercel*
