@@ -220,6 +220,7 @@ mobile/.flutter-plugins-dependencies
 
 # API Keys and Secrets
 config.json
+!.planning/config.json
 secrets.json
 .secrets/
 api_keys.txt
