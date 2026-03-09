@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 02-stack-setup-02-PLAN.md
-last_updated: "2026-03-09T20:21:22.008Z"
+stopped_at: Completed 02-stack-setup-03-PLAN.md
+last_updated: "2026-03-09T20:25:35.465Z"
 last_activity: 2026-03-09 — Roadmap created, phases derived from requirements
 progress:
   total_phases: 6
   completed_phases: 1
   total_plans: 8
-  completed_plans: 5
+  completed_plans: 6
   percent: 0
 ---
 
@@ -55,6 +55,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01-foundation P02 | 3min | 3 tasks | 4 files |
 | Phase 02-stack-setup P01 | 18min | 2 tasks | 18 files |
 | Phase 02-stack-setup P02 | 1min | 1 tasks | 2 files |
+| Phase 02-stack-setup P03 | 2min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,9 @@ Recent decisions affecting current work:
 - [Phase 02-stack-setup]: gitignore exception added for supabase/schema.sql — *.sql rule was blocking the source-of-truth schema file from being committed
 - [Phase 02-stack-setup]: public.users.username is nullable — Google OAuth signups collect username in later onboarding
 - [Phase 02-stack-setup]: collaborators RLS minimal for now (per-user SELECT only) — full viewer/editor RLS deferred to Phase 4
+- [Phase 02-stack-setup]: getUser() in middleware validates against Supabase Auth server — prevents session spoofing via manipulated cookies
+- [Phase 02-stack-setup]: Client Component form wrapper for auth pages — minimal useState pattern for error/loading display without external state library
+- [Phase 02-stack-setup]: Relative-redirect-only in /auth/callback — open redirect prevention, resets non-relative next param to '/'
 
 ### Pending Todos
 
@@ -92,6 +96,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-09T20:21:22.000Z
-Stopped at: Completed 02-stack-setup-02-PLAN.md
+Last session: 2026-03-09T20:25:35.435Z
+Stopped at: Completed 02-stack-setup-03-PLAN.md
 Resume file: None
