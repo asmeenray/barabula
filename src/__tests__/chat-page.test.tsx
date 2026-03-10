@@ -5,6 +5,13 @@ import ChatPage from '@/app/(authenticated)/chat/page'
 // Mock fetch
 global.fetch = vi.fn()
 
+// Mock next/navigation with a spy so we can assert on push calls
+const mockPush = vi.fn()
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: mockPush }),
+  usePathname: () => '/',
+}))
+
 beforeEach(() => {
   vi.clearAllMocks()
   // Default: history returns empty array
@@ -26,10 +33,6 @@ it('shows empty state when no messages', async () => {
 })
 
 it('calls router.push after receiving itineraryId', async () => {
-  const { useRouter } = await import('next/navigation')
-  const mockPush = vi.fn()
-  ;(useRouter as ReturnType<typeof vi.fn>).mockReturnValue({ push: mockPush })
-
   ;(global.fetch as ReturnType<typeof vi.fn>)
     .mockResolvedValueOnce({ json: () => Promise.resolve([]) })  // history
     .mockResolvedValueOnce({ json: () => Promise.resolve({ content: "Your itinerary is ready!", itineraryId: 'abc-123' }) })  // message
