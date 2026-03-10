@@ -47,19 +47,19 @@ Requirements for this revamp milestone. Each maps to a roadmap phase.
 
 ### Chat UI
 
-- [ ] **CHAT-01**: Chat page displays a functional AI conversation interface (not "coming soon" placeholder)
-- [ ] **CHAT-02**: User can send a message and receive a streamed AI response
+- [x] **CHAT-01**: Chat page displays a functional AI conversation interface (not "coming soon" placeholder)
+- [x] **CHAT-02**: User can send a message and receive a streamed AI response
 - [x] **CHAT-03**: Chat messages are persisted and visible when user returns to the chat page
-- [ ] **CHAT-04**: After successful itinerary generation, user is navigated to the new itinerary detail view
-- [ ] **CHAT-05**: AI responses containing itinerary data are rendered as structured content (day cards / activity items), not raw text in a chat bubble
+- [x] **CHAT-04**: After successful itinerary generation, user is navigated to the new itinerary detail view
+- [x] **CHAT-05**: AI responses containing itinerary data are rendered as structured content (day cards / activity items), not raw text in a chat bubble
 
 ### Dashboard
 
-- [ ] **DASH-01**: Dashboard page displays a list of the user's itineraries (not "coming soon" placeholder)
+- [x] **DASH-01**: Dashboard page displays a list of the user's itineraries (not "coming soon" placeholder)
 - [x] **DASH-02**: Dashboard fetches itineraries from backend on load (`GET /api/v1/itineraries`)
-- [ ] **DASH-03**: User can navigate from Dashboard to an itinerary detail view
-- [ ] **DASH-04**: User can delete an itinerary from the Dashboard
-- [ ] **DASH-05**: Dashboard shows empty state when user has no itineraries
+- [x] **DASH-03**: User can navigate from Dashboard to an itinerary detail view
+- [x] **DASH-04**: User can delete an itinerary from the Dashboard
+- [x] **DASH-05**: Dashboard shows empty state when user has no itineraries
 
 ### Itinerary
 
@@ -157,16 +157,16 @@ Which phases cover which requirements. Updated during roadmap creation.
 | STACK-05 | Phase 2 | Complete |
 | STACK-06 | Phase 2 | Complete |
 | STACK-07 | Phase 2 | Complete |
-| CHAT-01 | Phase 3 | Pending |
-| CHAT-02 | Phase 3 | Pending |
+| CHAT-01 | Phase 3 | Complete |
+| CHAT-02 | Phase 3 | Complete |
 | CHAT-03 | Phase 3 | Complete |
-| CHAT-04 | Phase 3 | Pending |
-| CHAT-05 | Phase 3 | Pending |
-| DASH-01 | Phase 3 | Pending |
+| CHAT-04 | Phase 3 | Complete |
+| CHAT-05 | Phase 3 | Complete |
+| DASH-01 | Phase 3 | Complete |
 | DASH-02 | Phase 3 | Complete |
-| DASH-03 | Phase 3 | Pending |
-| DASH-04 | Phase 3 | Pending |
-| DASH-05 | Phase 3 | Pending |
+| DASH-03 | Phase 3 | Complete |
+| DASH-04 | Phase 3 | Complete |
+| DASH-05 | Phase 3 | Complete |
 | ITIN-01 | Phase 3 | Pending |
 | ITIN-02 | Phase 3 | Pending |
 | ITIN-03 | Phase 3 | Pending |
