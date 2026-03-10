@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 03-core-pages-01-PLAN.md
-last_updated: "2026-03-10T19:50:21.451Z"
+stopped_at: Completed 03-core-pages-02-PLAN.md
+last_updated: "2026-03-10T19:56:42.034Z"
 last_activity: 2026-03-09 — Roadmap created, phases derived from requirements
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 12
-  completed_plans: 9
+  completed_plans: 10
   percent: 0
 ---
 
@@ -59,6 +59,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 02-stack-setup P04 | 1min | 1 tasks | 1 files |
 | Phase 02-stack-setup P05 | 5min | 4 tasks | 1 files |
 | Phase 03-core-pages P01 | 5min | 2 tasks | 12 files |
+| Phase 03-core-pages P02 | 3min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -92,6 +93,8 @@ Recent decisions affecting current work:
 - [Phase 03-core-pages]: OpenAI client lazy-initialized inside POST handler after auth — prevents missing OPENAI_API_KEY from throwing before auth checks in test/CI environments
 - [Phase 03-core-pages]: passWithNoTests: true added to vitest.config.mts — Vitest 4 exits code 1 with no test files; needed for clean CI before tests are written
 - [Phase 03-core-pages]: ESM OpenAI mock uses class constructor pattern in Vitest — vi.fn().mockImplementation() fails as constructor mock in ESM mode
+- [Phase 03-core-pages]: Module-scoped mockPush spy in vi.mock rather than per-test useRouter override — setup.ts global mock is not a vi.fn() so mockReturnValue unavailable
+- [Phase 03-core-pages]: scrollIntoView mocked globally in setup.ts — jsdom limitation affects any component using scroll-to-bottom pattern
 
 ### Pending Todos
 
@@ -104,6 +107,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-10T19:50:21.446Z
-Stopped at: Completed 03-core-pages-01-PLAN.md
+Last session: 2026-03-10T19:56:42.031Z
+Stopped at: Completed 03-core-pages-02-PLAN.md
 Resume file: None
