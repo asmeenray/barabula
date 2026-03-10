@@ -10,6 +10,17 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(() => Promise.resolve(mockSupabase)),
 }))
 
+const mockOpenAICreate = vi.fn().mockResolvedValue({
+  choices: [{ message: { content: 'Hello, how can I help?' } }],
+})
+
+vi.mock('openai', () => {
+  class MockOpenAI {
+    chat = { completions: { create: mockOpenAICreate } }
+  }
+  return { default: MockOpenAI }
+})
+
 describe('GET /api/chat/history', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -33,8 +44,7 @@ describe('GET /api/chat/history', () => {
     mockFrom.mockReturnValue({
       select: vi.fn().mockReturnThis(),
       eq: vi.fn().mockReturnThis(),
-      order: vi.fn().mockReturnThis(),
-      limit: vi.fn().mockResolvedValue({ data: messages, error: null }),
+      order: vi.fn().mockResolvedValue({ data: messages, error: null }),
     })
 
     const { GET } = await import('@/app/api/chat/history/route')
