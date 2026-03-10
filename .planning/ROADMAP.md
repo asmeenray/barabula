@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - Fix the three cascading blockers (API URL, OpenAI SDK, security) in the old CRA + FastAPI stack to validate the core logic (completed 2026-03-09)
 - [x] **Phase 2: Stack Setup** - Migrate to Next.js + Supabase + Vercel: new project, Supabase DB schema, Supabase Auth (email/password + Google OAuth), middleware, Vercel deploy (completed 2026-03-09)
-- [ ] **Phase 3: Core Pages** - Build real Chat, Dashboard, and Itinerary UIs in Next.js backed by Supabase and Next.js API Routes
+- [x] **Phase 3: Core Pages** - Build real Chat, Dashboard, and Itinerary UIs in Next.js backed by Supabase and Next.js API Routes (completed 2026-03-10)
 - [ ] **Phase 4: Collaboration** - Add REST-based group itinerary sharing, invite flow, and role enforcement via Supabase RLS
 - [ ] **Phase 5: AI Streaming** - Layer Vercel AI SDK streaming onto the AI chat so responses render token-by-token
 - [ ] **Phase 6: Cleanup and Tests** - Retire CRA, FastAPI, and MCP server code; add Vitest + Playwright coverage
@@ -128,7 +128,7 @@ Note: Phase 5 depends only on Phase 3 and can be parallelized with Phase 4 if de
 |-------|----------------|--------|-----------|
 | 1. Foundation | 3/3 | Complete | 2026-03-09 |
 | 2. Stack Setup | 5/5 | Complete   | 2026-03-09 |
-| 3. Core Pages | 3/4 | In Progress|  |
+| 3. Core Pages | 4/4 | Complete   | 2026-03-10 |
 | 4. Collaboration | 0/2 | Not started | - |
 | 5. AI Streaming | 0/1 | Not started | - |
 | 6. Cleanup and Tests | 0/3 | Not started | - |

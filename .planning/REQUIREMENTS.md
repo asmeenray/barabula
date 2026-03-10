@@ -63,10 +63,10 @@ Requirements for this revamp milestone. Each maps to a roadmap phase.
 
 ### Itinerary
 
-- [ ] **ITIN-01**: Itinerary detail page shows a day-by-day structured view (not "coming soon" placeholder)
-- [ ] **ITIN-02**: Each day in the itinerary shows its activities with name, time, description, and location
-- [ ] **ITIN-03**: User can create a new itinerary manually from the itinerary list (not only via AI generation)
-- [ ] **ITIN-04**: User can edit an itinerary's title and description
+- [x] **ITIN-01**: Itinerary detail page shows a day-by-day structured view (not "coming soon" placeholder)
+- [x] **ITIN-02**: Each day in the itinerary shows its activities with name, time, description, and location
+- [x] **ITIN-03**: User can create a new itinerary manually from the itinerary list (not only via AI generation)
+- [x] **ITIN-04**: User can edit an itinerary's title and description
 - [x] **ITIN-05**: Client-side state management handles fetch, create, update, and delete for itineraries with consistent loading/error states across the app
 - [x] **ITIN-06**: `Activity` type is properly typed with name, time, description, and location fields (no `any[]`)
 
@@ -167,10 +167,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DASH-03 | Phase 3 | Complete |
 | DASH-04 | Phase 3 | Complete |
 | DASH-05 | Phase 3 | Complete |
-| ITIN-01 | Phase 3 | Pending |
-| ITIN-02 | Phase 3 | Pending |
-| ITIN-03 | Phase 3 | Pending |
-| ITIN-04 | Phase 3 | Pending |
+| ITIN-01 | Phase 3 | Complete |
+| ITIN-02 | Phase 3 | Complete |
+| ITIN-03 | Phase 3 | Complete |
+| ITIN-04 | Phase 3 | Complete |
 | ITIN-05 | Phase 3 | Complete |
 | ITIN-06 | Phase 3 | Complete |
 | COLLAB-01 | Phase 4 | Pending |

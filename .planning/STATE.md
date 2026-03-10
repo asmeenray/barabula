@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 03-core-pages-03-PLAN.md
-last_updated: "2026-03-10T20:01:26.747Z"
+stopped_at: Completed 03-core-pages-04-PLAN.md
+last_updated: "2026-03-10T20:07:56.859Z"
 last_activity: 2026-03-09 — Roadmap created, phases derived from requirements
 progress:
   total_phases: 6
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 12
-  completed_plans: 11
+  completed_plans: 12
   percent: 0
 ---
 
@@ -61,6 +61,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 03-core-pages P01 | 5min | 2 tasks | 12 files |
 | Phase 03-core-pages P02 | 3min | 2 tasks | 7 files |
 | Phase 03-core-pages P03 | 2min | 2 tasks | 5 files |
+| Phase 03-core-pages P04 | 4min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -97,6 +98,8 @@ Recent decisions affecting current work:
 - [Phase 03-core-pages]: Module-scoped mockPush spy in vi.mock rather than per-test useRouter override — setup.ts global mock is not a vi.fn() so mockReturnValue unavailable
 - [Phase 03-core-pages]: scrollIntoView mocked globally in setup.ts — jsdom limitation affects any component using scroll-to-bottom pattern
 - [Phase 03-core-pages]: Delete uses mutate() re-fetch not optimistic update — plan decision to keep list fresh from server after delete
+- [Phase 03-core-pages]: Test globals imported explicitly from vitest (describe/it/expect/vi) not relying on globals:true config — matches all existing test files in project
+- [Phase 03-core-pages]: DaySection sticky header uses top-16 offset to clear authenticated layout nav bar; empty itinerary shows Day 1 placeholder rather than blank page
 
 ### Pending Todos
 
@@ -109,6 +112,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-10T20:01:26.744Z
-Stopped at: Completed 03-core-pages-03-PLAN.md
+Last session: 2026-03-10T20:07:56.855Z
+Stopped at: Completed 03-core-pages-04-PLAN.md
 Resume file: None
