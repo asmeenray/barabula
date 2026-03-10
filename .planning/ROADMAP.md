@@ -67,13 +67,13 @@ Plans:
   3. Dashboard shows the user's itineraries on load; shows an empty state message when none exist
   4. User can delete an itinerary from the Dashboard and see the list update immediately
   5. Itinerary detail page shows a day-by-day structured view with each activity's name, time, description, and location
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 03-01: Data layer (Supabase queries for itineraries and chat, client state management pattern, Activity type)
-- [ ] 03-02: Chat page (message thread, send form, OpenAI API route, itinerary response rendering, post-generation navigation)
-- [ ] 03-03: Dashboard page (itinerary list, empty state, delete action, navigation to detail)
-- [ ] 03-04: Itinerary detail and list pages (day-by-day view, create/edit forms)
+- [ ] 03-01-PLAN.md — Data layer: shared types (Activity, Itinerary, ChatMessage), all API routes, Vitest setup, Skeleton/ErrorMessage UI primitives
+- [ ] 03-02-PLAN.md — Chat page: bubble layout, history loading, OpenAI integration, typing indicator, itinerary card in chat, auto-navigation
+- [ ] 03-03-PLAN.md — Dashboard page: SWR card grid, empty state with two CTAs, delete with confirm, navigation to detail
+- [ ] 03-04-PLAN.md — Itinerary detail: scrollable day sections, sticky day headers, activity cards, inline editing, activity CRUD modal, create form at /itinerary/new
 
 ### Phase 4: Collaboration
 **Goal**: An itinerary owner can invite group members by email; invited users can accept and view the shared trip; all mutations are access-checked via Supabase RLS; concurrent edits surface a conflict rather than silently overwriting data
