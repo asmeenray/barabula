@@ -140,7 +140,7 @@ Note: Phase 5 depends only on Phase 3 and can be parallelized with Phase 4 if de
 **Goal:** Redesign the frontend to match the layla.ai UX pattern: immersive landing with video hero, inline AI chat input, Google Auth gate, and a split-panel chatbot that progressively collects trip details and reveals the itinerary
 **Requirements**: UI-01, UI-02, UI-03, UI-04, UI-05, UI-06, UI-07, UI-08, UI-09, UI-10, UI-11, UI-12, UI-13
 **Depends on:** Phase 6
-**Plans:** 3/5 plans executed
+**Plans:** 4/5 plans executed
 
 Plans:
 - [ ] 07-01-PLAN.md — Install motion, font/Tailwind design system, Chip + GlassInput shared UI, 6 test scaffolds

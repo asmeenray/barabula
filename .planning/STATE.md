@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 07-ui-overhaul-landing-page-and-chatbot-redesign-03-PLAN.md
-last_updated: "2026-03-11T13:37:42.397Z"
+stopped_at: Completed 07-ui-overhaul-landing-page-and-chatbot-redesign-04-PLAN.md
+last_updated: "2026-03-11T13:44:30.344Z"
 last_activity: 2026-03-09 — Roadmap created, phases derived from requirements
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 21
-  completed_plans: 15
+  completed_plans: 16
   percent: 0
 ---
 
@@ -65,6 +65,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 07-ui-overhaul-landing-page-and-chatbot-redesign P01 | 2min | 2 tasks | 14 files |
 | Phase 07-ui-overhaul-landing-page-and-chatbot-redesign P02 | 2min | 1 tasks | 1 files |
 | Phase 07-ui-overhaul-landing-page-and-chatbot-redesign P03 | 5min | 2 tasks | 12 files |
+| Phase 07-ui-overhaul-landing-page-and-chatbot-redesign P04 | 4min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -112,6 +113,8 @@ Recent decisions affecting current work:
 - [Phase 07-ui-overhaul]: pathname === '/' uses exact match not startsWith to avoid accidentally exposing sub-paths of /
 - [Phase 07-ui-overhaul]: Lifted inputValue state to VideoHero — shares input between HeroInput and QuickChips without prop drilling through page.tsx
 - [Phase 07-ui-overhaul]: motion/react cubic bezier ease requires [number,number,number,number] tuple annotation — plain number[] fails TypeScript strict check
+- [Phase 07-ui-overhaul]: Fixed inset-0 layout override used for full-bleed chat — no nav visible on chat page for luxury immersive feel
+- [Phase 07-ui-overhaul]: Light-themed chip buttons for QuickActionChips (not dark Chip component) — chat panel is light background
 
 ### Pending Todos
 
@@ -124,6 +127,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T13:37:42.391Z
-Stopped at: Completed 07-ui-overhaul-landing-page-and-chatbot-redesign-03-PLAN.md
+Last session: 2026-03-11T13:44:30.338Z
+Stopped at: Completed 07-ui-overhaul-landing-page-and-chatbot-redesign-04-PLAN.md
 Resume file: None
