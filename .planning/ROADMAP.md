@@ -85,11 +85,13 @@ Plans:
   3. A viewer cannot add or edit activities; an editor can (enforced by Supabase RLS)
   4. If two collaborators submit conflicting edits, the second receives a 409 Conflict response with the current server state, not a silent overwrite
   5. Owner can remove a collaborator and that user loses access immediately
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 04-01: Collaboration data model (invites table, RLS policies for viewer/editor roles, updated_at conflict detection)
-- [ ] 04-02: Collaboration UI (invite dialog, collaborator list, role display, conflict error handling)
+- [ ] 04-01-PLAN.md — Schema: invites table, full RLS policies (viewer/editor roles), invite-conversion trigger; types: Collaborator, Invite; test scaffolds
+- [ ] 04-02-PLAN.md — API routes: invite CRUD, collaborator list/remove, conflict detection on itinerary PATCH and activity mutations
+- [ ] 04-03-PLAN.md — Itinerary detail UI: Toast, AvatarStack, CollaboratorModal, role-gating (canEdit/isOwner), conflict 409 toast + re-fetch
+- [ ] 04-04-PLAN.md — Dashboard UI: PendingInviteBanner, shared-with-me section, accept flow
 
 ### Phase 5: AI Streaming
 **Goal**: AI chat responses stream token-by-token to the frontend via Vercel AI SDK so users see output as it is generated rather than waiting for a spinner to resolve
@@ -129,6 +131,6 @@ Note: Phase 5 depends only on Phase 3 and can be parallelized with Phase 4 if de
 | 1. Foundation | 3/3 | Complete | 2026-03-09 |
 | 2. Stack Setup | 5/5 | Complete   | 2026-03-09 |
 | 3. Core Pages | 4/4 | Complete   | 2026-03-10 |
-| 4. Collaboration | 0/2 | Not started | - |
+| 4. Collaboration | 0/4 | Not started | - |
 | 5. AI Streaming | 0/1 | Not started | - |
 | 6. Cleanup and Tests | 0/3 | Not started | - |
