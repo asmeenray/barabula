@@ -148,3 +148,13 @@ Plans:
 - [ ] 07-03-PLAN.md — Landing page: VideoHero, HeroInput (auth gate), QuickChips, HowItWorks, DestinationCards
 - [ ] 07-04-PLAN.md — Chat page redesign: SplitLayout, ChatPanel, ContextPanel (AnimatePresence transition), QuickActionChips, BottomTabBar
 - [ ] 07-05-PLAN.md — Layout polish audit, pitfall fixes, visual verification checkpoint
+
+### Phase 8: AI Chat Functionality with OpenAI - behavior, trip state, itinerary generation
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 7
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 8 to break down)
