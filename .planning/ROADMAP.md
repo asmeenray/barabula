@@ -134,3 +134,17 @@ Note: Phase 5 depends only on Phase 3 and can be parallelized with Phase 4 if de
 | 4. Collaboration | 0/4 | Not started | - |
 | 5. AI Streaming | 0/1 | Not started | - |
 | 6. Cleanup and Tests | 0/3 | Not started | - |
+
+### Phase 7: UI Overhaul - Landing Page and Chatbot Redesign
+
+**Goal:** Redesign the frontend to match the layla.ai UX pattern: immersive landing with video hero, inline AI chat input, Google Auth gate, and a split-panel chatbot that progressively collects trip details and reveals the itinerary
+**Requirements**: UI-01, UI-02, UI-03, UI-04, UI-05, UI-06, UI-07, UI-08, UI-09, UI-10, UI-11, UI-12, UI-13
+**Depends on:** Phase 6
+**Plans:** 5 plans
+
+Plans:
+- [ ] 07-01-PLAN.md — Install motion, font/Tailwind design system, Chip + GlassInput shared UI, 6 test scaffolds
+- [ ] 07-02-PLAN.md — Middleware public path update (/ accessible without auth), auth/callback next-param audit
+- [ ] 07-03-PLAN.md — Landing page: VideoHero, HeroInput (auth gate), QuickChips, HowItWorks, DestinationCards
+- [ ] 07-04-PLAN.md — Chat page redesign: SplitLayout, ChatPanel, ContextPanel (AnimatePresence transition), QuickActionChips, BottomTabBar
+- [ ] 07-05-PLAN.md — Layout polish audit, pitfall fixes, visual verification checkpoint
