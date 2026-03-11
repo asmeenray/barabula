@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation-03-PLAN.md
-last_updated: "2026-03-11T17:52:22.339Z"
+stopped_at: Completed 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation-04-PLAN.md
+last_updated: "2026-03-11T17:59:46.128Z"
 last_activity: 2026-03-09 — Roadmap created, phases derived from requirements
 progress:
   total_phases: 8
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 25
-  completed_plans: 20
+  completed_plans: 21
   percent: 0
 ---
 
@@ -70,6 +70,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation P01 | 2min | 2 tasks | 7 files |
 | Phase 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation P02 | 3min | 2 tasks | 3 files |
 | Phase 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation P03 | 3min | 2 tasks | 4 files |
+| Phase 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation P04 | 5min | 1 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -130,6 +131,8 @@ Recent decisions affecting current work:
 - [Phase 08-ai-chat]: DELETE /api/chat/session clears trip_sessions row — chat page calls this to start a new trip planning session
 - [Phase 08-ai-chat]: CHIP_SETS record keyed by ConversationPhase — exhaustive map ensures all phases handled, empty array = no chips rendered
 - [Phase 08-ai-chat]: TripSummaryPanel uses travelers_count != null check — 0 travelers would be falsy but valid; null-safe check preserves correctness
+- [Phase 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation]: vi.resetAllMocks() used instead of vi.clearAllMocks() in chat-page tests — clearAllMocks preserves mockResolvedValueOnce queues causing test pollution
+- [Phase 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation]: GET /api/chat/session returns gathering_destination default when no session — null-safe, returning users get correct phase without undefined propagation
 
 ### Pending Todos
 
@@ -148,6 +151,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T17:52:22.309Z
-Stopped at: Completed 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation-03-PLAN.md
+Last session: 2026-03-11T17:59:46.125Z
+Stopped at: Completed 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation-04-PLAN.md
 Resume file: None
