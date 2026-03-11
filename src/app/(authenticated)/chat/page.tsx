@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, Suspense } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { MessageBubble } from '@/components/chat/MessageBubble'
 import { ChatInput } from '@/components/chat/ChatInput'
@@ -27,6 +27,22 @@ type LocalMessage = {
   }
 }
 
+type FullItineraryData = {
+  id: string
+  title: string
+  destination: string | null
+  start_date: string | null
+  end_date: string | null
+  activities: Array<{
+    id: string
+    day_number: number
+    name: string
+    time: string | null
+    description: string | null
+    location: string | null
+  }>
+}
+
 // Stable ID for the initial prompt message so history merge can identify it
 const INITIAL_MSG_ID = '__initial_prompt__'
 
@@ -44,10 +60,11 @@ function ChatPageInner() {
   const [sending, setSending] = useState(false)
   const [historyLoading, setHistoryLoading] = useState(true)
   const [latestItineraryData, setLatestItineraryData] = useState<LocalMessage['itineraryData'] | null>(null)
+  const [itineraryId, setItineraryId] = useState<string | null>(null)
+  const [fullItinerary, setFullItinerary] = useState<FullItineraryData | null>(null)
   const [userName, setUserName] = useState<string | null>(null)
   const [conversationPhase, setConversationPhase] = useState<ConversationPhase>('gathering_destination')
   const [tripState, setTripState] = useState<Partial<TripState>>({})
-  const router = useRouter()
   const bottomRef = useRef<HTMLDivElement>(null)
   const autoSentRef = useRef(false)
 
@@ -131,24 +148,26 @@ function ChatPageInner() {
       }
 
       if (data.itineraryId) {
+        setItineraryId(data.itineraryId)
         try {
           const itinRes = await fetch(`/api/itineraries/${data.itineraryId}`)
           const itin = await itinRes.json()
-          aiMsg.itineraryData = {
+          setFullItinerary(itin)  // store full data for right panel
+          // Also set latestItineraryData for any remaining usage
+          setLatestItineraryData({
             title: itin.title,
             destination: itin.destination ?? '',
             start_date: itin.start_date ?? '',
             end_date: itin.end_date ?? '',
             dayCount: [...new Set((itin.activities ?? []).map((a: { day_number: number }) => a.day_number))].length,
             activityCount: (itin.activities ?? []).length,
-          }
-          setLatestItineraryData(aiMsg.itineraryData)
+          })
         } catch {
-          // Card data fetch failed — still show text message
+          // silent — text message still shows
         }
         setMessages(prev => [...prev, aiMsg])
         setSending(false)
-        setTimeout(() => router.push(`/itinerary/${data.itineraryId}`), 2500)
+        // Auto-navigation removed — user accepts via "Accept & View Full Itinerary" button in right panel
       } else {
         setMessages(prev => [...prev, aiMsg])
         setSending(false)
@@ -259,7 +278,7 @@ function ChatPageInner() {
     </div>
   )
 
-  return <SplitLayout left={leftPanel} right={<ContextPanel itineraryData={latestItineraryData ?? null} isGenerating={sending} conversationPhase={conversationPhase} tripState={tripState} />} />
+  return <SplitLayout left={leftPanel} right={<ContextPanel itineraryData={latestItineraryData ?? null} isGenerating={sending} conversationPhase={conversationPhase} tripState={tripState} fullItinerary={fullItinerary} itineraryId={itineraryId} />} />
 }
 
 export default function ChatPage() {
