@@ -7,6 +7,7 @@ export interface Activity {
   description: string | null
   location: string | null
   activity_type: string | null
+  extra_data: Record<string, unknown> | null
 }
 
 export interface Itinerary {
@@ -42,6 +43,11 @@ export interface GeneratedItinerary {
       time: string
       description: string
       location: string
+      activity_type?: 'activity' | 'hotel' | null
+      hotel_name?: string | null
+      star_rating?: number | null
+      check_in?: string | null
+      check_out?: string | null
     }>
   }>
 }

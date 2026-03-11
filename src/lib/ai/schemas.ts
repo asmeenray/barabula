@@ -35,8 +35,8 @@ export const AIResponseSchema = z.object({
   itinerary: z.object({
     title: z.string(),
     destination: z.string(),
-    start_date: z.string(),
-    end_date: z.string(),
+    start_date: z.string().describe('ISO 8601 format: YYYY-MM-DD'),
+    end_date: z.string().describe('ISO 8601 format: YYYY-MM-DD'),
     description: z.string(),
     days: z.array(z.object({
       day_number: z.number(),
@@ -45,6 +45,11 @@ export const AIResponseSchema = z.object({
         time: z.string(),
         description: z.string(),
         location: z.string(),
+        activity_type: z.enum(['activity', 'hotel']).nullable(),
+        hotel_name: z.string().nullable(),
+        star_rating: z.number().nullable(),
+        check_in: z.string().nullable(),
+        check_out: z.string().nullable(),
       })),
     })),
   }).nullable(),
