@@ -83,6 +83,15 @@ export async function POST(req: NextRequest) {
   if (safePhase === 'itinerary_complete' && parsed.itinerary) {
     const { days, ...itineraryFields } = parsed.itinerary
 
+    // Normalize dates to YYYY-MM-DD (model sometimes returns "20th March 2026" etc.)
+    const normalizeDate = (raw: string): string => {
+      const d = new Date(raw)
+      if (!isNaN(d.getTime())) return d.toISOString().split('T')[0]
+      return raw // pass through and let DB report the error if still invalid
+    }
+    itineraryFields.start_date = normalizeDate(itineraryFields.start_date)
+    itineraryFields.end_date = normalizeDate(itineraryFields.end_date)
+
     const { data: newItinerary, error: insertError } = await supabase
       .from('itineraries')
       .insert({ user_id: user.id, ...itineraryFields })
@@ -115,6 +124,15 @@ export async function POST(req: NextRequest) {
         time: act.time,
         description: act.description,
         location: act.location,
+        activity_type: act.activity_type ?? null,
+        extra_data: (act.activity_type === 'hotel')
+          ? {
+              hotel_name: act.hotel_name,
+              star_rating: act.star_rating,
+              check_in: act.check_in,
+              check_out: act.check_out,
+            }
+          : {},
       }))
     )
     if (activities.length > 0) {
