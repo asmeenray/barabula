@@ -158,3 +158,16 @@ Plans:
 
 Plans:
 - [x] TBD (run /gsd:plan-phase 8 to break down) (completed 2026-03-11)
+
+### Phase 9: Itinerary page with map integration and hotel details
+
+**Goal:** Redesign the itinerary detail page into a premium Teravue-inspired experience with sticky interactive map on the right, scrollable day-by-day timeline on the left, hotel details surfaced per day, and a full visual overhaul using the Barabula brand palette (navy/coral/umber/sky/sand)
+**Requirements**: HOTEL-01, BLUE-01, MAP-01, MAP-02, ITIN-01, ITIN-02, HERO-01
+**Depends on:** Phase 8
+**Plans:** 4 plans
+
+Plans:
+- [ ] 09-01-PLAN.md — Extend AI schema with hotel fields; persist activity_type and extra_data in message route
+- [ ] 09-02-PLAN.md — Blue violation cleanup across itinerary detail, new itinerary, ActivityForm, ActivityRow
+- [ ] 09-03-PLAN.md — Map infrastructure: install react-map-gl + maplibre-gl, geocoding helper, ItineraryMap component, test scaffolds
+- [ ] 09-04-PLAN.md — Full itinerary page redesign: ItineraryHero, DayPillNav, ActivityCard, HotelCard, DaySection redesign, split layout wiring
