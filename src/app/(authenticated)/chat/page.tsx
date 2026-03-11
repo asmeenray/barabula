@@ -84,33 +84,42 @@ function ChatPageInner() {
     if (initialPrompt) clearPrompt()
   }, [initialPrompt])
 
-  // Load history — prepend before the initial prompt message if present
+  // Load history and session state — auto-reset first when starting a new trip
   useEffect(() => {
-    fetch('/api/chat/history')
-      .then(r => r.json())
-      .then((data: ChatMessage[]) => {
-        const history = data.map(msg => ({
-          id: msg.id,
-          role: msg.role,
-          content: msg.content,
-        }))
-        setMessages(prev => {
-          // Keep everything after history (the initial prompt + any responses already added)
-          const nonHistory = prev.filter(m => m.id === INITIAL_MSG_ID)
-          return [...history, ...nonHistory]
-        })
-      })
-      .catch(() => {/* silent — empty history on error */})
-      .finally(() => setHistoryLoading(false))
+    async function initSession() {
+      if (initialPrompt) {
+        // New trip intent — wipe previous session + history for a clean slate
+        await fetch('/api/chat/session', { method: 'DELETE' })
+      }
 
-    // Load trip session state for returning users
-    fetch('/api/chat/session')
-      .then(r => r.ok ? r.json() : null)
-      .then(session => {
-        if (session?.conversation_phase) setConversationPhase(session.conversation_phase)
-        if (session?.trip_state) setTripState(session.trip_state)
-      })
-      .catch(() => {/* silent */})
+      // Load history (will be empty after reset)
+      fetch('/api/chat/history')
+        .then(r => r.json())
+        .then((data: ChatMessage[]) => {
+          const history = data.map(msg => ({
+            id: msg.id,
+            role: msg.role,
+            content: msg.content,
+          }))
+          setMessages(prev => {
+            // Keep everything after history (the initial prompt + any responses already added)
+            const nonHistory = prev.filter(m => m.id === INITIAL_MSG_ID)
+            return [...history, ...nonHistory]
+          })
+        })
+        .catch(() => {/* silent — empty history on error */})
+
+      // Load trip session state (will be empty after reset)
+      fetch('/api/chat/session')
+        .then(r => r.ok ? r.json() : null)
+        .then(session => {
+          if (session?.conversation_phase) setConversationPhase(session.conversation_phase)
+          if (session?.trip_state) setTripState(session.trip_state)
+        })
+        .catch(() => {/* silent */})
+    }
+
+    initSession().finally(() => setHistoryLoading(false))
   }, [])
 
   // Auto-send: only triggers API — user message already in state from initial useState
