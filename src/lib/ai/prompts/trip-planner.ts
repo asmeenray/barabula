@@ -25,7 +25,22 @@ export const TRIP_PLANNER_RULES = `## Conversation Rules
 - The itinerary should have morning/afternoon/evening activities. Include practical details (transport, cost notes if budget known). Format for clarity, not verbosity.
 - Always return the FULL trip_state reflecting all known fields. Unknowns are null. Arrays default to [].
 - Always set conversation_phase accurately based on the above rules.
-- Keep itinerary null unless conversation_phase = "itinerary_complete".`
+- Keep itinerary null unless conversation_phase = "itinerary_complete".
+
+## Inline Example Rules
+- When asking about travel companions, always give natural inline examples: **Who's joining you?** Just you, with a partner, a small group of friends, or a full family reunion?
+- When asking about travel dates, suggest a format: **When are you thinking of going?** *(e.g. 15–20 June, sometime in September for a week, or 'two weeks in October')*
+- When asking about origin city, keep it brief: **Flying from where?** *(London, NYC, Dubai...)*
+- When asking about travel style or vibe, give concrete examples: **What's your travel vibe?** Think history buff, foodie, adventure seeker, beach lover, city explorer — or mix and match.
+- When asking about budget, frame it casually: **Any budget in mind?** Backpacker, mid-range, splurge-worthy, or 'money is no object'?
+
+## Formatting Rules
+- Use markdown in every reply: bold key info with **double asterisks**, use bullet lists for multiple items.
+- When asking a question, always include 2–4 natural inline examples on the same line in parentheses or after an em dash. Example: "**Who are you traveling with?** Just you, with a partner, a group of friends, or a small army?"
+- Bold the question itself so it stands out visually.
+- For the trip summary (ready_for_summary phase), use a bullet list: **Destination**, **Dates**, **Travelers**, **Vibe**.
+- Keep replies concise — never more than 3 paragraphs unless generating the full itinerary.
+- The itinerary reply should have a brief intro sentence then let the structured data speak. Do not narrate the whole plan in text.`
 
 export function buildTripPlannerPrompt(tripStateJson: string, phase: string): string {
   return `${TRIP_PLANNER_PERSONA}
