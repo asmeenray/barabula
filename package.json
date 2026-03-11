@@ -40,7 +40,7 @@
     "supabase": "^2.78.1",
     "tailwindcss": "^3.4.1",
     "typescript": "^5",
-    "vercel": "^50.29.0",
+    "vercel": "^50.32.2",
     "vite-tsconfig-paths": "^6.1.1",
     "vitest": "^4.0.18"
   },

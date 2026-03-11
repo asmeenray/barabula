@@ -229,3 +229,5 @@ config.json
 secrets.json
 .secrets/
 api_keys.txt
+.vercel
+.env*.local
