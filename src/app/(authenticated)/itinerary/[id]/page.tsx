@@ -24,9 +24,15 @@ function groupByDay(activities: Activity[]): Map<number, Activity[]> {
     list.push(act)
     map.set(act.day_number, list)
   }
-  // Sort each day's activities by time string (lexicographic, sufficient for HH:MM format)
+  // Sort each day's activities: Morning → Afternoon → Evening, then HH:MM for exact times
+  const TIME_ORDER: Record<string, number> = { morning: 0, afternoon: 1, evening: 2, night: 3 }
+  const timeRank = (t: string): number => {
+    const lower = (t ?? '').toLowerCase()
+    if (lower in TIME_ORDER) return TIME_ORDER[lower]
+    return 10 + (parseFloat(t.replace(':', '.')) || 0)
+  }
   for (const [day, acts] of map) {
-    map.set(day, acts.sort((a, b) => (a.time ?? '').localeCompare(b.time ?? '')))
+    map.set(day, acts.sort((a, b) => timeRank(a.time ?? '') - timeRank(b.time ?? '')))
   }
   return map
 }
@@ -170,12 +176,12 @@ export default function ItineraryDetailPage() {
                 onChange={e => setTitleDraft(e.target.value)}
                 onBlur={saveTitle}
                 onKeyDown={e => { if (e.key === 'Enter') saveTitle() }}
-                className="text-2xl font-bold text-gray-900 w-full border-b-2 border-blue-500 bg-transparent focus:outline-none"
+                className="text-2xl font-bold text-gray-900 w-full border-b-2 border-coral bg-transparent focus:outline-none"
                 autoFocus
               />
             ) : (
               <h1
-                className="text-2xl font-bold text-gray-900 cursor-pointer hover:text-blue-700 transition-colors"
+                className="text-2xl font-bold text-gray-900 cursor-pointer hover:text-coral transition-colors"
                 onClick={startEditTitle}
                 title="Click to edit title"
               >
@@ -184,7 +190,7 @@ export default function ItineraryDetailPage() {
             )}
 
             {data.destination && (
-              <p className="text-sm font-medium text-blue-600 mt-1">{data.destination}</p>
+              <p className="text-sm font-medium text-coral mt-1">{data.destination}</p>
             )}
             {dateRange && (
               <p className="text-xs text-gray-500 mt-0.5">{dateRange}</p>
@@ -198,7 +204,7 @@ export default function ItineraryDetailPage() {
                   onChange={e => setDescriptionDraft(e.target.value)}
                   onBlur={saveDescription}
                   rows={3}
-                  className="w-full text-sm text-gray-600 border border-gray-300 rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="w-full text-sm text-gray-600 border border-gray-300 rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-coral"
                   autoFocus
                 />
               ) : (

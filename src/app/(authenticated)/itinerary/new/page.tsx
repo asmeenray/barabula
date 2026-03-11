@@ -56,7 +56,7 @@ export default function NewItineraryPage() {
             value={title}
             onChange={e => setTitle(e.target.value)}
             placeholder="e.g. Tokyo Spring Adventure"
-            className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-coral"
             autoFocus
           />
         </div>
@@ -67,7 +67,7 @@ export default function NewItineraryPage() {
             value={destination}
             onChange={e => setDestination(e.target.value)}
             placeholder="e.g. Tokyo, Japan"
-            className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-coral"
           />
         </div>
         <div className="grid grid-cols-2 gap-3">
@@ -77,7 +77,7 @@ export default function NewItineraryPage() {
               type="date"
               value={startDate}
               onChange={e => setStartDate(e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-coral"
             />
           </div>
           <div>
@@ -86,7 +86,7 @@ export default function NewItineraryPage() {
               type="date"
               value={endDate}
               onChange={e => setEndDate(e.target.value)}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-coral"
             />
           </div>
         </div>
@@ -104,7 +104,7 @@ export default function NewItineraryPage() {
           <button
             type="submit"
             disabled={submitting}
-            className="flex-1 px-4 py-2.5 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 disabled:opacity-40 transition-colors"
+            className="flex-1 px-4 py-2.5 bg-navy text-white text-sm font-medium rounded-xl hover:bg-umber disabled:opacity-40 transition-colors"
           >
             {submitting ? 'Creating...' : 'Create Trip'}
           </button>
