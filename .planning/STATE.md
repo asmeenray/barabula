@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 07-ui-overhaul-landing-page-and-chatbot-redesign-04-PLAN.md
-last_updated: "2026-03-11T13:44:30.344Z"
+stopped_at: Completed 07-ui-overhaul-landing-page-and-chatbot-redesign-05-PLAN.md
+last_updated: "2026-03-11T13:49:14.586Z"
 last_activity: 2026-03-09 — Roadmap created, phases derived from requirements
 progress:
   total_phases: 7
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 21
-  completed_plans: 16
+  completed_plans: 17
   percent: 0
 ---
 
@@ -66,6 +66,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 07-ui-overhaul-landing-page-and-chatbot-redesign P02 | 2min | 1 tasks | 1 files |
 | Phase 07-ui-overhaul-landing-page-and-chatbot-redesign P03 | 5min | 2 tasks | 12 files |
 | Phase 07-ui-overhaul-landing-page-and-chatbot-redesign P04 | 4min | 2 tasks | 10 files |
+| Phase 07-ui-overhaul-landing-page-and-chatbot-redesign P05 | 5min | 1 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -115,6 +116,9 @@ Recent decisions affecting current work:
 - [Phase 07-ui-overhaul]: motion/react cubic bezier ease requires [number,number,number,number] tuple annotation — plain number[] fails TypeScript strict check
 - [Phase 07-ui-overhaul]: Fixed inset-0 layout override used for full-bleed chat — no nav visible on chat page for luxury immersive feel
 - [Phase 07-ui-overhaul]: Light-themed chip buttons for QuickActionChips (not dark Chip component) — chat panel is light background
+- [Phase 07-ui-overhaul]: z-30 chosen for chat layout overlay — clears nav and any intermediate stacking contexts
+- [Phase 07-ui-overhaul]: html { height: 100% } added to globals.css — ensures h-screen fills viewport on all browsers including mobile
+- [Phase 07-ui-overhaul]: Checkpoint auto-approved (auto_advance: true) — build clean, 55/55 tests pass, all pitfalls audited
 
 ### Pending Todos
 
@@ -127,6 +131,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T13:44:30.338Z
-Stopped at: Completed 07-ui-overhaul-landing-page-and-chatbot-redesign-04-PLAN.md
+Last session: 2026-03-11T13:49:14.504Z
+Stopped at: Completed 07-ui-overhaul-landing-page-and-chatbot-redesign-05-PLAN.md
 Resume file: None
