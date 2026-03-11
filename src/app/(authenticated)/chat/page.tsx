@@ -11,7 +11,7 @@ import { QuickActionChips } from '@/components/chat/QuickActionChips'
 import { BottomTabBar } from '@/components/chat/BottomTabBar'
 import Link from 'next/link'
 import { getPrompt, clearPrompt } from '@/lib/landing/prompt-store'
-import type { ChatMessage } from '@/lib/types'
+import type { ChatMessage, ConversationPhase, TripState } from '@/lib/types'
 
 type LocalMessage = {
   id: string
@@ -45,6 +45,8 @@ function ChatPageInner() {
   const [historyLoading, setHistoryLoading] = useState(true)
   const [latestItineraryData, setLatestItineraryData] = useState<LocalMessage['itineraryData'] | null>(null)
   const [userName, setUserName] = useState<string | null>(null)
+  const [conversationPhase, setConversationPhase] = useState<ConversationPhase>('gathering_destination')
+  const [tripState, setTripState] = useState<Partial<TripState>>({})
   const router = useRouter()
   const bottomRef = useRef<HTMLDivElement>(null)
   const autoSentRef = useRef(false)
@@ -83,6 +85,15 @@ function ChatPageInner() {
       })
       .catch(() => {/* silent — empty history on error */})
       .finally(() => setHistoryLoading(false))
+
+    // Load trip session state for returning users
+    fetch('/api/chat/session')
+      .then(r => r.ok ? r.json() : null)
+      .then(session => {
+        if (session?.conversation_phase) setConversationPhase(session.conversation_phase)
+        if (session?.trip_state) setTripState(session.trip_state)
+      })
+      .catch(() => {/* silent */})
   }, [])
 
   // Auto-send: only triggers API — user message already in state from initial useState
@@ -109,6 +120,9 @@ function ChatPageInner() {
         body: JSON.stringify({ content }),
       })
       const data = await res.json()
+
+      if (data.conversationPhase) setConversationPhase(data.conversationPhase)
+      if (data.tripState) setTripState(data.tripState)
 
       const aiMsg: LocalMessage = {
         id: crypto.randomUUID(),
@@ -153,6 +167,16 @@ function ChatPageInner() {
   function sendMessage(overrideContent?: string) {
     const content = overrideContent ?? input
     if (!content.trim() || sending) return
+
+    // Sentinel: "Plan a new trip" chip — confirm, reset session, and reload
+    if (content === '__reset_session__') {
+      const destination = tripState.destination ? `your current ${tripState.destination} planning` : 'your current planning'
+      const confirmed = window.confirm(`This will clear ${destination} — continue?`)
+      if (!confirmed) return
+      fetch('/api/chat/session', { method: 'DELETE' })
+        .finally(() => window.location.reload())
+      return
+    }
 
     setMessages(prev => [...prev, {
       id: crypto.randomUUID(),
@@ -215,7 +239,11 @@ function ChatPageInner() {
       </div>
 
       {/* Quick action chips */}
-      <QuickActionChips onSend={(msg) => sendMessage(msg)} disabled={sending || historyLoading} />
+      <QuickActionChips
+        onSend={(msg) => sendMessage(msg)}
+        disabled={sending || historyLoading}
+        conversationPhase={conversationPhase}
+      />
 
       {/* Input area */}
       <div className="shrink-0">
@@ -231,7 +259,7 @@ function ChatPageInner() {
     </div>
   )
 
-  return <SplitLayout left={leftPanel} right={<ContextPanel itineraryData={latestItineraryData ?? null} isGenerating={sending} />} />
+  return <SplitLayout left={leftPanel} right={<ContextPanel itineraryData={latestItineraryData ?? null} isGenerating={sending} conversationPhase={conversationPhase} tripState={tripState} />} />
 }
 
 export default function ChatPage() {
