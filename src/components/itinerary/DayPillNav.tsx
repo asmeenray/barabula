@@ -11,21 +11,23 @@ export function DayPillNav({ days, activeDay, onDayChange }: DayPillNavProps) {
   const isAllActive = activeDay === null || activeDay === 0
 
   return (
-    <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
+    <div className="flex gap-1.5 overflow-x-auto scrollbar-hide pb-0.5">
       {/* All Days pill */}
       <button
         onClick={() => onDayChange(0)}
-        className="relative shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors"
+        className="relative shrink-0 px-3 py-1 rounded-full text-xs font-semibold transition-colors border border-sky/50"
+        style={isAllActive ? { borderColor: 'transparent' } : {}}
       >
         {isAllActive && (
           <motion.div
             layoutId="day-pill-active"
-            className="absolute inset-0 bg-navy rounded-full"
-            transition={{ type: 'spring', stiffness: 400, damping: 35 }}
+            className="absolute inset-0 rounded-full"
+            style={{ background: '#D67940' }}
+            transition={{ type: 'spring', stiffness: 450, damping: 38 }}
           />
         )}
         <span className={`relative z-10 ${isAllActive ? 'text-white' : 'text-umber hover:text-navy'}`}>
-          All Days
+          All
         </span>
       </button>
 
@@ -36,13 +38,15 @@ export function DayPillNav({ days, activeDay, onDayChange }: DayPillNavProps) {
           <button
             key={day}
             onClick={() => onDayChange(day)}
-            className="relative shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors"
+            className="relative shrink-0 px-3 py-1 rounded-full text-xs font-semibold transition-colors border border-sky/50"
+            style={isActive ? { borderColor: 'transparent' } : {}}
           >
             {isActive && (
               <motion.div
                 layoutId="day-pill-active"
-                className="absolute inset-0 bg-navy rounded-full"
-                transition={{ type: 'spring', stiffness: 400, damping: 35 }}
+                className="absolute inset-0 rounded-full"
+                style={{ background: '#D67940' }}
+                transition={{ type: 'spring', stiffness: 450, damping: 38 }}
               />
             )}
             <span className={`relative z-10 ${isActive ? 'text-white' : 'text-umber hover:text-navy'}`}>

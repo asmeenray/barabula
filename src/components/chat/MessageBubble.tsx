@@ -18,40 +18,64 @@ interface MessageBubbleProps {
 }
 
 const markdownComponents: Components = {
-  p: ({ children }) => <p className="mb-1 last:mb-0">{children}</p>,
-  strong: ({ children }) => <strong className="font-semibold text-navy">{children}</strong>,
-  ul: ({ children }) => <ul className="mt-1 space-y-0.5 list-none">{children}</ul>,
+  p: ({ children }) => (
+    <p className="mb-1 last:mb-0 text-[13px] leading-[1.55] text-gray-700">{children}</p>
+  ),
+  strong: ({ children }) => (
+    <strong className="font-semibold text-gray-900">{children}</strong>
+  ),
+  em: ({ children }) => (
+    // Examples in parens — same size/color as surrounding text, not styled differently
+    <em className="not-italic text-gray-700">{children}</em>
+  ),
+  ul: ({ children }) => (
+    <ul className="mt-1.5 mb-0.5 space-y-1 list-none pl-0">{children}</ul>
+  ),
   li: ({ children }) => (
-    <li className="flex gap-1.5 before:content-['•'] before:text-coral before:shrink-0">{children}</li>
+    <li className="relative pl-3.5 text-[13px] leading-[1.55] text-gray-700">
+      <span className="absolute left-0 top-[0.5em] text-umber/40 text-[10px] leading-none select-none">•</span>
+      {children}
+    </li>
   ),
   h3: ({ children }) => (
-    <h3 className="font-serif text-base text-navy mb-1 mt-2">{children}</h3>
+    <h3 className="font-serif text-[14px] text-navy mb-1 mt-2.5 first:mt-0">{children}</h3>
+  ),
+  ol: ({ children }) => (
+    <ol className="mt-1.5 mb-0.5 space-y-1 list-decimal list-inside pl-0.5">{children}</ol>
   ),
 }
 
 export function MessageBubble({ message }: MessageBubbleProps) {
   const isUser = message.role === 'user'
 
-  return (
-    <div className={`flex items-end gap-2 ${isUser ? 'justify-end' : 'justify-start'}`}>
-      {!isUser && (
-        <div className="w-8 h-8 rounded-full bg-sky border border-sky-dark flex items-center justify-center shrink-0 text-xs font-semibold text-navy">
-          AI
+  if (isUser) {
+    return (
+      <div className="flex justify-end">
+        <div className="max-w-[62%] px-4 py-2.5 bg-navy text-white text-[13.5px] leading-relaxed rounded-2xl rounded-br-sm">
+          <p className="whitespace-pre-wrap">{message.content}</p>
         </div>
-      )}
-      <div
-        className={`max-w-xs lg:max-w-md px-4 py-2.5 text-sm leading-relaxed ${
-          isUser
-            ? 'bg-navy text-white rounded-2xl rounded-br-sm'
-            : 'bg-white/80 text-gray-900 border border-sky/50 rounded-2xl rounded-bl-sm'
-        }`}
-      >
+      </div>
+    )
+  }
+
+  // AI message — no bubble, full width, editorial flow
+  return (
+    <div className="flex items-start gap-3 pr-4">
+      {/* Minimal branded mark */}
+      <div className="shrink-0 mt-[3px]">
+        <div className="w-5 h-5 rounded-full bg-coral/10 border border-coral/20 flex items-center justify-center">
+          <span className="font-logo text-[8px] text-coral leading-none">B</span>
+        </div>
+      </div>
+
+      {/* Full-width content — no bubble */}
+      <div className="flex-1 min-w-0">
         {message.itineraryData ? (
           <ItineraryChatCard data={message.itineraryData} />
-        ) : isUser ? (
-          <p className="whitespace-pre-wrap">{message.content}</p>
         ) : (
-          <ReactMarkdown components={markdownComponents}>{message.content}</ReactMarkdown>
+          <ReactMarkdown components={markdownComponents}>
+            {message.content}
+          </ReactMarkdown>
         )}
       </div>
     </div>

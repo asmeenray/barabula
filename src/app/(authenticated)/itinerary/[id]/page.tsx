@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import useSWR from 'swr'
@@ -67,35 +67,82 @@ export default function ItineraryDetailPage() {
   const [activeDay, setActiveDay] = useState<number | null>(null)
   const [mobileTab, setMobileTab] = useState<'list' | 'map'>('list')
 
+  // Drag-to-resize
+  const [leftPct, setLeftPct] = useState(50)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const isDragging = useRef(false)
+
+  const onMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDragging.current || !containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+    const pct = ((e.clientX - rect.left) / rect.width) * 100
+    setLeftPct(Math.min(Math.max(pct, 25), 75))
+  }, [])
+
+  const stopDrag = useCallback(() => {
+    if (isDragging.current) {
+      isDragging.current = false
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+    }
+  }, [])
+
+  useEffect(() => {
+    window.addEventListener('mousemove', onMouseMove)
+    window.addEventListener('mouseup', stopDrag)
+    return () => {
+      window.removeEventListener('mousemove', onMouseMove)
+      window.removeEventListener('mouseup', stopDrag)
+    }
+  }, [onMouseMove, stopDrag])
+
+  function startDrag() {
+    isDragging.current = true
+    document.body.style.cursor = 'col-resize'
+    document.body.style.userSelect = 'none'
+  }
+
+  // Sequential geocoding — avoids Nominatim rate limits
   useEffect(() => {
     if (!data?.activities) return
     const activities = data.activities.filter(a => a.location)
     if (activities.length === 0) return
 
-    setGeocodingProgress(0)
-    let resolved = 0
+    setMapPins([])
+    setGeocodingProgress(1) // signal that geocoding has started
 
-    Promise.all(
-      activities.map(async (act, i) => {
-        const coords = await resolveActivityCoordinates(act, data.destination ?? null)
-        resolved++
-        setGeocodingProgress(Math.round((resolved / activities.length) * 100))
-        if (!coords) return null
-        return {
-          id: act.id,
-          name: act.name,
-          day: act.day_number,
-          lng: coords.lng,
-          lat: coords.lat,
-          type: (act.activity_type === 'hotel' ? 'hotel' : 'activity') as 'activity' | 'hotel',
-          sequenceNumber: i + 1,
+    let cancelled = false
+
+    async function resolveSequentially() {
+      const results: MapPin[] = []
+      for (let i = 0; i < activities.length; i++) {
+        if (cancelled) return
+        const act = activities[i]
+        const coords = await resolveActivityCoordinates(act, data!.destination ?? null)
+        if (coords) {
+          const pin: MapPin = {
+            id: act.id,
+            name: act.name,
+            day: act.day_number,
+            lng: coords.lng,
+            lat: coords.lat,
+            type: (act.activity_type === 'hotel' ? 'hotel' : 'activity') as 'activity' | 'hotel',
+            sequenceNumber: i + 1,
+          }
+          results.push(pin)
+          if (!cancelled) setMapPins([...results]) // update incrementally
         }
-      })
-    ).then(results => {
-      setMapPins(results.filter(Boolean) as MapPin[])
-      setGeocodingProgress(100)
-    })
-  }, [data?.activities, data?.destination])
+        setGeocodingProgress(Math.round(((i + 1) / activities.length) * 100))
+        // Small delay between requests to respect Nominatim rate limit (1 req/sec)
+        if (i < activities.length - 1 && !process.env.NEXT_PUBLIC_MAPBOX_TOKEN) {
+          await new Promise(r => setTimeout(r, 250))
+        }
+      }
+    }
+
+    resolveSequentially()
+    return () => { cancelled = true }
+  }, [data?.activities, data?.destination]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function startEditTitle() {
     setTitleDraft(data?.title ?? '')
@@ -186,10 +233,11 @@ export default function ItineraryDetailPage() {
   if (sortedDays.length === 0) sortedDays.push(1)
   const displayedDays = activeDay ? sortedDays.filter(d => d === activeDay) : sortedDays
   const dateRange = data.start_date && data.end_date ? `${data.start_date} – ${data.end_date}` : data.start_date ?? null
+  const hasLocations = (data.activities ?? []).some(a => a.location)
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-[#f0ebe4]">
-      {/* Compact hero strip */}
+      {/* Hero strip */}
       <ItineraryHero
         title={data.title}
         coverImageUrl={data.cover_image_url ?? null}
@@ -210,7 +258,7 @@ export default function ItineraryDetailPage() {
           <button
             key={tab}
             onClick={() => setMobileTab(tab)}
-            className="relative flex-1 py-3 text-sm font-medium text-umber capitalize"
+            className="relative flex-1 py-2.5 text-xs font-semibold text-umber capitalize tracking-wide"
           >
             {mobileTab === tab && (
               <motion.div layoutId="mobile-tab-indicator" className="absolute bottom-0 left-4 right-4 h-0.5 bg-coral rounded-full" />
@@ -220,13 +268,16 @@ export default function ItineraryDetailPage() {
         ))}
       </div>
 
-      {/* Split layout */}
-      <div className="flex flex-1 overflow-hidden">
+      {/* Resizable split layout */}
+      <div ref={containerRef} className="flex flex-1 overflow-hidden">
 
-        {/* Left: scrollable list */}
-        <div className={`${mobileTab === 'map' ? 'hidden' : 'flex flex-col'} md:flex md:flex-col w-full md:w-[52%] overflow-hidden`}>
-          {/* Sticky day pill strip — minimal */}
-          <div className="shrink-0 px-4 md:px-5 py-2 bg-white/90 backdrop-blur-md border-b border-sky/20">
+        {/* Left: scrollable activity list */}
+        <div
+          className={`${mobileTab === 'map' ? 'hidden' : 'flex flex-col'} md:flex md:flex-col overflow-hidden`}
+          style={{ width: `${leftPct}%` }}
+        >
+          {/* Sticky day pill strip */}
+          <div className="shrink-0 px-3 md:px-4 py-2 bg-white/80 backdrop-blur-md border-b border-sky/20">
             <DayPillNav days={sortedDays} activeDay={activeDay} onDayChange={handleDayChange} />
             {geocodingProgress > 0 && geocodingProgress < 100 && (
               <div className="mt-1.5 h-px bg-sky/30 rounded-full overflow-hidden">
@@ -234,14 +285,14 @@ export default function ItineraryDetailPage() {
                   className="h-full bg-coral rounded-full"
                   initial={{ width: 0 }}
                   animate={{ width: `${geocodingProgress}%` }}
-                  transition={{ duration: 0.3 }}
+                  transition={{ duration: 0.4 }}
                 />
               </div>
             )}
           </div>
 
           {/* Scrollable content */}
-          <div className="flex-1 overflow-y-auto px-3 md:px-4 py-3">
+          <div className="flex-1 overflow-y-auto px-2 md:px-3 py-3">
             <AnimatePresence mode="popLayout">
               {displayedDays.map(dayNumber => (
                 <motion.div
@@ -266,14 +317,38 @@ export default function ItineraryDetailPage() {
           </div>
         </div>
 
+        {/* Drag handle */}
+        <div
+          className="hidden md:flex relative shrink-0 w-[5px] cursor-col-resize items-center justify-center group"
+          onMouseDown={startDrag}
+          style={{ background: 'rgba(204,217,226,0.3)' }}
+        >
+          <div
+            className="absolute inset-y-0 w-px transition-colors duration-150"
+            style={{ background: 'rgba(204,217,226,0.6)', left: '2px' }}
+          />
+          {/* Grab pill */}
+          <div
+            className="relative z-10 flex flex-col gap-[3px] items-center opacity-0 group-hover:opacity-100 transition-opacity duration-150 px-1 py-2 rounded-full"
+            style={{ background: 'rgba(214,121,64,0.12)' }}
+          >
+            {[0,1,2,3].map(i => (
+              <div key={i} className="w-[3px] h-[3px] rounded-full" style={{ background: '#D67940', opacity: 0.7 }} />
+            ))}
+          </div>
+        </div>
+
         {/* Right: map */}
-        <div className={`${mobileTab === 'list' ? 'hidden' : 'flex-1'} md:flex md:flex-col md:flex-1 relative`}>
-          <div className="hidden md:block absolute left-0 top-0 bottom-0 w-px bg-sky/30 z-10" />
+        <div
+          className={`${mobileTab === 'list' ? 'hidden' : 'flex-1'} md:flex md:flex-col relative`}
+          style={{ width: `${100 - leftPct}%` }}
+        >
           <ItineraryMap
             pins={mapPins}
             activeDay={activeDay}
             activeActivityId={activeActivityId}
             onPinClick={handlePinClick}
+            hasLocations={hasLocations}
           />
         </div>
       </div>

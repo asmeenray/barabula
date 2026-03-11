@@ -38,10 +38,10 @@ export function ItineraryHero({
   return (
     <div
       className="relative shrink-0 w-full overflow-hidden"
-      style={{ height: '88px' }}
+      style={{ height: '72px' }}
       data-testid="itinerary-hero"
     >
-      {/* Background photo */}
+      {/* Full-bleed background photo */}
       {activeUrl && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -52,27 +52,36 @@ export function ItineraryHero({
           onError={() => setPhoto(null)}
         />
       )}
-      {/* Gradient bg (fallback + always-on overlay) */}
-      <div className={`absolute inset-0 bg-gradient-to-r from-navy via-[#1e3a5f] to-umber/80 transition-opacity duration-700 ${activeUrl && loaded ? 'opacity-70' : 'opacity-100'}`} />
-      <div className="absolute inset-0 bg-navy/60" />
 
-      {/* Content: single horizontal row */}
-      <div className="relative h-full flex items-center px-4 md:px-6 gap-4">
+      {/* Dark gradient base — always present */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: activeUrl && loaded
+            ? 'linear-gradient(to bottom, rgba(0,0,0,0.55) 0%, rgba(0,0,0,0.42) 100%)'
+            : 'linear-gradient(135deg, rgba(40,81,133,0.95) 0%, rgba(28,44,64,0.98) 100%)',
+        }}
+      />
+
+      {/* Glassmorphism content row */}
+      <div className="relative h-full flex items-center gap-3 px-4 md:px-5">
         {/* Back */}
         <button
           onClick={onBack}
-          className="flex items-center gap-1 text-white/70 hover:text-white transition-colors shrink-0"
-          aria-label="Back to My Trips"
+          aria-label="Back"
+          className="shrink-0 w-8 h-8 rounded-full flex items-center justify-center transition-all duration-150"
+          style={{ background: 'rgba(255,255,255,0.12)', backdropFilter: 'blur(8px)', border: '1px solid rgba(255,255,255,0.18)' }}
         >
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
-            <path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none">
+            <path d="M19 12H5M12 5l-7 7 7 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
           </svg>
         </button>
 
-        {/* Destination + Title */}
+        {/* Title block */}
         <div className="flex-1 min-w-0">
           {destination && (
-            <p className="text-coral text-[10px] font-semibold tracking-[0.18em] uppercase leading-none mb-1 opacity-90">
+            <p className="text-[10px] font-semibold tracking-[0.2em] uppercase leading-none mb-0.5"
+               style={{ color: '#D67940', opacity: 0.9 }}>
               {destination}
             </p>
           )}
@@ -83,12 +92,13 @@ export function ItineraryHero({
               onChange={e => onTitleDraftChange(e.target.value)}
               onBlur={onTitleSave}
               onKeyDown={e => { if (e.key === 'Enter') onTitleSave() }}
-              className="font-serif text-base text-white w-full bg-transparent border-b border-white/40 focus:border-white focus:outline-none truncate"
+              className="font-serif text-lg text-white w-full bg-transparent border-b focus:outline-none leading-tight"
+              style={{ borderColor: 'rgba(255,255,255,0.4)' }}
               autoFocus
             />
           ) : (
             <h1
-              className="font-serif text-base md:text-lg text-white leading-none truncate cursor-pointer hover:text-sky transition-colors"
+              className="font-serif text-lg text-white leading-tight truncate cursor-pointer transition-opacity hover:opacity-80"
               onClick={onEditTitle}
               title="Click to rename"
             >
@@ -96,14 +106,17 @@ export function ItineraryHero({
             </h1>
           )}
           {dateRange && (
-            <p className="text-white/40 text-[11px] mt-1 leading-none">{dateRange}</p>
+            <p className="text-[10px] leading-none mt-0.5" style={{ color: 'rgba(255,255,255,0.45)' }}>
+              {dateRange}
+            </p>
           )}
         </div>
 
         {/* Delete */}
         <button
           onClick={onDelete}
-          className="shrink-0 text-white/30 hover:text-red-400 transition-colors text-[11px]"
+          className="shrink-0 px-2.5 py-1 rounded-full text-[10px] font-medium transition-all duration-150"
+          style={{ color: 'rgba(255,255,255,0.35)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
         >
           Delete
         </button>
@@ -115,7 +128,8 @@ export function ItineraryHero({
           href={photo.photographerUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="absolute bottom-1 right-2 text-white/20 text-[9px] hover:text-white/50 transition-colors"
+          className="absolute bottom-1 right-2 text-[8px] transition-opacity hover:opacity-70"
+          style={{ color: 'rgba(255,255,255,0.2)' }}
         >
           {photo.photographer} · Pexels
         </a>

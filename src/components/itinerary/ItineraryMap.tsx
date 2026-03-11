@@ -19,6 +19,7 @@ interface ItineraryMapProps {
   activeDay: number | null
   activeActivityId: string | null
   onPinClick: (id: string) => void
+  hasLocations?: boolean
 }
 
 // Teardrop pin SVG — elegant location marker shape
@@ -93,6 +94,7 @@ export default function ItineraryMap({
   activeDay,
   activeActivityId,
   onPinClick,
+  hasLocations = false,
 }: ItineraryMapProps) {
   const mapRef = useRef<MapRef>(null)
   const [hoveredPin, setHoveredPin] = useState<string | null>(null)
@@ -196,8 +198,19 @@ export default function ItineraryMap({
         </div>
       )}
 
-      {/* Empty state */}
-      {visiblePins.length === 0 && pins.length === 0 && (
+      {/* Geocoding in progress — show when activities have locations but pins not yet resolved */}
+      {hasLocations && pins.length === 0 && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="bg-white/90 backdrop-blur-sm rounded-2xl px-5 py-4 text-center shadow-sm border border-sky/30">
+            <div className="text-2xl mb-1">📍</div>
+            <p className="text-sm font-medium text-navy">Locating places on map…</p>
+            <p className="text-xs text-umber/60 mt-0.5">This takes a moment</p>
+          </div>
+        </div>
+      )}
+
+      {/* Empty state — only when no activities have locations at all */}
+      {!hasLocations && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="bg-white/90 backdrop-blur-sm rounded-2xl px-5 py-4 text-center shadow-sm border border-sky/30">
             <div className="text-2xl mb-1">🗺️</div>

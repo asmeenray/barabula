@@ -247,18 +247,16 @@ function ChatPageInner() {
           <MessageBubble key={msg.id} message={msg} />
         ))}
 
-        {/* Typing indicator */}
+        {/* Typing indicator — matches editorial AI message style */}
         {sending && (
-          <div className="flex items-end gap-2 justify-start" data-testid="typing-indicator">
-            <div className="w-8 h-8 rounded-full bg-sky border border-sky-dark flex items-center justify-center shrink-0 text-xs font-semibold text-navy">
-              AI
+          <div className="flex items-start gap-3 pr-4" data-testid="typing-indicator">
+            <div className="shrink-0 mt-[3px] w-5 h-5 rounded-full bg-coral/10 border border-coral/20 flex items-center justify-center">
+              <span className="font-logo text-[8px] text-coral leading-none">B</span>
             </div>
-            <div className="px-4 py-3 bg-white/80 border border-sky/50 rounded-2xl rounded-bl-sm">
-              <div className="flex gap-1 items-center">
-                <span className="w-1.5 h-1.5 bg-umber/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-1.5 h-1.5 bg-umber/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-1.5 h-1.5 bg-umber/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-              </div>
+            <div className="flex gap-1.5 items-center pt-1.5">
+              <span className="w-1.5 h-1.5 bg-umber/30 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+              <span className="w-1.5 h-1.5 bg-umber/30 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+              <span className="w-1.5 h-1.5 bg-umber/30 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
             </div>
           </div>
         )}

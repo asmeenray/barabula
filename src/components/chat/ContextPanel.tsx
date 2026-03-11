@@ -197,9 +197,16 @@ function groupByDay(activities: FullItineraryActivity[]): Map<number, FullItiner
     list.push(act)
     map.set(act.day_number, list)
   }
-  // Sort each day's activities by time string (lexicographic, sufficient for HH:MM format)
+  // Sort each day's activities: Morning → Afternoon → Evening, then HH:MM for exact times
+  const TIME_ORDER: Record<string, number> = { morning: 0, afternoon: 1, evening: 2, night: 3 }
+  const timeRank = (t: string): number => {
+    const lower = (t ?? '').toLowerCase()
+    if (lower in TIME_ORDER) return TIME_ORDER[lower]
+    // HH:MM format — offset after named slots
+    return 10 + (parseFloat(t.replace(':', '.')) || 0)
+  }
   for (const [day, acts] of map) {
-    map.set(day, acts.sort((a, b) => (a.time ?? '').localeCompare(b.time ?? '')))
+    map.set(day, acts.sort((a, b) => timeRank(a.time ?? '') - timeRank(b.time ?? '')))
   }
   return map
 }
