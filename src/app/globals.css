@@ -9,3 +9,41 @@ html {
 body {
   margin: 0;
 }
+
+/* Page-level scrollbar — completely hidden (landing page, etc.) */
+html::-webkit-scrollbar {
+  display: none;
+}
+
+html {
+  scrollbar-width: none;
+}
+
+/* Inner element scrollbars — ultra subtle for chat panel, etc. */
+::-webkit-scrollbar {
+  width: 3px;
+  height: 3px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 2px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+*:not(html) {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
+}
+
+/* Resizable split panel — no text selection while dragging */
+.dragging-panel {
+  user-select: none;
+}

@@ -124,6 +124,12 @@ Recent decisions affecting current work:
 
 None yet.
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 1 | remove the side scrollbar at the landing page. make it more subtle (invisible) | 2026-03-11 | — | [1-remove-the-side-scrollbar-at-the-landing](.planning/quick/1-remove-the-side-scrollbar-at-the-landing/) |
+
 ### Blockers/Concerns
 
 - [Phase 3]: Invite mechanism (invite token vs. direct username lookup vs. shareable link) not yet decided — needs a decision before implementing the endpoint
