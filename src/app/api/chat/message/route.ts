@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
 
   const systemPrompt = buildSystemPrompt(currentTripState, currentPhase)
 
-  const completion = await openai.beta.chat.completions.parse({
+  const completion = await openai.chat.completions.parse({
     model: 'gpt-4o',
     max_tokens: 4096,
     messages: [

@@ -30,11 +30,9 @@ const mockParse = vi.fn().mockResolvedValue({
 
 vi.mock('openai', () => {
   class MockOpenAI {
-    beta = {
-      chat: {
-        completions: {
-          parse: mockParse,
-        }
+    chat = {
+      completions: {
+        parse: mockParse,
       }
     }
   }
