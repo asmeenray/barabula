@@ -45,3 +45,10 @@ export interface GeneratedItinerary {
     }>
   }>
 }
+
+export type { TripState, ConversationPhase, AIResponse } from './ai/schemas'
+
+export interface ChipConfig {
+  label: string
+  message: string
+}

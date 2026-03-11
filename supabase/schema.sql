@@ -160,3 +160,23 @@ CREATE TRIGGER on_auth_user_created
   AFTER INSERT ON auth.users
   FOR EACH ROW
   EXECUTE PROCEDURE public.handle_new_user();
+
+-- ---------------------------------------------------------------
+-- Phase 8: Trip Sessions — stateful AI conversation state per user
+-- ---------------------------------------------------------------
+
+CREATE TABLE public.trip_sessions (
+  id                 UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id            UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  trip_state         JSONB DEFAULT '{}',
+  conversation_phase TEXT DEFAULT 'gathering_destination',
+  updated_at         TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE (user_id)
+);
+
+ALTER TABLE public.trip_sessions ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY "Users can manage own trip session"
+  ON public.trip_sessions FOR ALL
+  TO authenticated
+  USING ((SELECT auth.uid()) = user_id);
