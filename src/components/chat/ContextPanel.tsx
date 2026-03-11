@@ -2,6 +2,7 @@
 
 import { AnimatePresence, motion } from 'motion/react'
 import { useState, useEffect } from 'react'
+import type { ConversationPhase, TripState } from '@/lib/types'
 
 interface ItineraryData {
   title: string
@@ -15,6 +16,8 @@ interface ItineraryData {
 interface ContextPanelProps {
   itineraryData: ItineraryData | null
   isGenerating: boolean
+  conversationPhase?: ConversationPhase
+  tripState?: Partial<TripState>
 }
 
 // Ambient destination images — rotated randomly per session
@@ -105,22 +108,73 @@ function ItineraryPanel({ data }: { data: ItineraryData }) {
   )
 }
 
-export function ContextPanel({ itineraryData, isGenerating }: ContextPanelProps) {
+function TripSummaryPanel({ tripState }: { tripState: Partial<TripState> }) {
+  return (
+    <div
+      className="absolute inset-0 overflow-y-auto p-8 flex flex-col justify-center bg-gray-950"
+      data-testid="trip-summary-panel"
+    >
+      <div className="max-w-sm mx-auto w-full">
+        <p className="text-white/40 text-xs uppercase tracking-widest mb-3 font-medium">Trip so far</p>
+        {tripState.destination && (
+          <h2 className="font-serif text-3xl text-white mb-4">{tripState.destination}</h2>
+        )}
+        <div className="space-y-3">
+          {tripState.travelers_count != null && (
+            <div className="bg-white/5 rounded-xl p-4">
+              <p className="text-white/40 text-xs mb-1">Travelers</p>
+              <p className="text-white text-sm">
+                {tripState.travelers_count}
+                {tripState.travelers_type ? ` · ${tripState.travelers_type}` : ''}
+              </p>
+            </div>
+          )}
+          {(tripState.dates_start || tripState.dates_end) && (
+            <div className="bg-white/5 rounded-xl p-4">
+              <p className="text-white/40 text-xs mb-1">Dates</p>
+              <p className="text-white text-sm">
+                {tripState.dates_start ?? '?'} → {tripState.dates_end ?? '?'}
+              </p>
+            </div>
+          )}
+          {tripState.interests && tripState.interests.length > 0 && (
+            <div className="bg-white/5 rounded-xl p-4">
+              <p className="text-white/40 text-xs mb-1">Interests</p>
+              <p className="text-white text-sm">{tripState.interests.join(', ')}</p>
+            </div>
+          )}
+          {tripState.budget && (
+            <div className="bg-white/5 rounded-xl p-4">
+              <p className="text-white/40 text-xs mb-1">Budget</p>
+              <p className="text-white text-sm">{tripState.budget}</p>
+            </div>
+          )}
+          {tripState.travel_style && (
+            <div className="bg-white/5 rounded-xl p-4">
+              <p className="text-white/40 text-xs mb-1">Style</p>
+              <p className="text-white text-sm">{tripState.travel_style}</p>
+            </div>
+          )}
+          {tripState.pace && (
+            <div className="bg-white/5 rounded-xl p-4">
+              <p className="text-white/40 text-xs mb-1">Pace</p>
+              <p className="text-white text-sm">{tripState.pace}</p>
+            </div>
+          )}
+        </div>
+        <p className="text-white/30 text-xs text-center mt-6">Confirm or adjust below</p>
+      </div>
+    </div>
+  )
+}
+
+export function ContextPanel({ itineraryData, isGenerating, conversationPhase, tripState }: ContextPanelProps) {
+  const showSummary = !itineraryData && conversationPhase === 'ready_for_summary'
+
   return (
     <div className="relative h-full" data-testid="context-panel">
       <AnimatePresence mode="wait">
-        {!itineraryData ? (
-          <motion.div
-            key="ambient"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0, scale: 0.98 }}
-            transition={{ duration: 0.4 }}
-            className="absolute inset-0"
-          >
-            <AmbientPanel isGenerating={isGenerating} />
-          </motion.div>
-        ) : (
+        {itineraryData ? (
           <motion.div
             key="itinerary"
             initial={{ opacity: 0, y: 20 }}
@@ -130,6 +184,28 @@ export function ContextPanel({ itineraryData, isGenerating }: ContextPanelProps)
             className="absolute inset-0"
           >
             <ItineraryPanel data={itineraryData} />
+          </motion.div>
+        ) : showSummary ? (
+          <motion.div
+            key="summary"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.5, ease: 'easeOut' }}
+            className="absolute inset-0"
+          >
+            <TripSummaryPanel tripState={tripState ?? {}} />
+          </motion.div>
+        ) : (
+          <motion.div
+            key="ambient"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0, scale: 0.98 }}
+            transition={{ duration: 0.4 }}
+            className="absolute inset-0"
+          >
+            <AmbientPanel isGenerating={isGenerating} />
           </motion.div>
         )}
       </AnimatePresence>
