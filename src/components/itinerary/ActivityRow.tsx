@@ -13,7 +13,7 @@ export function ActivityRow({ activity, onEdit, onDelete }: ActivityRowProps) {
         <div className="flex-1 min-w-0">
           <p className="font-medium text-gray-900">{activity.name}</p>
           {activity.time && (
-            <p className="text-sm text-blue-600 mt-0.5">{activity.time}</p>
+            <p className="text-sm text-coral mt-0.5">{activity.time}</p>
           )}
           {activity.location && (
             <p className="text-sm text-gray-500 mt-1">📍 {activity.location}</p>

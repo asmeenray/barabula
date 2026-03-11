@@ -61,7 +61,7 @@ export function ActivityForm({ initialData, dayNumber, itineraryId, onSave, onCa
               value={name}
               onChange={e => setName(e.target.value)}
               placeholder="e.g. Visit Senso-ji Temple"
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coral"
               autoFocus
             />
           </div>
@@ -72,7 +72,7 @@ export function ActivityForm({ initialData, dayNumber, itineraryId, onSave, onCa
               value={time}
               onChange={e => setTime(e.target.value)}
               placeholder="e.g. 09:00 or Morning"
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coral"
             />
           </div>
           <div>
@@ -82,7 +82,7 @@ export function ActivityForm({ initialData, dayNumber, itineraryId, onSave, onCa
               value={location}
               onChange={e => setLocation(e.target.value)}
               placeholder="e.g. Asakusa, Tokyo"
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coral"
             />
           </div>
           <div>
@@ -92,7 +92,7 @@ export function ActivityForm({ initialData, dayNumber, itineraryId, onSave, onCa
               onChange={e => setDescription(e.target.value)}
               placeholder="What to do or see here..."
               rows={3}
-              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-coral"
             />
           </div>
 
@@ -109,7 +109,7 @@ export function ActivityForm({ initialData, dayNumber, itineraryId, onSave, onCa
             <button
               type="submit"
               disabled={saving}
-              className="px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-xl hover:bg-blue-700 disabled:opacity-40 transition-colors"
+              className="px-4 py-2 bg-navy text-white text-sm font-medium rounded-xl hover:bg-umber disabled:opacity-40 transition-colors"
             >
               {saving ? 'Saving...' : 'Save'}
             </button>
