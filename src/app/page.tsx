@@ -4,6 +4,7 @@ import { VideoHero } from '@/components/landing/VideoHero'
 import { HowItWorks } from '@/components/landing/HowItWorks'
 import { DestinationCards } from '@/components/landing/DestinationCards'
 import { ProfileDropdown } from '@/components/ui/ProfileDropdown'
+import { MyTrips } from '@/components/landing/MyTrips'
 
 export default async function LandingPage() {
   const supabase = await createClient()
@@ -16,6 +17,25 @@ export default async function LandingPage() {
 
   const avatarUrl = user?.user_metadata?.avatar_url ?? null
   const email = user?.email ?? ''
+
+  // Fetch up to 3 most recent itineraries for the My Trips section (authenticated only)
+  let itineraries: {
+    id: string
+    title: string
+    destination: string | null
+    start_date: string | null
+    cover_image_url: string | null
+    created_at: string
+  }[] = []
+
+  if (user) {
+    const { data } = await supabase
+      .from('itineraries')
+      .select('id,title,destination,start_date,cover_image_url,created_at')
+      .order('created_at', { ascending: false })
+      .limit(3)
+    itineraries = data ?? []
+  }
 
   return (
     <main className="relative">
@@ -41,6 +61,7 @@ export default async function LandingPage() {
 
       {/* Scroll content — neutral background */}
       <div className="bg-neutral-50">
+        {itineraries.length > 0 && <MyTrips trips={itineraries} />}
         <HowItWorks />
         <DestinationCards />
       </div>
