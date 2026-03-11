@@ -70,7 +70,40 @@ This phase does NOT include new backend data models beyond what Phase 8 already 
 <specifics>
 ## Specific Ideas
 
-**Reference:** mindtrip.ai — the app shows a full-bleed map on the right half of the screen with pins for every stop, and a scrollable day-by-day activity feed on the left. Clicking an activity flies the map to that location. Very clean, editorial typography.
+**Primary Design Reference:** Teravue itinerary page (user-provided screenshot, 2026-03-11)
+
+Layout structure (adapt to Barabula palette):
+- **Left panel (~50%):** Scrollable itinerary list on `sand` (`#F5EDE3`) background
+  - Breadcrumb "← Itinerary Detail" + action icons (share, download, more) in top bar
+  - Large title in `font-serif` (DM Serif Display), description in `font-sans`
+  - Metadata chips: destination flag, dates, group size, budget — styled with `sky` border, `umber` text
+  - Day selector dropdown (coral accent)
+  - Timeline: vertical **dashed** line with numbered circles (coral `#D67940`) connecting cards
+  - Activity cards: thumbnail image left, time + name + location + cost right, CTA button (`coral`) far right
+  - Hotel check-in cards styled distinctly (special hotel icon, "per night" cost badge)
+- **Right panel (~50%):** Full-height sticky map (dark tile style from MapLibre)
+  - Route polyline in **coral** `#D67940` (not blue)
+  - Numbered circle pins matching timeline numbers — coral fill, white text
+  - Photo bubble floating at active/hovered pin (circular with white border)
+  - Day navigation arrows top-right: "← Day 1 - Name →"
+  - Route info card bottom-right: travel time, transport mode badge
+  - Map controls: zoom +/-, compass
+
+**Color translation (Teravue dark → Barabula warm):**
+- Dark background panels → `sand` `#F5EDE3`
+- Blue route line → `coral` `#D67940`
+- Blue numbered pins → `coral` filled circles
+- Blue CTA buttons → `coral` bg, white text
+- Headings (white on dark) → `navy` `#285185` on sand
+- Secondary text (grey) → `umber` `#6F4849`
+- Map: use MapLibre with a light/neutral tile style OR keep dark for contrast
+- Timeline dashed line → `sky` `#CCD9E2` with `coral` numbered nodes
+
+**Interaction details from reference:**
+- Clicking activity card → map flies to that pin, highlights it with photo bubble
+- Clicking map pin → scrolls left panel to that activity card
+- Day selector → filters both list and map to show only that day's activities
+- Number badges in timeline align with map pin numbers (same sequence per day)
 
 **Cover image:** Already fetched from Unsplash and stored in `cover_image_url` field (Phase 8). Use it as a hero banner at the top of the itinerary page.
 
