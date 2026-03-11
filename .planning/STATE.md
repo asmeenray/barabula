@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation-04-PLAN.md
-last_updated: "2026-03-11T17:59:46.128Z"
+stopped_at: Completed 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation-05-PLAN.md
+last_updated: "2026-03-11T18:52:51.338Z"
 last_activity: 2026-03-09 — Roadmap created, phases derived from requirements
 progress:
   total_phases: 8
-  completed_phases: 5
-  total_plans: 25
-  completed_plans: 21
+  completed_phases: 4
+  total_plans: 28
+  completed_plans: 23
   percent: 0
 ---
 
@@ -71,6 +71,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation P02 | 3min | 2 tasks | 3 files |
 | Phase 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation P03 | 3min | 2 tasks | 4 files |
 | Phase 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation P04 | 5min | 1 tasks | 3 files |
+| Phase 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation P05 | 2min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -133,6 +134,9 @@ Recent decisions affecting current work:
 - [Phase 08-ai-chat]: TripSummaryPanel uses travelers_count != null check — 0 travelers would be falsy but valid; null-safe check preserves correctness
 - [Phase 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation]: vi.resetAllMocks() used instead of vi.clearAllMocks() in chat-page tests — clearAllMocks preserves mockResolvedValueOnce queues causing test pollution
 - [Phase 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation]: GET /api/chat/session returns gathering_destination default when no session — null-safe, returning users get correct phase without undefined propagation
+- [Phase 08-ai-chat]: react-markdown Components prop typed as Components from react-markdown for strict TypeScript safety
+- [Phase 08-ai-chat]: User messages remain plain text (whitespace-pre-wrap); only assistant messages use ReactMarkdown
+- [Phase 08-ai-chat]: Coral bullet markers via before:content-['•'] before:text-coral CSS pattern — no extra list plugins
 
 ### Pending Todos
 
@@ -151,6 +155,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T17:59:46.125Z
-Stopped at: Completed 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation-04-PLAN.md
+Last session: 2026-03-11T18:52:51.332Z
+Stopped at: Completed 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation-05-PLAN.md
 Resume file: None
