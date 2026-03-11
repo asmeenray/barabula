@@ -1,34 +1,68 @@
-import { ActivityRow } from './ActivityRow'
+import { ActivityCard } from './ActivityCard'
+import { HotelCard } from './HotelCard'
 import type { Activity } from '@/lib/types'
 
 interface DaySectionProps {
   dayNumber: number
   activities: Activity[]
+  activeActivityId: string | null
+  onActivityClick: (id: string) => void
   onAddActivity: (dayNumber: number) => void
   onEditActivity: (activity: Activity) => void
   onDeleteActivity: (id: string) => Promise<void>
+  sequenceOffset?: number
 }
 
-export function DaySection({ dayNumber, activities, onAddActivity, onEditActivity, onDeleteActivity }: DaySectionProps) {
+export function DaySection({
+  dayNumber,
+  activities,
+  activeActivityId,
+  onActivityClick,
+  onAddActivity,
+  sequenceOffset = 0,
+}: DaySectionProps) {
   return (
     <section className="mb-8">
-      <h2 className="text-base font-semibold text-gray-700 mb-3 sticky top-16 bg-gray-50 py-2 z-10 flex items-center justify-between">
-        <span>Day {dayNumber}</span>
-        <span className="text-xs text-gray-400 font-normal">{activities.length} activities</span>
+      {/* Day header with coral left border accent */}
+      <h2 className="font-serif text-lg text-navy border-l-4 border-coral pl-3 mb-4">
+        Day {dayNumber}
       </h2>
-      <div className="space-y-3">
-        {activities.map(activity => (
-          <ActivityRow
-            key={activity.id}
-            activity={activity}
-            onEdit={onEditActivity}
-            onDelete={onDeleteActivity}
-          />
-        ))}
+
+      {/* Timeline with dashed vertical line */}
+      <div className="border-l-2 border-dashed border-sky ml-4 pl-4 space-y-3">
+        {activities.map((activity, index) => {
+          const isActive = activeActivityId === activity.id
+          const handleClick = () => onActivityClick(activity.id)
+
+          if (activity.activity_type === 'hotel') {
+            return (
+              <div key={activity.id} id={`activity-${activity.id}`}>
+                <HotelCard
+                  activity={activity}
+                  isActive={isActive}
+                  onCardClick={handleClick}
+                />
+              </div>
+            )
+          }
+
+          return (
+            <div key={activity.id} id={`activity-${activity.id}`}>
+              <ActivityCard
+                activity={activity}
+                isActive={isActive}
+                sequenceNumber={index + 1 + sequenceOffset}
+                onCardClick={handleClick}
+              />
+            </div>
+          )
+        })}
       </div>
+
+      {/* Add activity button */}
       <button
         onClick={() => onAddActivity(dayNumber)}
-        className="mt-3 w-full py-2 border border-dashed border-gray-300 rounded-xl text-sm text-gray-400 hover:text-gray-600 hover:border-gray-400 transition-colors"
+        className="mt-3 ml-4 w-[calc(100%-1rem)] py-2 border border-dashed border-sky rounded-xl text-sm text-umber/60 hover:text-umber hover:border-coral transition-colors"
       >
         + Add activity
       </button>
