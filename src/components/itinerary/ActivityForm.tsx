@@ -35,6 +35,7 @@ export function ActivityForm({ initialData, dayNumber, itineraryId, onSave, onCa
         time: time.trim() || null,
         location: location.trim() || null,
         description: description.trim() || null,
+        extra_data: null,
       })
     } catch {
       setError('Failed to save activity. Please try again.')

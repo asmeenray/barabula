@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import useSWR from 'swr'
+import { motion, AnimatePresence } from 'motion/react'
 import { DaySection } from '@/components/itinerary/DaySection'
 import { DayPillNav } from '@/components/itinerary/DayPillNav'
 import { ItineraryHero } from '@/components/itinerary/ItineraryHero'
@@ -14,7 +15,6 @@ import { resolveActivityCoordinates } from '@/lib/geocoding'
 import type { Activity, Itinerary } from '@/lib/types'
 import type { MapPin } from '@/components/itinerary/ItineraryMap'
 
-// SSR-safe map import
 const ItineraryMap = dynamic(() => import('@/components/itinerary/ItineraryMap'), { ssr: false })
 
 type ItineraryWithActivities = Itinerary & {
@@ -27,7 +27,6 @@ const fetcher = (url: string) => fetch(url).then(r => {
   return r.json()
 })
 
-// Group activities by day_number, sort days ascending
 function groupByDay(activities: Activity[]): Map<number, Activity[]> {
   const map = new Map<number, Activity[]>()
   for (const act of activities) {
@@ -35,7 +34,6 @@ function groupByDay(activities: Activity[]): Map<number, Activity[]> {
     list.push(act)
     map.set(act.day_number, list)
   }
-  // Sort each day's activities: Morning → Afternoon → Evening, then HH:MM for exact times
   const TIME_ORDER: Record<string, number> = { morning: 0, afternoon: 1, evening: 2, night: 3 }
   const timeRank = (t: string): number => {
     const lower = (t ?? '').toLowerCase()
@@ -58,32 +56,30 @@ export default function ItineraryDetailPage() {
     fetcher
   )
 
-  // Inline edit state
   const [editingTitle, setEditingTitle] = useState(false)
-  const [editingDescription, setEditingDescription] = useState(false)
   const [titleDraft, setTitleDraft] = useState('')
-  const [descriptionDraft, setDescriptionDraft] = useState('')
-
-  // Activity form modal state
   const [activityFormOpen, setActivityFormOpen] = useState(false)
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null)
   const [formDay, setFormDay] = useState<number>(1)
-
-  // Map and interaction state
   const [mapPins, setMapPins] = useState<MapPin[]>([])
+  const [geocodingProgress, setGeocodingProgress] = useState(0)
   const [activeActivityId, setActiveActivityId] = useState<string | null>(null)
   const [activeDay, setActiveDay] = useState<number | null>(null)
-
-  // Mobile tab toggle
   const [mobileTab, setMobileTab] = useState<'list' | 'map'>('list')
 
-  // Geocoding: resolve coordinates after data loads
   useEffect(() => {
     if (!data?.activities) return
     const activities = data.activities.filter(a => a.location)
+    if (activities.length === 0) return
+
+    setGeocodingProgress(0)
+    let resolved = 0
+
     Promise.all(
       activities.map(async (act, i) => {
         const coords = await resolveActivityCoordinates(act, data.destination ?? null)
+        resolved++
+        setGeocodingProgress(Math.round((resolved / activities.length) * 100))
         if (!coords) return null
         return {
           id: act.id,
@@ -95,20 +91,19 @@ export default function ItineraryDetailPage() {
           sequenceNumber: i + 1,
         }
       })
-    ).then(results => setMapPins(results.filter(Boolean) as MapPin[]))
+    ).then(results => {
+      setMapPins(results.filter(Boolean) as MapPin[])
+      setGeocodingProgress(100)
+    })
   }, [data?.activities, data?.destination])
 
-  // ---- Inline editing handlers ----
   function startEditTitle() {
     setTitleDraft(data?.title ?? '')
     setEditingTitle(true)
   }
 
   async function saveTitle() {
-    if (!titleDraft.trim() || titleDraft === data?.title) {
-      setEditingTitle(false)
-      return
-    }
+    if (!titleDraft.trim() || titleDraft === data?.title) { setEditingTitle(false); return }
     setEditingTitle(false)
     await fetch(`/api/itineraries/${id}`, {
       method: 'PATCH',
@@ -118,22 +113,6 @@ export default function ItineraryDetailPage() {
     mutate()
   }
 
-  function startEditDescription() {
-    setDescriptionDraft(data?.description ?? '')
-    setEditingDescription(true)
-  }
-
-  async function saveDescription() {
-    setEditingDescription(false)
-    await fetch(`/api/itineraries/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ description: descriptionDraft }),
-    })
-    mutate()
-  }
-
-  // ---- Activity handlers ----
   function openAddActivity(dayNumber: number) {
     setEditingActivity(null)
     setFormDay(dayNumber)
@@ -170,21 +149,15 @@ export default function ItineraryDetailPage() {
     mutate()
   }
 
-  // ---- Map/card interaction ----
   function handlePinClick(pinId: string) {
     setActiveActivityId(pinId)
     document.getElementById(`activity-${pinId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }
-
-  function handleCardClick(actId: string) {
-    setActiveActivityId(actId)
   }
 
   function handleDayChange(day: number) {
     setActiveDay(day === 0 ? null : day)
   }
 
-  // ---- Delete itinerary ----
   async function handleDeleteItinerary() {
     const confirmed = window.confirm(`Delete "${data?.title}"? This cannot be undone.`)
     if (!confirmed) return
@@ -194,31 +167,29 @@ export default function ItineraryDetailPage() {
 
   if (isLoading) {
     return (
-      <div className="py-6 space-y-4">
-        <SkeletonText lines={2} />
-        <SkeletonText lines={4} />
+      <div className="min-h-screen bg-sand flex items-center justify-center p-6">
+        <div className="w-full max-w-md space-y-4"><SkeletonText lines={2} /><SkeletonText lines={4} /></div>
       </div>
     )
   }
 
   if (error || !data) {
-    return <ErrorMessage message="Itinerary not found or failed to load." onRetry={() => mutate()} />
+    return (
+      <div className="min-h-screen bg-sand flex items-center justify-center p-6">
+        <ErrorMessage message="Itinerary not found or failed to load." onRetry={() => mutate()} />
+      </div>
+    )
   }
 
   const dayMap = groupByDay(data.activities ?? [])
   const sortedDays = Array.from(dayMap.keys()).sort((a, b) => a - b)
-  // If no activities yet, show day 1 as an empty day
   if (sortedDays.length === 0) sortedDays.push(1)
-
   const displayedDays = activeDay ? sortedDays.filter(d => d === activeDay) : sortedDays
-
-  const dateRange = data.start_date && data.end_date
-    ? `${data.start_date} – ${data.end_date}`
-    : data.start_date ?? null
+  const dateRange = data.start_date && data.end_date ? `${data.start_date} – ${data.end_date}` : data.start_date ?? null
 
   return (
-    <div className="min-h-screen bg-sand">
-      {/* Cover image hero */}
+    <div className="h-full flex flex-col overflow-hidden bg-[#f0ebe4]">
+      {/* Hero */}
       <ItineraryHero
         title={data.title}
         coverImageUrl={data.cover_image_url ?? null}
@@ -226,59 +197,47 @@ export default function ItineraryDetailPage() {
         dateRange={dateRange}
       />
 
-      {/* Breadcrumb + actions bar */}
-      <div className="px-4 md:px-6 py-3 flex items-center justify-between border-b border-sky/50 bg-white/80 backdrop-blur-sm sticky top-16 z-20">
-        <button
-          onClick={() => router.push('/dashboard')}
-          className="text-sm text-umber hover:text-navy flex items-center gap-1 transition-colors"
-        >
-          ← My Trips
-        </button>
-        <button
-          onClick={handleDeleteItinerary}
-          className="text-xs text-umber/60 hover:text-red-600 px-3 py-1.5 rounded-xl hover:bg-red-50 transition-colors"
-        >
-          Delete Trip
-        </button>
-      </div>
-
       {/* Mobile tab toggle */}
-      <div className="md:hidden flex border-b border-sky sticky top-[calc(4rem+49px)] z-10 bg-white">
-        <button
-          onClick={() => setMobileTab('list')}
-          className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
-            mobileTab === 'list' ? 'border-b-2 border-coral text-coral' : 'text-umber'
-          }`}
-        >
-          Itinerary
-        </button>
-        <button
-          onClick={() => setMobileTab('map')}
-          className={`flex-1 py-2.5 text-sm font-medium transition-colors ${
-            mobileTab === 'map' ? 'border-b-2 border-coral text-coral' : 'text-umber'
-          }`}
-        >
-          Map
-        </button>
+      <div className="md:hidden flex border-b border-sky/40 bg-white/90 backdrop-blur-sm shrink-0">
+        {(['list', 'map'] as const).map(tab => (
+          <button
+            key={tab}
+            onClick={() => setMobileTab(tab)}
+            className="relative flex-1 py-3 text-sm font-medium text-umber capitalize"
+          >
+            {mobileTab === tab && (
+              <motion.div layoutId="mobile-tab-indicator" className="absolute bottom-0 left-4 right-4 h-0.5 bg-coral rounded-full" />
+            )}
+            {tab === 'list' ? 'Itinerary' : 'Map'}
+          </button>
+        ))}
       </div>
 
-      {/* Split layout: scrollable list + sticky map */}
-      <div className="flex h-[calc(100vh-4rem)] overflow-hidden">
-        {/* Left: scrollable itinerary list */}
-        <div
-          className={`${mobileTab === 'map' ? 'hidden' : 'flex-1'} md:flex-1 md:block overflow-y-auto bg-sand`}
-        >
-          {/* Day pill nav */}
-          <div className="px-4 md:px-6 pt-4 pb-2">
-            <DayPillNav
-              days={sortedDays}
-              activeDay={activeDay}
-              onDayChange={handleDayChange}
-            />
-          </div>
+      {/* Split layout */}
+      <div className="flex flex-1 overflow-hidden">
 
-          {/* Inline-editable title and description */}
-          <div className="px-4 md:px-6 pb-4">
+        {/* Left: scrollable list */}
+        <div className={`${mobileTab === 'map' ? 'hidden' : 'flex flex-col'} md:flex md:flex-col w-full md:w-[52%] overflow-hidden`}>
+          {/* Sticky header */}
+          <div className="shrink-0 px-4 md:px-5 pt-3 pb-2 bg-white/80 backdrop-blur-md border-b border-sky/20 shadow-sm">
+            <div className="flex items-center justify-between mb-2.5">
+              <button
+                onClick={() => router.push('/dashboard')}
+                className="flex items-center gap-1.5 text-xs font-medium text-umber/70 hover:text-navy transition-colors"
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
+                  <path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+                My Trips
+              </button>
+              <button
+                onClick={handleDeleteItinerary}
+                className="text-[11px] text-umber/40 hover:text-red-500 transition-colors px-2 py-1 rounded-lg hover:bg-red-50"
+              >
+                Delete
+              </button>
+            </div>
+
             {editingTitle ? (
               <input
                 type="text"
@@ -286,64 +245,62 @@ export default function ItineraryDetailPage() {
                 onChange={e => setTitleDraft(e.target.value)}
                 onBlur={saveTitle}
                 onKeyDown={e => { if (e.key === 'Enter') saveTitle() }}
-                className="font-serif text-2xl text-navy w-full border-b-2 border-coral bg-transparent focus:outline-none"
+                className="font-serif text-xl text-navy w-full border-b-2 border-coral bg-transparent focus:outline-none mb-2"
                 autoFocus
               />
             ) : (
               <h1
-                className="font-serif text-2xl md:text-3xl text-navy cursor-pointer hover:text-coral transition-colors"
+                className="font-serif text-lg text-navy cursor-pointer hover:text-coral transition-colors mb-2 leading-tight"
                 onClick={startEditTitle}
-                title="Click to edit title"
+                title="Click to edit"
               >
                 {data.title}
               </h1>
             )}
 
-            <div className="mt-2">
-              {editingDescription ? (
-                <textarea
-                  value={descriptionDraft}
-                  onChange={e => setDescriptionDraft(e.target.value)}
-                  onBlur={saveDescription}
-                  rows={3}
-                  className="w-full text-sm text-umber border border-sky rounded-xl px-3 py-2 resize-none focus:outline-none focus:ring-2 focus:ring-coral bg-white"
-                  autoFocus
+            <DayPillNav days={sortedDays} activeDay={activeDay} onDayChange={handleDayChange} />
+
+            {geocodingProgress > 0 && geocodingProgress < 100 && (
+              <div className="mt-2 h-0.5 bg-sky/30 rounded-full overflow-hidden">
+                <motion.div
+                  className="h-full bg-coral rounded-full"
+                  initial={{ width: 0 }}
+                  animate={{ width: `${geocodingProgress}%` }}
+                  transition={{ duration: 0.3 }}
                 />
-              ) : (
-                <p
-                  className="text-sm text-umber cursor-pointer hover:text-navy transition-colors"
-                  onClick={startEditDescription}
-                  title="Click to edit description"
-                >
-                  {data.description || (
-                    <span className="text-umber/40 italic">Add a description...</span>
-                  )}
-                </p>
-              )}
-            </div>
+              </div>
+            )}
           </div>
 
-          {/* Day sections */}
-          <div className="px-4 md:px-6 pb-8">
-            {displayedDays.map(dayNumber => (
-              <DaySection
-                key={dayNumber}
-                dayNumber={dayNumber}
-                activities={dayMap.get(dayNumber) ?? []}
-                activeActivityId={activeActivityId}
-                onActivityClick={handleCardClick}
-                onAddActivity={openAddActivity}
-                onEditActivity={openEditActivity}
-                onDeleteActivity={handleDeleteActivity}
-              />
-            ))}
+          {/* Scrollable content */}
+          <div className="flex-1 overflow-y-auto px-4 md:px-5 py-4">
+            <AnimatePresence mode="popLayout">
+              {displayedDays.map(dayNumber => (
+                <motion.div
+                  key={dayNumber}
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -6 }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <DaySection
+                    dayNumber={dayNumber}
+                    activities={dayMap.get(dayNumber) ?? []}
+                    activeActivityId={activeActivityId}
+                    onActivityClick={handlePinClick}
+                    onAddActivity={openAddActivity}
+                    onEditActivity={openEditActivity}
+                    onDeleteActivity={handleDeleteActivity}
+                  />
+                </motion.div>
+              ))}
+            </AnimatePresence>
           </div>
         </div>
 
-        {/* Right: sticky map panel */}
-        <div
-          className={`${mobileTab === 'list' ? 'hidden' : 'flex-1'} md:w-[45%] md:block h-full`}
-        >
+        {/* Right: map */}
+        <div className={`${mobileTab === 'list' ? 'hidden' : 'flex-1'} md:flex md:flex-col md:flex-1 relative`}>
+          <div className="hidden md:block absolute left-0 top-0 bottom-0 w-px bg-sky/30 z-10" />
           <ItineraryMap
             pins={mapPins}
             activeDay={activeDay}
@@ -354,15 +311,33 @@ export default function ItineraryDetailPage() {
       </div>
 
       {/* Activity form modal */}
-      {activityFormOpen && (
-        <ActivityForm
-          initialData={editingActivity ?? undefined}
-          dayNumber={formDay}
-          itineraryId={id}
-          onSave={handleSaveActivity}
-          onCancel={() => { setActivityFormOpen(false); setEditingActivity(null) }}
-        />
-      )}
+      <AnimatePresence>
+        {activityFormOpen && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 bg-navy/40 backdrop-blur-sm flex items-end md:items-center justify-center p-4"
+            onClick={e => { if (e.target === e.currentTarget) { setActivityFormOpen(false); setEditingActivity(null) } }}
+          >
+            <motion.div
+              initial={{ y: 40, opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: 40, opacity: 0 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 35 }}
+              className="w-full max-w-lg"
+            >
+              <ActivityForm
+                initialData={editingActivity ?? undefined}
+                dayNumber={formDay}
+                itineraryId={id}
+                onSave={handleSaveActivity}
+                onCancel={() => { setActivityFormOpen(false); setEditingActivity(null) }}
+              />
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

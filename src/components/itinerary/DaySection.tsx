@@ -1,3 +1,4 @@
+import { motion } from 'motion/react'
 import { ActivityCard } from './ActivityCard'
 import { HotelCard } from './HotelCard'
 import type { Activity } from '@/lib/types'
@@ -23,46 +24,51 @@ export function DaySection({
 }: DaySectionProps) {
   return (
     <section className="mb-8">
-      {/* Day header with coral left border accent */}
-      <h2 className="font-serif text-lg text-navy border-l-4 border-coral pl-3 mb-4">
-        Day {dayNumber}
-      </h2>
+      {/* Day header */}
+      <div className="flex items-center gap-3 mb-4">
+        <div className="w-8 h-8 rounded-full bg-navy flex items-center justify-center shrink-0">
+          <span className="text-white text-xs font-bold">{dayNumber}</span>
+        </div>
+        <h2 className="font-serif text-base text-navy">Day {dayNumber}</h2>
+        <div className="flex-1 h-px bg-sky/40" />
+      </div>
 
-      {/* Timeline with dashed vertical line */}
-      <div className="border-l-2 border-dashed border-sky ml-4 pl-4 space-y-3">
+      {/* Activity cards */}
+      <motion.div
+        className="space-y-2.5 pl-1"
+        initial={false}
+      >
         {activities.map((activity, index) => {
           const isActive = activeActivityId === activity.id
           const handleClick = () => onActivityClick(activity.id)
 
-          if (activity.activity_type === 'hotel') {
-            return (
-              <div key={activity.id} id={`activity-${activity.id}`}>
-                <HotelCard
+          return (
+            <motion.div
+              key={activity.id}
+              id={`activity-${activity.id}`}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.04, duration: 0.2 }}
+            >
+              {activity.activity_type === 'hotel' ? (
+                <HotelCard activity={activity} isActive={isActive} onCardClick={handleClick} />
+              ) : (
+                <ActivityCard
                   activity={activity}
                   isActive={isActive}
+                  sequenceNumber={index + 1 + sequenceOffset}
                   onCardClick={handleClick}
                 />
-              </div>
-            )
-          }
-
-          return (
-            <div key={activity.id} id={`activity-${activity.id}`}>
-              <ActivityCard
-                activity={activity}
-                isActive={isActive}
-                sequenceNumber={index + 1 + sequenceOffset}
-                onCardClick={handleClick}
-              />
-            </div>
+              )}
+            </motion.div>
           )
         })}
-      </div>
+      </motion.div>
 
-      {/* Add activity button */}
+      {/* Add activity */}
       <button
         onClick={() => onAddActivity(dayNumber)}
-        className="mt-3 ml-4 w-[calc(100%-1rem)] py-2 border border-dashed border-sky rounded-xl text-sm text-umber/60 hover:text-umber hover:border-coral transition-colors"
+        className="mt-3 w-full py-2.5 rounded-xl text-sm text-umber/50 hover:text-coral hover:bg-coral/5 border border-dashed border-sky/50 hover:border-coral/30 transition-all duration-200"
       >
         + Add activity
       </button>

@@ -46,6 +46,8 @@ export default function NewItineraryPage() {
   }
 
   return (
+    <div className="h-full overflow-y-auto">
+    <div className="max-w-6xl mx-auto px-4 py-8">
     <div className="py-6 max-w-lg">
       <h1 className="text-2xl font-bold text-gray-900 mb-6">New Trip</h1>
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -110,6 +112,8 @@ export default function NewItineraryPage() {
           </button>
         </div>
       </form>
+    </div>
+    </div>
     </div>
   )
 }

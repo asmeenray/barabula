@@ -20,8 +20,8 @@ export default async function AuthenticatedLayout({
   const avatarUrl = user.user_metadata?.avatar_url ?? null
 
   return (
-    <div className="min-h-screen bg-sand/30">
-      <nav className="bg-white/80 backdrop-blur-sm border-b border-sand-dark/30 px-6 py-3 flex items-center justify-between">
+    <div className="flex flex-col h-screen overflow-hidden bg-sand/30">
+      <nav className="shrink-0 bg-white/80 backdrop-blur-sm border-b border-sand-dark/30 px-6 py-3 flex items-center justify-between z-30">
         <Link href="/" className="font-logo text-navy text-2xl tracking-tight select-none">
           Barabula.
         </Link>
@@ -35,7 +35,7 @@ export default async function AuthenticatedLayout({
           <ProfileDropdown name={name} email={email} avatarUrl={avatarUrl} />
         </div>
       </nav>
-      <main className="max-w-6xl mx-auto px-4 py-8">
+      <main className="flex-1 overflow-hidden">
         {children}
       </main>
     </div>

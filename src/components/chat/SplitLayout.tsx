@@ -43,12 +43,12 @@ export function SplitLayout({ left, right }: SplitLayoutProps) {
   return (
     <div
       ref={containerRef}
-      className="flex h-screen overflow-hidden"
+      className="flex h-full overflow-hidden"
       data-testid="split-layout"
     >
       {/* Left panel — chat */}
       <div
-        className="flex flex-col h-screen overflow-hidden"
+        className="flex flex-col h-full overflow-hidden"
         style={{ width: `${leftPct}%` }}
       >
         {left}
@@ -71,7 +71,7 @@ export function SplitLayout({ left, right }: SplitLayoutProps) {
 
       {/* Right panel — context/itinerary */}
       <div
-        className="relative h-screen overflow-hidden bg-gray-950"
+        className="relative h-full overflow-hidden bg-gray-950"
         style={{ width: `${100 - leftPct - 0.375}%` }}
       >
         {right}

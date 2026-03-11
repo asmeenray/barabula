@@ -1,3 +1,6 @@
+'use client'
+import { motion } from 'motion/react'
+
 interface DayPillNavProps {
   days: number[]
   activeDay: number | null
@@ -8,17 +11,22 @@ export function DayPillNav({ days, activeDay, onDayChange }: DayPillNavProps) {
   const isAllActive = activeDay === null || activeDay === 0
 
   return (
-    <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide px-1">
+    <div className="flex gap-2 overflow-x-auto scrollbar-hide pb-1">
       {/* All Days pill */}
       <button
         onClick={() => onDayChange(0)}
-        className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-          isAllActive
-            ? 'bg-navy text-white'
-            : 'bg-sand text-umber border border-sky hover:border-coral'
-        }`}
+        className="relative shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors"
       >
-        All Days
+        {isAllActive && (
+          <motion.div
+            layoutId="day-pill-active"
+            className="absolute inset-0 bg-navy rounded-full"
+            transition={{ type: 'spring', stiffness: 400, damping: 35 }}
+          />
+        )}
+        <span className={`relative z-10 ${isAllActive ? 'text-white' : 'text-umber hover:text-navy'}`}>
+          All Days
+        </span>
       </button>
 
       {/* Individual day pills */}
@@ -28,13 +36,18 @@ export function DayPillNav({ days, activeDay, onDayChange }: DayPillNavProps) {
           <button
             key={day}
             onClick={() => onDayChange(day)}
-            className={`shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors ${
-              isActive
-                ? 'bg-navy text-white'
-                : 'bg-sand text-umber border border-sky hover:border-coral'
-            }`}
+            className="relative shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors"
           >
-            Day {day}
+            {isActive && (
+              <motion.div
+                layoutId="day-pill-active"
+                className="absolute inset-0 bg-navy rounded-full"
+                transition={{ type: 'spring', stiffness: 400, damping: 35 }}
+              />
+            )}
+            <span className={`relative z-10 ${isActive ? 'text-white' : 'text-umber hover:text-navy'}`}>
+              Day {day}
+            </span>
           </button>
         )
       })}
