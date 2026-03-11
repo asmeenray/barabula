@@ -164,7 +164,7 @@ Plans:
 **Goal:** Redesign the itinerary detail page into a premium Teravue-inspired experience with sticky interactive map on the right, scrollable day-by-day timeline on the left, hotel details surfaced per day, and a full visual overhaul using the Barabula brand palette (navy/coral/umber/sky/sand)
 **Requirements**: HOTEL-01, BLUE-01, MAP-01, MAP-02, ITIN-01, ITIN-02, HERO-01
 **Depends on:** Phase 8
-**Plans:** 2/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [ ] 09-01-PLAN.md — Extend AI schema with hotel fields; persist activity_type and extra_data in message route

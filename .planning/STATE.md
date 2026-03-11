@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 09-itinerary-page-with-map-integration-and-hotel-details-03-PLAN.md
-last_updated: "2026-03-11T20:34:14.217Z"
+stopped_at: Completed 09-itinerary-page-with-map-integration-and-hotel-details-04-PLAN.md
+last_updated: "2026-03-11T20:42:29.005Z"
 last_activity: 2026-03-09 — Roadmap created, phases derived from requirements
 progress:
   total_phases: 9
-  completed_phases: 5
+  completed_phases: 6
   total_plans: 33
-  completed_plans: 28
+  completed_plans: 29
   percent: 0
 ---
 
@@ -78,6 +78,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 09-itinerary-page-with-map-integration-and-hotel-details P02 | 2min | 2 tasks | 4 files |
 | Phase 09-itinerary-page-with-map-integration-and-hotel-details P01 | 2min | 2 tasks | 4 files |
 | Phase 09-itinerary-page-with-map-integration-and-hotel-details P03 | 4min | 2 tasks | 8 files |
+| Phase 09-itinerary-page-with-map-integration-and-hotel-details P04 | 6min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -157,6 +158,8 @@ Recent decisions affecting current work:
 - [Phase 09-itinerary-page-with-map-integration-and-hotel-details]: react-map-gl v8.1 with /maplibre endpoint — MapLibre free tiles via OpenFreeMap, no Mapbox API key needed for rendering
 - [Phase 09-itinerary-page-with-map-integration-and-hotel-details]: Inline styles (hex values) for map pin colors — avoids blue-* Tailwind risk and enforces brand palette
 - [Phase 09-itinerary-page-with-map-integration-and-hotel-details]: extra_data cache-first geocoding — checks cached lat/lng before Mapbox API to minimize API calls
+- [Phase 09-itinerary-page-with-map-integration-and-hotel-details]: Title appears twice in rendered output (ItineraryHero h1 and inline-editable h1) — tests updated to use getAllByText
+- [Phase 09-itinerary-page-with-map-integration-and-hotel-details]: Split layout: flex h-[calc(100vh-4rem)] overflow-hidden parent, overflow-y-auto left column, h-full right map column
 
 ### Pending Todos
 
@@ -175,6 +178,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T20:34:14.211Z
-Stopped at: Completed 09-itinerary-page-with-map-integration-and-hotel-details-03-PLAN.md
+Last session: 2026-03-11T20:42:28.998Z
+Stopped at: Completed 09-itinerary-page-with-map-integration-and-hotel-details-04-PLAN.md
 Resume file: None
