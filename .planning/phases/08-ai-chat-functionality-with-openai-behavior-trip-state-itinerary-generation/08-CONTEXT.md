@@ -69,11 +69,24 @@ Track these fields across the conversation:
 - Avoid sounding like a support bot
 - Keep most replies between 2 and 8 sentences unless generating an itinerary
 
+### Session Model
+- One `trip_sessions` row per user (`UNIQUE user_id`) — intentional. The itinerary is the durable artifact; the session is ephemeral planning state.
+- "Plan a new trip" resets the session, but must show a browser confirmation first: "This will clear your current [destination] planning — continue?" — no silent destructive overwrites.
+
+### Conversation Phases
+- `summary_shown` phase is DROPPED. Phases are: `gathering_destination` → `gathering_details` → `ready_for_summary` → `generating_itinerary` → `itinerary_complete`.
+- The summary IS shown when phase = `ready_for_summary`. On the user's next message, the model transitions directly to `itinerary_complete` (if confirming) or stays in `ready_for_summary` (if adjusting).
+- No client-driven phase PATCH needed — the model handles it on the next turn.
+
+### Chips Visibility
+- No chips during `gathering_destination` or `gathering_details` — intentional. The user is in dialogue rhythm; chips would be noise. The textarea fills the role.
+
+### Server Guard: itinerary_complete
+- If the model returns `conversation_phase = 'itinerary_complete'` but `itinerary` is null/empty in the structured output, the server overrides the phase back to `ready_for_summary` before persisting. This prevents a premature phase flip from skipping itinerary generation.
+
 ### Claude's Discretion
 - Choice of OpenAI model (gpt-4o recommended for quality)
 - System prompt engineering and formatting
-- How trip state is persisted (session vs DB — likely use existing conversations/messages tables)
-- Streaming vs non-streaming responses (streaming preferred for perceived speed)
 - How suggestion chips are sent back as user messages
 - Exact JSON schema for trip state storage/extraction
 - Error handling for OpenAI API failures
