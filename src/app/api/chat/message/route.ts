@@ -4,6 +4,7 @@ import OpenAI from 'openai'
 import { AIResponseSchema, zodResponseFormat } from '@/lib/ai/schemas'
 import { buildSystemPrompt } from '@/lib/ai/system-prompt'
 import type { TripState, ConversationPhase } from '@/lib/ai/schemas'
+import { fetchCityImage } from '@/lib/unsplash'
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -91,6 +92,18 @@ export async function POST(req: NextRequest) {
     if (insertError) {
       console.error('[chat/message] Failed to insert itinerary:', insertError)
       return Response.json({ error: 'Failed to save itinerary' }, { status: 500 })
+    }
+
+    // Fetch and store cover image for the new itinerary
+    const destination = itineraryFields.destination ?? itineraryFields.title
+    if (destination) {
+      const coverUrl = await fetchCityImage(destination)
+      if (coverUrl) {
+        await supabase
+          .from('itineraries')
+          .update({ cover_image_url: coverUrl })
+          .eq('id', newItinerary.id)
+      }
     }
 
     // Insert activities from all days (flatten)

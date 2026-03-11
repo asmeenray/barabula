@@ -26,16 +26,17 @@ CREATE TABLE public.users (
 );
 
 CREATE TABLE public.itineraries (
-  id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  user_id     UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
-  title       TEXT NOT NULL,
-  description TEXT,
-  destination TEXT,
-  start_date  DATE,
-  end_date    DATE,
-  extra_data  JSONB DEFAULT '{}',
-  created_at  TIMESTAMPTZ DEFAULT NOW(),
-  updated_at  TIMESTAMPTZ DEFAULT NOW()
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id         UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  title           TEXT NOT NULL,
+  description     TEXT,
+  destination     TEXT,
+  start_date      DATE,
+  end_date        DATE,
+  cover_image_url TEXT,
+  extra_data      JSONB DEFAULT '{}',
+  created_at      TIMESTAMPTZ DEFAULT NOW(),
+  updated_at      TIMESTAMPTZ DEFAULT NOW()
 );
 
 CREATE TABLE public.activities (
