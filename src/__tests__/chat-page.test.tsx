@@ -10,6 +10,7 @@ const mockPush = vi.fn()
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush }),
   usePathname: () => '/',
+  useSearchParams: () => ({ get: () => null }),
 }))
 
 beforeEach(() => {
@@ -28,7 +29,7 @@ it('renders the chat container', async () => {
 it('shows empty state when no messages', async () => {
   render(<ChatPage />)
   await waitFor(() => {
-    expect(screen.getByText(/Plan your next trip/i)).toBeInTheDocument()
+    expect(screen.getByText(/Where to next\?/i)).toBeInTheDocument()
   })
 })
 
