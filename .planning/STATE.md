@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 09-itinerary-page-with-map-integration-and-hotel-details-02-PLAN.md
-last_updated: "2026-03-11T20:31:47.985Z"
+stopped_at: Completed 09-itinerary-page-with-map-integration-and-hotel-details-01-PLAN.md
+last_updated: "2026-03-11T20:33:02.705Z"
 last_activity: 2026-03-09 — Roadmap created, phases derived from requirements
 progress:
   total_phases: 9
   completed_phases: 5
   total_plans: 33
-  completed_plans: 26
+  completed_plans: 27
   percent: 0
 ---
 
@@ -76,6 +76,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation P08 | 1min | 2 tasks | 3 files |
 | Phase 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation P07 | 4 | 2 tasks | 2 files |
 | Phase 09-itinerary-page-with-map-integration-and-hotel-details P02 | 2min | 2 tasks | 4 files |
+| Phase 09-itinerary-page-with-map-integration-and-hotel-details P01 | 2min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -150,6 +151,8 @@ Recent decisions affecting current work:
 - [Phase 08-ai-chat]: FullItineraryPanel uses optimistic local state for edits before Accept — full persistence lives in itinerary detail page
 - [Phase 08-ai-chat]: Accept button (not auto-navigation) drives navigation to /itinerary/:id — user explicitly accepts the generated plan
 - [Phase 09-itinerary]: All focus rings use focus:ring-coral — consistent with Phase 7 palette enforcement
+- [Phase 09-itinerary-page-with-map-integration-and-hotel-details]: Hotel fields use .nullable() in Zod schema — OpenAI Structured Outputs requires all fields in required array; .nullable() maps to anyOf: [null, ...] which is valid
+- [Phase 09-itinerary-page-with-map-integration-and-hotel-details]: Hotel metadata stored in existing extra_data JSONB column using activity_type='hotel' sentinel — no DB migration required, extensible for future activity types
 
 ### Pending Todos
 
@@ -168,6 +171,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T20:31:47.976Z
-Stopped at: Completed 09-itinerary-page-with-map-integration-and-hotel-details-02-PLAN.md
+Last session: 2026-03-11T20:33:02.700Z
+Stopped at: Completed 09-itinerary-page-with-map-integration-and-hotel-details-01-PLAN.md
 Resume file: None
