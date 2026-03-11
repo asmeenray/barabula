@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation-01-PLAN.md
-last_updated: "2026-03-11T17:40:56.450Z"
+stopped_at: Completed 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation-02-PLAN.md
+last_updated: "2026-03-11T17:47:25.098Z"
 last_activity: 2026-03-09 — Roadmap created, phases derived from requirements
 progress:
   total_phases: 8
   completed_phases: 4
   total_plans: 25
-  completed_plans: 18
+  completed_plans: 19
   percent: 0
 ---
 
@@ -68,6 +68,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 07-ui-overhaul-landing-page-and-chatbot-redesign P04 | 4min | 2 tasks | 10 files |
 | Phase 07-ui-overhaul-landing-page-and-chatbot-redesign P05 | 5min | 1 tasks | 2 files |
 | Phase 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation P01 | 2min | 2 tasks | 7 files |
+| Phase 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation P02 | 3min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -123,6 +124,9 @@ Recent decisions affecting current work:
 - [Phase 07-ui-overhaul]: Checkpoint auto-approved (auto_advance: true) — build clean, 55/55 tests pass, all pitfalls audited
 - [Phase 08-ai-chat]: Zod .nullable() for all optional fields — OpenAI Structured Outputs requires all fields in required; .nullable() maps to anyOf: [null,...] which is valid
 - [Phase 08-ai-chat]: AI prompts stored in src/lib/ai/prompts/ as separate named files; buildSystemPrompt() in system-prompt.ts delegates to prompts/trip-planner.ts
+- [Phase 08-ai-chat]: openai.chat.completions.parse() used (not beta.chat.completions.parse) — SDK 6.x promoted parse() from beta to main chat.completions namespace
+- [Phase 08-ai-chat]: Server guard overrides itinerary_complete to ready_for_summary when itinerary is null — prevents premature phase flip if model skips itinerary data
+- [Phase 08-ai-chat]: DELETE /api/chat/session clears trip_sessions row — chat page calls this to start a new trip planning session
 
 ### Pending Todos
 
@@ -141,6 +145,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T17:40:56.446Z
-Stopped at: Completed 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation-01-PLAN.md
+Last session: 2026-03-11T17:47:25.093Z
+Stopped at: Completed 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation-02-PLAN.md
 Resume file: None
