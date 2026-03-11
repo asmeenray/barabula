@@ -189,12 +189,19 @@ export default function ItineraryDetailPage() {
 
   return (
     <div className="h-full flex flex-col overflow-hidden bg-[#f0ebe4]">
-      {/* Hero */}
+      {/* Compact hero strip */}
       <ItineraryHero
         title={data.title}
         coverImageUrl={data.cover_image_url ?? null}
         destination={data.destination}
         dateRange={dateRange}
+        onBack={() => router.push('/dashboard')}
+        onDelete={handleDeleteItinerary}
+        onEditTitle={startEditTitle}
+        editingTitle={editingTitle}
+        titleDraft={titleDraft}
+        onTitleDraftChange={setTitleDraft}
+        onTitleSave={saveTitle}
       />
 
       {/* Mobile tab toggle */}
@@ -218,50 +225,11 @@ export default function ItineraryDetailPage() {
 
         {/* Left: scrollable list */}
         <div className={`${mobileTab === 'map' ? 'hidden' : 'flex flex-col'} md:flex md:flex-col w-full md:w-[52%] overflow-hidden`}>
-          {/* Sticky header */}
-          <div className="shrink-0 px-4 md:px-5 pt-3 pb-2 bg-white/80 backdrop-blur-md border-b border-sky/20 shadow-sm">
-            <div className="flex items-center justify-between mb-2.5">
-              <button
-                onClick={() => router.push('/dashboard')}
-                className="flex items-center gap-1.5 text-xs font-medium text-umber/70 hover:text-navy transition-colors"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none">
-                  <path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                </svg>
-                My Trips
-              </button>
-              <button
-                onClick={handleDeleteItinerary}
-                className="text-[11px] text-umber/40 hover:text-red-500 transition-colors px-2 py-1 rounded-lg hover:bg-red-50"
-              >
-                Delete
-              </button>
-            </div>
-
-            {editingTitle ? (
-              <input
-                type="text"
-                value={titleDraft}
-                onChange={e => setTitleDraft(e.target.value)}
-                onBlur={saveTitle}
-                onKeyDown={e => { if (e.key === 'Enter') saveTitle() }}
-                className="font-serif text-xl text-navy w-full border-b-2 border-coral bg-transparent focus:outline-none mb-2"
-                autoFocus
-              />
-            ) : (
-              <h1
-                className="font-serif text-lg text-navy cursor-pointer hover:text-coral transition-colors mb-2 leading-tight"
-                onClick={startEditTitle}
-                title="Click to edit"
-              >
-                {data.title}
-              </h1>
-            )}
-
+          {/* Sticky day pill strip — minimal */}
+          <div className="shrink-0 px-4 md:px-5 py-2 bg-white/90 backdrop-blur-md border-b border-sky/20">
             <DayPillNav days={sortedDays} activeDay={activeDay} onDayChange={handleDayChange} />
-
             {geocodingProgress > 0 && geocodingProgress < 100 && (
-              <div className="mt-2 h-0.5 bg-sky/30 rounded-full overflow-hidden">
+              <div className="mt-1.5 h-px bg-sky/30 rounded-full overflow-hidden">
                 <motion.div
                   className="h-full bg-coral rounded-full"
                   initial={{ width: 0 }}
@@ -273,7 +241,7 @@ export default function ItineraryDetailPage() {
           </div>
 
           {/* Scrollable content */}
-          <div className="flex-1 overflow-y-auto px-4 md:px-5 py-4">
+          <div className="flex-1 overflow-y-auto px-3 md:px-4 py-3">
             <AnimatePresence mode="popLayout">
               {displayedDays.map(dayNumber => (
                 <motion.div

@@ -7,77 +7,106 @@ interface ItineraryHeroProps {
   coverImageUrl: string | null
   destination: string | null
   dateRange?: string | null
+  onBack: () => void
+  onDelete: () => void
+  onEditTitle: () => void
+  editingTitle: boolean
+  titleDraft: string
+  onTitleDraftChange: (v: string) => void
+  onTitleSave: () => void
 }
 
-type DestinationPhoto = {
-  url: string
-  photographer?: string
-  photographerUrl?: string
-} | null
+type DestinationPhoto = { url: string; photographer?: string; photographerUrl?: string } | null
 
-export function ItineraryHero({ title, coverImageUrl, destination, dateRange }: ItineraryHeroProps) {
+export function ItineraryHero({
+  title, coverImageUrl, destination, dateRange,
+  onBack, onDelete, onEditTitle,
+  editingTitle, titleDraft, onTitleDraftChange, onTitleSave,
+}: ItineraryHeroProps) {
   const [photo, setPhoto] = useState<DestinationPhoto>(null)
   const [loaded, setLoaded] = useState(false)
-
   const activeUrl = coverImageUrl || photo?.url || null
 
   useEffect(() => {
     if (coverImageUrl || !destination) return
     fetch(`/api/destination-image?destination=${encodeURIComponent(destination)}`)
       .then(r => r.json())
-      .then(data => {
-        if (data.url) setPhoto({ url: data.url, photographer: data.photographer, photographerUrl: data.photographerUrl })
-      })
+      .then(data => { if (data.url) setPhoto({ url: data.url, photographer: data.photographer, photographerUrl: data.photographerUrl }) })
       .catch(() => {})
   }, [destination, coverImageUrl])
 
   return (
     <div
-      className="relative w-full overflow-hidden"
-      style={{ height: '320px' }}
+      className="relative shrink-0 w-full overflow-hidden"
+      style={{ height: '88px' }}
       data-testid="itinerary-hero"
     >
-      {/* Background: photo or gradient */}
-      {activeUrl ? (
+      {/* Background photo */}
+      {activeUrl && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
           src={activeUrl}
-          alt={`${destination ?? title}`}
+          alt={destination ?? title}
           className={`absolute inset-0 w-full h-full object-cover transition-opacity duration-700 ${loaded ? 'opacity-100' : 'opacity-0'}`}
           onLoad={() => setLoaded(true)}
           onError={() => setPhoto(null)}
         />
-      ) : null}
+      )}
+      {/* Gradient bg (fallback + always-on overlay) */}
+      <div className={`absolute inset-0 bg-gradient-to-r from-navy via-[#1e3a5f] to-umber/80 transition-opacity duration-700 ${activeUrl && loaded ? 'opacity-70' : 'opacity-100'}`} />
+      <div className="absolute inset-0 bg-navy/60" />
 
-      {/* Gradient fallback (always rendered, fades behind photo) */}
-      <div
-        className={`absolute inset-0 bg-gradient-to-br from-navy via-[#1e3a5f] to-umber transition-opacity duration-700 ${activeUrl && loaded ? 'opacity-0' : 'opacity-100'}`}
-      />
+      {/* Content: single horizontal row */}
+      <div className="relative h-full flex items-center px-4 md:px-6 gap-4">
+        {/* Back */}
+        <button
+          onClick={onBack}
+          className="flex items-center gap-1 text-white/70 hover:text-white transition-colors shrink-0"
+          aria-label="Back to My Trips"
+        >
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none">
+            <path d="M19 12H5M12 5l-7 7 7 7" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+          </svg>
+        </button>
 
-      {/* Noise texture overlay for depth */}
-      <div className="absolute inset-0 opacity-20" style={{
-        backgroundImage: 'url("data:image/svg+xml,%3Csvg viewBox=\'0 0 256 256\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cfilter id=\'noise\'%3E%3CfeTurbulence type=\'fractalNoise\' baseFrequency=\'0.9\' numOctaves=\'4\' stitchTiles=\'stitch\'/%3E%3C/filter%3E%3Crect width=\'100%25\' height=\'100%25\' filter=\'url(%23noise)\'/%3E%3C/svg%3E")',
-      }} />
-
-      {/* Layered gradient overlays */}
-      <div className="absolute inset-0 bg-gradient-to-t from-navy/95 via-navy/40 to-navy/10" />
-      <div className="absolute inset-0 bg-gradient-to-r from-navy/50 via-transparent to-transparent" />
-
-      {/* Content */}
-      <div className="absolute bottom-0 left-0 right-0 p-6 md:p-8">
-        <div className="max-w-2xl">
+        {/* Destination + Title */}
+        <div className="flex-1 min-w-0">
           {destination && (
-            <p className="text-coral text-xs font-sans font-semibold tracking-[0.2em] uppercase mb-2 opacity-90">
+            <p className="text-coral text-[10px] font-semibold tracking-[0.18em] uppercase leading-none mb-1 opacity-90">
               {destination}
             </p>
           )}
-          <h1 className="font-serif text-3xl md:text-5xl text-white leading-tight" style={{ textShadow: '0 2px 20px rgba(0,0,0,0.4)' }}>
-            {title}
-          </h1>
+          {editingTitle ? (
+            <input
+              type="text"
+              value={titleDraft}
+              onChange={e => onTitleDraftChange(e.target.value)}
+              onBlur={onTitleSave}
+              onKeyDown={e => { if (e.key === 'Enter') onTitleSave() }}
+              className="font-serif text-base text-white w-full bg-transparent border-b border-white/40 focus:border-white focus:outline-none truncate"
+              autoFocus
+            />
+          ) : (
+            <h1
+              className="font-serif text-base md:text-lg text-white leading-none truncate cursor-pointer hover:text-sky transition-colors"
+              onClick={onEditTitle}
+              title="Click to rename"
+            >
+              {title}
+            </h1>
+          )}
           {dateRange && (
-            <p className="text-sky/70 text-sm mt-2 font-sans">{dateRange}</p>
+            <p className="text-white/40 text-[11px] mt-1 leading-none">{dateRange}</p>
           )}
         </div>
+
+        {/* Delete */}
+        <button
+          onClick={onDelete}
+          className="shrink-0 text-white/30 hover:text-red-400 transition-colors text-[11px]"
+        >
+          Delete
+        </button>
       </div>
 
       {/* Photographer credit */}
@@ -86,9 +115,9 @@ export function ItineraryHero({ title, coverImageUrl, destination, dateRange }: 
           href={photo.photographerUrl}
           target="_blank"
           rel="noopener noreferrer"
-          className="absolute bottom-2 right-3 text-white/30 text-[10px] hover:text-white/60 transition-colors font-sans"
+          className="absolute bottom-1 right-2 text-white/20 text-[9px] hover:text-white/50 transition-colors"
         >
-          Photo: {photo.photographer} · Pexels
+          {photo.photographer} · Pexels
         </a>
       )}
     </div>
