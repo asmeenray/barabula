@@ -21,7 +21,7 @@ export function QuickActionChips({ onSend, disabled }: QuickActionChipsProps) {
           key={action.label}
           type="button"
           onClick={() => onSend(action.message)}
-          className="px-4 py-1.5 rounded-full text-sm font-medium border border-gray-200 text-gray-600 bg-white hover:bg-gray-50 hover:border-gray-300 transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-gray-200"
+          className="px-4 py-1.5 rounded-full text-sm font-medium border border-sky-dark/50 text-navy/80 bg-sand hover:bg-sky/40 hover:border-sky-dark transition-all duration-150 focus:outline-none focus:ring-2 focus:ring-coral/20"
         >
           {action.label}
         </button>

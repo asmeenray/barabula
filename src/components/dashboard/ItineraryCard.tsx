@@ -29,11 +29,11 @@ export function ItineraryCard({ itinerary, onDelete, isDeleting }: ItineraryCard
       <div className="flex flex-col h-full">
         <div className="flex-1">
           {itinerary.destination && (
-            <p className="text-xs font-medium text-blue-600 uppercase tracking-wide mb-1">
+            <p className="text-xs font-medium text-coral uppercase tracking-wide mb-1">
               {itinerary.destination}
             </p>
           )}
-          <h3 className="font-semibold text-gray-900 text-base leading-snug group-hover:text-blue-700 transition-colors">
+          <h3 className="font-semibold text-gray-900 text-base leading-snug group-hover:text-navy transition-colors">
             {itinerary.title}
           </h3>
           {dateRange && (

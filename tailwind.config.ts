@@ -19,6 +19,7 @@ const config: Config = {
         coral: { DEFAULT: '#D67940', light: '#e8915e' },  // warm orange — accent/CTAs
         umber: { DEFAULT: '#6F4849', light: '#8c5e60' },  // warm brown — depth
         sky:   { DEFAULT: '#CCD9E2', dark:  '#a8bfce' },  // light sky blue — subtle
+        sand:  { DEFAULT: '#F5EDE3', dark:  '#e8d9c8' },  // warm sand — chat bg
       },
       backgroundImage: {
         'gradient-radial': 'radial-gradient(var(--tw-gradient-stops))',

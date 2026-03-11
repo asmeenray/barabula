@@ -2,16 +2,17 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { createClient } from '@/lib/supabase/client'
 import { MessageBubble } from '@/components/chat/MessageBubble'
 import { ChatInput } from '@/components/chat/ChatInput'
 import { SplitLayout } from '@/components/chat/SplitLayout'
 import { ContextPanel } from '@/components/chat/ContextPanel'
 import { QuickActionChips } from '@/components/chat/QuickActionChips'
 import { BottomTabBar } from '@/components/chat/BottomTabBar'
+import Link from 'next/link'
 import { getPrompt, clearPrompt } from '@/lib/landing/prompt-store'
 import type { ChatMessage } from '@/lib/types'
 
-// Local message type — includes optional itinerary data for structured rendering
 type LocalMessage = {
   id: string
   role: 'user' | 'assistant'
@@ -26,62 +27,86 @@ type LocalMessage = {
   }
 }
 
-// Inner component that uses useSearchParams (requires Suspense boundary in Next.js App Router)
+// Stable ID for the initial prompt message so history merge can identify it
+const INITIAL_MSG_ID = '__initial_prompt__'
+
 function ChatPageInner() {
   const searchParams = useSearchParams()
-  const initialPrompt = searchParams.get('q') ?? getPrompt() ?? ''
+  const initialPrompt = useRef(searchParams.get('q') ?? getPrompt() ?? '').current
 
-  const [messages, setMessages] = useState<LocalMessage[]>([])
-  const [input, setInput] = useState(initialPrompt)
+  // Pre-populate user message immediately — never lost, even if history replaces state later
+  const [messages, setMessages] = useState<LocalMessage[]>(() =>
+    initialPrompt
+      ? [{ id: INITIAL_MSG_ID, role: 'user' as const, content: initialPrompt }]
+      : []
+  )
+  const [input, setInput] = useState('')
   const [sending, setSending] = useState(false)
   const [historyLoading, setHistoryLoading] = useState(true)
   const [latestItineraryData, setLatestItineraryData] = useState<LocalMessage['itineraryData'] | null>(null)
+  const [userName, setUserName] = useState<string | null>(null)
   const router = useRouter()
   const bottomRef = useRef<HTMLDivElement>(null)
+  const autoSentRef = useRef(false)
+
+  // Fetch user for personalized greeting
+  useEffect(() => {
+    const supabase = createClient()
+    supabase.auth.getUser().then(({ data: { user } }) => {
+      if (user) {
+        const full = user.user_metadata?.full_name ?? user.user_metadata?.name ?? null
+        setUserName(full ? full.split(' ')[0] : null)
+      }
+    })
+  }, [])
 
   // Clear stored prompt after reading
   useEffect(() => {
     if (initialPrompt) clearPrompt()
   }, [initialPrompt])
 
-  // Load history on mount
+  // Load history — prepend before the initial prompt message if present
   useEffect(() => {
     fetch('/api/chat/history')
       .then(r => r.json())
       .then((data: ChatMessage[]) => {
-        setMessages(data.map(msg => ({
+        const history = data.map(msg => ({
           id: msg.id,
           role: msg.role,
           content: msg.content,
-        })))
+        }))
+        setMessages(prev => {
+          // Keep everything after history (the initial prompt + any responses already added)
+          const nonHistory = prev.filter(m => m.id === INITIAL_MSG_ID)
+          return [...history, ...nonHistory]
+        })
       })
       .catch(() => {/* silent — empty history on error */})
       .finally(() => setHistoryLoading(false))
   }, [])
+
+  // Auto-send: only triggers API — user message already in state from initial useState
+  useEffect(() => {
+    if (initialPrompt && !historyLoading && !autoSentRef.current) {
+      autoSentRef.current = true
+      callApi(initialPrompt)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [historyLoading])
 
   // Scroll to bottom on new messages
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, sending])
 
-  async function sendMessage(overrideContent?: string) {
-    const content = overrideContent ?? input
-    if (!content.trim() || sending) return
-
-    const userMsg: LocalMessage = {
-      id: crypto.randomUUID(),
-      role: 'user',
-      content,
-    }
-    setMessages(prev => [...prev, userMsg])
-    if (!overrideContent) setInput('')
+  // Raw API call — does NOT add a user message (caller is responsible for that)
+  async function callApi(content: string) {
     setSending(true)
-
     try {
       const res = await fetch('/api/chat/message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: userMsg.content }),
+        body: JSON.stringify({ content }),
       })
       const data = await res.json()
 
@@ -91,7 +116,6 @@ function ChatPageInner() {
         content: data.content,
       }
 
-      // If itinerary was returned, separately fetch the itinerary to get counts for the preview card.
       if (data.itineraryId) {
         try {
           const itinRes = await fetch(`/api/itineraries/${data.itineraryId}`)
@@ -106,50 +130,64 @@ function ChatPageInner() {
           }
           setLatestItineraryData(aiMsg.itineraryData)
         } catch {
-          // Card data fetch failed — still show the text message
+          // Card data fetch failed — still show text message
         }
-
         setMessages(prev => [...prev, aiMsg])
         setSending(false)
-        // Navigate to the new itinerary after a 2.5 second pause
         setTimeout(() => router.push(`/itinerary/${data.itineraryId}`), 2500)
       } else {
         setMessages(prev => [...prev, aiMsg])
         setSending(false)
       }
     } catch {
-      const errorMsg: LocalMessage = {
+      setMessages(prev => [...prev, {
         id: crypto.randomUUID(),
         role: 'assistant',
         content: 'Sorry, something went wrong. Please try again.',
-      }
-      setMessages(prev => [...prev, errorMsg])
+      }])
       setSending(false)
     }
   }
 
+  // User-initiated send — adds user message then calls API
+  function sendMessage(overrideContent?: string) {
+    const content = overrideContent ?? input
+    if (!content.trim() || sending) return
+
+    setMessages(prev => [...prev, {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content,
+    }])
+    if (!overrideContent) setInput('')
+    callApi(content)
+  }
+
+  const greeting = userName ? `Hey ${userName}, where are we going today?` : 'Where are we going today?'
+  const subtext = userName
+    ? `I'm your AI travel planner. Tell me your dream trip and I'll design it for you.`
+    : `Tell me where you want to go, when, and what you enjoy — I'll build a full itinerary for you.`
+
   const leftPanel = (
-    <div className="flex flex-col h-full">
-      {/* Minimal chat header */}
-      <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between shrink-0">
-        <span className="font-semibold text-gray-900 text-base">Barabula</span>
-        <span className="text-xs text-gray-400">AI Trip Planner</span>
+    <div className="flex flex-col h-full bg-sand/40">
+      {/* Chat header */}
+      <div className="px-5 py-4 border-b border-sand-dark/40 flex items-center justify-between shrink-0 bg-white/50 backdrop-blur-sm">
+        <Link href="/" className="font-logo text-navy text-xl tracking-tight hover:text-navy/70 transition-colors">Barabula.</Link>
+        <span className="text-xs text-umber/60">AI Trip Planner</span>
       </div>
 
       {/* Message thread */}
       <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4" data-testid="chat-container">
         {historyLoading && (
           <div className="flex justify-center py-8">
-            <div className="text-sm text-gray-400">Loading conversation...</div>
+            <div className="text-sm text-umber/40">Loading conversation...</div>
           </div>
         )}
 
         {!historyLoading && messages.length === 0 && (
           <div className="flex flex-col items-center justify-center h-full text-center py-16">
-            <h2 className="font-serif text-2xl text-gray-800 mb-2">Where to next?</h2>
-            <p className="text-gray-400 text-sm max-w-xs">
-              Tell me where you want to go, when, and what you enjoy — I&apos;ll build a full itinerary for you.
-            </p>
+            <h2 className="font-serif text-2xl text-navy mb-2">{greeting}</h2>
+            <p className="text-umber/60 text-sm max-w-xs leading-relaxed">{subtext}</p>
           </div>
         )}
 
@@ -157,17 +195,17 @@ function ChatPageInner() {
           <MessageBubble key={msg.id} message={msg} />
         ))}
 
-        {/* Typing indicator — shown while AI is responding */}
+        {/* Typing indicator */}
         {sending && (
           <div className="flex items-end gap-2 justify-start" data-testid="typing-indicator">
-            <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center shrink-0 text-xs font-semibold text-gray-500">
+            <div className="w-8 h-8 rounded-full bg-sky border border-sky-dark flex items-center justify-center shrink-0 text-xs font-semibold text-navy">
               AI
             </div>
-            <div className="px-4 py-3 bg-gray-100 rounded-2xl rounded-bl-sm">
+            <div className="px-4 py-3 bg-white/80 border border-sky/50 rounded-2xl rounded-bl-sm">
               <div className="flex gap-1 items-center">
-                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                <span className="w-1.5 h-1.5 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                <span className="w-1.5 h-1.5 bg-umber/40 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <span className="w-1.5 h-1.5 bg-umber/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <span className="w-1.5 h-1.5 bg-umber/40 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
               </div>
             </div>
           </div>
@@ -176,11 +214,11 @@ function ChatPageInner() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Quick action chips — shown when not sending */}
+      {/* Quick action chips */}
       <QuickActionChips onSend={(msg) => sendMessage(msg)} disabled={sending || historyLoading} />
 
       {/* Input area */}
-      <div className="shrink-0 border-t border-gray-100">
+      <div className="shrink-0">
         <ChatInput
           value={input}
           onChange={setInput}
@@ -189,25 +227,16 @@ function ChatPageInner() {
         />
       </div>
 
-      {/* Bottom tab bar */}
       <BottomTabBar />
     </div>
   )
 
-  const rightPanel = (
-    <ContextPanel
-      itineraryData={latestItineraryData ?? null}
-      isGenerating={sending}
-    />
-  )
-
-  return <SplitLayout left={leftPanel} right={rightPanel} />
+  return <SplitLayout left={leftPanel} right={<ContextPanel itineraryData={latestItineraryData ?? null} isGenerating={sending} />} />
 }
 
-// Suspense wrapper required for useSearchParams in Next.js App Router
 export default function ChatPage() {
   return (
-    <Suspense fallback={<div className="flex items-center justify-center h-screen text-gray-400">Loading...</div>}>
+    <Suspense fallback={<div className="flex items-center justify-center h-screen text-umber/40 bg-sand/40">Loading...</div>}>
       <ChatPageInner />
     </Suspense>
   )

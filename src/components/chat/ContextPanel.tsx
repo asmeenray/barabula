@@ -1,6 +1,7 @@
 'use client'
 
 import { AnimatePresence, motion } from 'motion/react'
+import { useState, useEffect } from 'react'
 
 interface ItineraryData {
   title: string
@@ -24,16 +25,19 @@ const AMBIENT_IMAGES = [
   'https://images.unsplash.com/photo-1499856871958-5b9627545d1a?w=1200&q=80', // Paris
 ]
 
-// Pick a random image once per page load (stable during session)
-const AMBIENT_IMAGE = AMBIENT_IMAGES[Math.floor(Math.random() * AMBIENT_IMAGES.length)]
-
 function AmbientPanel({ isGenerating }: { isGenerating: boolean }) {
+  // Start with index 0 (same on server + client), randomise after hydration
+  const [image, setImage] = useState(AMBIENT_IMAGES[0])
+
+  useEffect(() => {
+    setImage(AMBIENT_IMAGES[Math.floor(Math.random() * AMBIENT_IMAGES.length)])
+  }, [])
   return (
     <div className="absolute inset-0">
       {/* Destination image */}
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
-        src={AMBIENT_IMAGE}
+        src={image}
         alt="destination"
         className="w-full h-full object-cover opacity-40"
       />

@@ -128,7 +128,7 @@ None yet.
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
-| 1 | remove the side scrollbar at the landing page. make it more subtle (invisible) | 2026-03-11 | — | [1-remove-the-side-scrollbar-at-the-landing](.planning/quick/1-remove-the-side-scrollbar-at-the-landing/) |
+| 1 | remove the side scrollbar at the landing page. make it more subtle (invisible) | 2026-03-11 | 9f95996 | [1-remove-the-side-scrollbar-at-the-landing](.planning/quick/1-remove-the-side-scrollbar-at-the-landing/) |
 
 ### Blockers/Concerns
 

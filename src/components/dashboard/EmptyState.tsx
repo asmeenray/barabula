@@ -11,7 +11,7 @@ export function EmptyState() {
       <div className="flex flex-col sm:flex-row gap-3">
         <Link
           href="/chat"
-          className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-sm font-medium hover:bg-blue-700 transition-colors"
+          className="px-5 py-2.5 bg-coral text-white rounded-xl text-sm font-medium hover:bg-coral-light transition-colors"
         >
           Start a trip in Chat →
         </Link>
