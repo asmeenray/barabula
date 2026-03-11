@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 07-ui-overhaul-landing-page-and-chatbot-redesign-01-PLAN.md
-last_updated: "2026-03-11T13:29:03.406Z"
+stopped_at: Completed 07-ui-overhaul-landing-page-and-chatbot-redesign-02-PLAN.md
+last_updated: "2026-03-11T13:31:01.996Z"
 last_activity: 2026-03-09 — Roadmap created, phases derived from requirements
 progress:
   total_phases: 7
   completed_phases: 3
   total_plans: 21
-  completed_plans: 13
+  completed_plans: 14
   percent: 0
 ---
 
@@ -63,6 +63,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 03-core-pages P03 | 2min | 2 tasks | 5 files |
 | Phase 03-core-pages P04 | 4min | 2 tasks | 10 files |
 | Phase 07-ui-overhaul-landing-page-and-chatbot-redesign P01 | 2min | 2 tasks | 14 files |
+| Phase 07-ui-overhaul-landing-page-and-chatbot-redesign P02 | 2min | 1 tasks | 1 files |
 
 ## Accumulated Context
 
@@ -107,6 +108,7 @@ Recent decisions affecting current work:
 - [Phase 03-core-pages]: DaySection sticky header uses top-16 offset to clear authenticated layout nav bar; empty itinerary shows Day 1 placeholder rather than blank page
 - [Phase 07-ui-overhaul]: motion@12.35.2 used (latest) — plan specified ^12 range, resolved to 12.35.2
 - [Phase 07-ui-overhaul]: Three fonts loaded via CSS variables: Inter (body), DM Serif Display (headlines), Abril Fatface (logo)
+- [Phase 07-ui-overhaul]: pathname === '/' uses exact match not startsWith to avoid accidentally exposing sub-paths of /
 
 ### Pending Todos
 
@@ -119,6 +121,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-11T13:29:03.403Z
-Stopped at: Completed 07-ui-overhaul-landing-page-and-chatbot-redesign-01-PLAN.md
+Last session: 2026-03-11T13:31:01.990Z
+Stopped at: Completed 07-ui-overhaul-landing-page-and-chatbot-redesign-02-PLAN.md
 Resume file: None
