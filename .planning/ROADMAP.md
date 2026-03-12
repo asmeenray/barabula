@@ -182,3 +182,13 @@ Plans:
 - [ ] 10-02-PLAN.md — Update AI prompt (clock times, flights, food, hotel star inference) and chat message route (persist duration/tips/flights/daily_food)
 - [ ] 10-03-PLAN.md — Chat UI: interactive Flights/Hotels bottom tabs with expandable form panels (FlightsTabPanel, HotelsTabPanel)
 - [ ] 10-04-PLAN.md — Itinerary page UI: FlightCard with inline editing, EatDrinkTab, ActivityForm expanded, timeRank 12-hour fix, tab switcher
+
+### Phase 11: Visual Enrichment & Trip Sharing — photos, ratings, and public links
+
+**Goal:** Close the three critical competitive gaps: enrich activity cards with Unsplash photos and Google Places ratings (fetched at generation time, stored in extra_data), add shareable read-only trip links via /itinerary/[id]?share=true with a soft acquisition CTA for guests, and add Unsplash photos to landing page destination cards
+**Requirements**: TBD
+**Depends on:** Phase 10
+**Plans:** TBD
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 11 to break down)
