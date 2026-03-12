@@ -9,6 +9,8 @@ import { fetchPlacesData } from '@/lib/places'
 import type { FlightInputData } from '@/components/chat/FlightsTabPanel'
 import type { HotelSaveData } from '@/components/chat/HotelsTabPanel'
 
+export const maxDuration = 60 // seconds — prevents Vercel's default 10s timeout killing AI calls
+
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -63,19 +65,22 @@ export async function POST(req: NextRequest) {
   let completion
   try {
     completion = await openai.chat.completions.parse({
-      model: 'gpt-4o',
-      max_tokens: 16000,
+      model: 'gpt-4.1',
+      max_tokens: 32768,
       messages: buildMessages(),
       response_format: zodResponseFormat(AIResponseSchema, 'ai_response'),
     })
   } catch (err: unknown) {
-    const isLengthError = err instanceof Error && err.constructor.name === 'LengthFinishReasonError'
+    const isLengthError = err instanceof Error && (
+      err.constructor.name === 'LengthFinishReasonError' ||
+      err.message?.includes('finish_reason') && err.message?.includes('length')
+    )
     if (isLengthError) {
       console.warn('[chat/message] Token limit hit — retrying with concise mode')
       try {
         completion = await openai.chat.completions.parse({
-          model: 'gpt-4o',
-          max_tokens: 16000,
+          model: 'gpt-4.1',
+          max_tokens: 32768,
           messages: buildMessages(true),
           response_format: zodResponseFormat(AIResponseSchema, 'ai_response'),
         })
