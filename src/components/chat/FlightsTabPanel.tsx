@@ -104,7 +104,7 @@ export function FlightsTabPanel({ tripState, initialData, onSave, onClose }: Fli
               <input
                 type="text"
                 className={inputClass}
-                placeholder="e.g. British Airways"
+                placeholder="Airline (e.g. British Airways)"
                 value={outboundAirline}
                 onChange={e => setOutboundAirline(e.target.value)}
               />
@@ -144,7 +144,7 @@ export function FlightsTabPanel({ tripState, initialData, onSave, onClose }: Fli
               <input
                 type="text"
                 className={inputClass}
-                placeholder="e.g. 09:00"
+                placeholder="Departure time (e.g. 09:00)"
                 value={outboundDeparture}
                 onChange={e => setOutboundDeparture(e.target.value)}
               />
@@ -171,7 +171,7 @@ export function FlightsTabPanel({ tripState, initialData, onSave, onClose }: Fli
               <input
                 type="text"
                 className={inputClass}
-                placeholder="e.g. British Airways"
+                placeholder="Airline (e.g. British Airways)"
                 value={returnAirline}
                 onChange={e => setReturnAirline(e.target.value)}
               />
@@ -211,7 +211,7 @@ export function FlightsTabPanel({ tripState, initialData, onSave, onClose }: Fli
               <input
                 type="text"
                 className={inputClass}
-                placeholder="e.g. 11:00"
+                placeholder="Departure time (e.g. 11:00)"
                 value={returnDeparture}
                 onChange={e => setReturnDeparture(e.target.value)}
               />

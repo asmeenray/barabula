@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, Suspense } from 'react'
 import { useSearchParams } from 'next/navigation'
+import { AnimatePresence, motion } from 'motion/react'
 import { createClient } from '@/lib/supabase/client'
 import { MessageBubble } from '@/components/chat/MessageBubble'
 import { ChatInput } from '@/components/chat/ChatInput'
@@ -9,9 +10,12 @@ import { SplitLayout } from '@/components/chat/SplitLayout'
 import { ContextPanel } from '@/components/chat/ContextPanel'
 import { QuickActionChips } from '@/components/chat/QuickActionChips'
 import { BottomTabBar } from '@/components/chat/BottomTabBar'
+import { FlightsTabPanel } from '@/components/chat/FlightsTabPanel'
+import { HotelsTabPanel } from '@/components/chat/HotelsTabPanel'
 import Link from 'next/link'
 import { getPrompt, clearPrompt } from '@/lib/landing/prompt-store'
 import type { ChatMessage, ConversationPhase, TripState } from '@/lib/types'
+import type { FlightInputData } from '@/components/chat/FlightsTabPanel'
 
 type LocalMessage = {
   id: string
@@ -65,6 +69,9 @@ function ChatPageInner() {
   const [userName, setUserName] = useState<string | null>(null)
   const [conversationPhase, setConversationPhase] = useState<ConversationPhase>('gathering_destination')
   const [tripState, setTripState] = useState<Partial<TripState>>({})
+  const [activeTab, setActiveTab] = useState<'flights' | 'hotels' | null>(null)
+  const [flightInputData, setFlightInputData] = useState<FlightInputData | null>(null)
+  const [hotelPreference, setHotelPreference] = useState<string | null>(null)
   const bottomRef = useRef<HTMLDivElement>(null)
   const autoSentRef = useRef(false)
 
@@ -147,7 +154,10 @@ function ChatPageInner() {
       })
       const data = await res.json()
 
-      if (data.conversationPhase) setConversationPhase(data.conversationPhase)
+      if (data.conversationPhase) {
+        setConversationPhase(data.conversationPhase)
+        if (data.conversationPhase === 'itinerary_complete') setActiveTab(null)
+      }
       if (data.tripState) setTripState(data.tripState)
 
       const aiMsg: LocalMessage = {
@@ -271,6 +281,44 @@ function ChatPageInner() {
         conversationPhase={conversationPhase}
       />
 
+      {/* Tab panels — expand above input when a tab is active */}
+      <AnimatePresence>
+        {activeTab === 'flights' && (
+          <motion.div
+            key="flights-panel"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.18 }}
+            className="shrink-0"
+          >
+            <FlightsTabPanel
+              tripState={tripState}
+              initialData={flightInputData}
+              onSave={(data) => setFlightInputData(data)}
+              onClose={() => setActiveTab(null)}
+            />
+          </motion.div>
+        )}
+        {activeTab === 'hotels' && (
+          <motion.div
+            key="hotels-panel"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.18 }}
+            className="shrink-0"
+          >
+            <HotelsTabPanel
+              tripState={tripState}
+              hotelPreference={hotelPreference}
+              onSave={(pref) => setHotelPreference(pref)}
+              onClose={() => setActiveTab(null)}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Input area */}
       <div className="shrink-0">
         <ChatInput
@@ -281,7 +329,11 @@ function ChatPageInner() {
         />
       </div>
 
-      <BottomTabBar />
+      <BottomTabBar
+        conversationPhase={conversationPhase}
+        activeTab={activeTab}
+        onTabChange={setActiveTab}
+      />
     </div>
   )
 

@@ -16,7 +16,8 @@ describe('FlightsTabPanel', () => {
 
   it('renders outbound airline field', () => {
     render(<FlightsTabPanel {...baseProps} />)
-    expect(screen.getByPlaceholderText(/airline/i)).toBeTruthy()
+    const airlineFields = screen.getAllByPlaceholderText(/airline/i)
+    expect(airlineFields.length).toBeGreaterThanOrEqual(1)
   })
 
   it('renders outbound from airport field', () => {
