@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import useSWR from 'swr'
@@ -53,7 +53,12 @@ export default function ItineraryDetailPage() {
 
   const { data, error, isLoading, mutate } = useSWR<ItineraryWithActivities>(
     `/api/itineraries/${id}`,
-    fetcher
+    fetcher,
+    {
+      revalidateOnFocus: false,      // Don't refetch when user switches tabs
+      dedupingInterval: 30_000,      // Dedupe requests within 30s
+      revalidateOnReconnect: false,  // Don't refetch on network reconnect
+    }
   )
 
   const [showMap, setShowMap] = useState(false)
@@ -103,7 +108,7 @@ export default function ItineraryDetailPage() {
     document.body.style.userSelect = 'none'
   }
 
-  function handleToggleMap() {
+  const handleToggleMap = useCallback(() => {
     setShowMap(prev => {
       const next = !prev
       if (!next) {
@@ -115,7 +120,7 @@ export default function ItineraryDetailPage() {
       }
       return next
     })
-  }
+  }, [])
 
   // Sequential geocoding — avoids Nominatim rate limits (lazy: only runs when showMap is true)
   useEffect(() => {
@@ -159,12 +164,12 @@ export default function ItineraryDetailPage() {
     return () => { cancelled = true }
   }, [showMap, data?.activities, data?.destination]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  function startEditTitle() {
+  const startEditTitle = useCallback(() => {
     setTitleDraft(data?.title ?? '')
     setEditingTitle(true)
-  }
+  }, [data?.title])
 
-  async function saveTitle() {
+  const saveTitle = useCallback(async () => {
     if (!titleDraft.trim() || titleDraft === data?.title) { setEditingTitle(false); return }
     setEditingTitle(false)
     await fetch(`/api/itineraries/${id}`, {
@@ -173,21 +178,21 @@ export default function ItineraryDetailPage() {
       body: JSON.stringify({ title: titleDraft.trim() }),
     })
     mutate()
-  }
+  }, [id, titleDraft, data?.title, mutate])
 
-  function openAddActivity(dayNumber: number) {
+  const openAddActivity = useCallback((dayNumber: number) => {
     setEditingActivity(null)
     setFormDay(dayNumber)
     setActivityFormOpen(true)
-  }
+  }, [])
 
-  function openEditActivity(activity: Activity) {
+  const openEditActivity = useCallback((activity: Activity) => {
     setEditingActivity(activity)
     setFormDay(activity.day_number)
     setActivityFormOpen(true)
-  }
+  }, [])
 
-  async function handleSaveActivity(actData: Omit<Activity, 'id' | 'activity_type'>) {
+  const handleSaveActivity = useCallback(async (actData: Omit<Activity, 'id' | 'activity_type'>) => {
     if (editingActivity) {
       await fetch(`/api/activities/${editingActivity.id}`, {
         method: 'PATCH',
@@ -204,28 +209,68 @@ export default function ItineraryDetailPage() {
     setActivityFormOpen(false)
     setEditingActivity(null)
     mutate()
-  }
+  }, [editingActivity, mutate])
 
-  async function handleDeleteActivity(activityId: string) {
+  const handleDeleteActivity = useCallback(async (activityId: string) => {
     await fetch(`/api/activities/${activityId}`, { method: 'DELETE' })
     mutate()
-  }
+  }, [mutate])
 
-  function handlePinClick(pinId: string) {
+  const handlePinClick = useCallback((pinId: string) => {
     setActiveActivityId(pinId)
     document.getElementById(`activity-${pinId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }
+  }, [])
 
-  function handleDayChange(day: number) {
+  const handleDayChange = useCallback((day: number) => {
     setActiveDay(day === 0 ? null : day)
-  }
+  }, [])
 
-  async function handleDeleteItinerary() {
+  const handleDeleteItinerary = useCallback(async () => {
     const confirmed = window.confirm(`Delete "${data?.title}"? This cannot be undone.`)
     if (!confirmed) return
     await fetch(`/api/itineraries/${id}`, { method: 'DELETE' })
     router.push('/dashboard')
-  }
+  }, [data?.title, id, router])
+
+  const handleBack = useCallback(() => router.push('/dashboard'), [router])
+
+  const handleSetMobileTab = useCallback((tab: 'list' | 'map') => {
+    setMobileTab(tab)
+  }, [])
+
+  const handleCloseActivityForm = useCallback(() => {
+    setActivityFormOpen(false)
+    setEditingActivity(null)
+  }, [])
+
+  const handleOverlayClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (e.target === e.currentTarget) {
+      setActivityFormOpen(false)
+      setEditingActivity(null)
+    }
+  }, [])
+
+  // Memoized derived state — only recalculates when data.activities changes
+  const dayMap = useMemo(
+    () => groupByDay(data?.activities ?? []),
+    [data?.activities]
+  )
+  const sortedDays = useMemo(() => {
+    const days = Array.from(dayMap.keys()).sort((a, b) => a - b)
+    return days.length === 0 ? [1] : days
+  }, [dayMap])
+  const displayedDays = useMemo(
+    () => (activeDay ? sortedDays.filter(d => d === activeDay) : sortedDays),
+    [activeDay, sortedDays]
+  )
+  const dateRange = useMemo(
+    () => data?.start_date && data?.end_date ? `${data.start_date} – ${data.end_date}` : data?.start_date ?? null,
+    [data?.start_date, data?.end_date]
+  )
+  const hasLocations = useMemo(
+    () => (data?.activities ?? []).some(a => a.location),
+    [data?.activities]
+  )
 
   if (isLoading) {
     return (
@@ -243,13 +288,6 @@ export default function ItineraryDetailPage() {
     )
   }
 
-  const dayMap = groupByDay(data.activities ?? [])
-  const sortedDays = Array.from(dayMap.keys()).sort((a, b) => a - b)
-  if (sortedDays.length === 0) sortedDays.push(1)
-  const displayedDays = activeDay ? sortedDays.filter(d => d === activeDay) : sortedDays
-  const dateRange = data.start_date && data.end_date ? `${data.start_date} – ${data.end_date}` : data.start_date ?? null
-  const hasLocations = (data.activities ?? []).some(a => a.location)
-
   return (
     <div className="h-full flex flex-col overflow-hidden bg-[#f0ebe4]">
       {/* Hero strip */}
@@ -258,7 +296,7 @@ export default function ItineraryDetailPage() {
         coverImageUrl={data.cover_image_url ?? null}
         destination={data.destination}
         dateRange={dateRange}
-        onBack={() => router.push('/dashboard')}
+        onBack={handleBack}
         onDelete={handleDeleteItinerary}
         onEditTitle={startEditTitle}
         editingTitle={editingTitle}
@@ -275,7 +313,7 @@ export default function ItineraryDetailPage() {
           {(['list', 'map'] as const).map(tab => (
             <button
               key={tab}
-              onClick={() => setMobileTab(tab)}
+              onClick={() => handleSetMobileTab(tab)}
               className="relative flex-1 py-2.5 text-xs font-semibold text-umber capitalize tracking-wide"
             >
               {mobileTab === tab && (
@@ -417,7 +455,7 @@ export default function ItineraryDetailPage() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 z-50 bg-navy/40 backdrop-blur-sm flex items-end md:items-center justify-center p-4"
-            onClick={e => { if (e.target === e.currentTarget) { setActivityFormOpen(false); setEditingActivity(null) } }}
+            onClick={handleOverlayClick}
           >
             <motion.div
               initial={{ y: 40, opacity: 0 }}
@@ -431,7 +469,7 @@ export default function ItineraryDetailPage() {
                 dayNumber={formDay}
                 itineraryId={id}
                 onSave={handleSaveActivity}
-                onCancel={() => { setActivityFormOpen(false); setEditingActivity(null) }}
+                onCancel={handleCloseActivityForm}
               />
             </motion.div>
           </motion.div>
