@@ -21,6 +21,8 @@ interface ItineraryHeroProps {
   isShareMode?: boolean
   isPublic?: boolean
   onShare?: () => void
+  // Continue planning — navigate back to chat (owner view only)
+  onContinuePlanning?: () => void
 }
 
 type DestinationPhoto = { url: string; photographer?: string; photographerUrl?: string } | null
@@ -30,7 +32,7 @@ export function ItineraryHero({
   onBack, onDelete, onEditTitle,
   editingTitle, titleDraft, onTitleDraftChange, onTitleSave,
   onToggleMap, showMap,
-  isShareMode = false, isPublic = false, onShare,
+  isShareMode = false, isPublic = false, onShare, onContinuePlanning,
 }: ItineraryHeroProps) {
   const [photo, setPhoto] = useState<DestinationPhoto>(null)
   const [loaded, setLoaded] = useState(false)
@@ -142,6 +144,27 @@ export function ItineraryHero({
                 </svg>
               )}
               {isPublic ? 'Sharing On' : 'Share Trip'}
+            </button>
+          )}
+
+          {/* Continue Planning button — owner view only */}
+          {!isShareMode && onContinuePlanning && (
+            <button
+              onClick={onContinuePlanning}
+              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200"
+              style={{
+                background: 'rgba(214,121,64,0.85)',
+                color: 'white',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid rgba(214,121,64,0.5)',
+                boxShadow: '0 2px 8px rgba(214,121,64,0.2)',
+              }}
+            >
+              {/* Chat bubble SVG */}
+              <svg width="11" height="10" viewBox="0 0 24 24" fill="none">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+              </svg>
+              Continue Planning
             </button>
           )}
 
