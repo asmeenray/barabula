@@ -56,7 +56,14 @@ export async function POST(req: NextRequest) {
     response_format: zodResponseFormat(AIResponseSchema, 'ai_response'),
   })
 
-  const parsed = completion.choices[0].message.parsed
+  const choice = completion.choices[0]
+
+  // Warn if output was truncated — the structured days array may be incomplete
+  if (choice.finish_reason === 'length') {
+    console.warn('[chat/message] finish_reason=length — output was truncated, itinerary days may be incomplete')
+  }
+
+  const parsed = choice.message.parsed
 
   // Guard: if parse fails entirely, return 500
   if (!parsed) {
@@ -77,11 +84,21 @@ export async function POST(req: NextRequest) {
     { user_id: user.id, role: 'assistant', content: parsed.reply },
   ])
 
+  // Preserve client-managed keys stored in trip_state (flight/hotel data saved from the chat UI)
+  // These keys are prefixed with _ so the AI schema never generates them
+  const existingTripState = sessionRow?.trip_state as Record<string, unknown> | undefined
+  const clientKeys: Record<string, unknown> = {}
+  if (existingTripState?._client_flight_data !== undefined) clientKeys._client_flight_data = existingTripState._client_flight_data
+  if (existingTripState?._client_hotel_data !== undefined) clientKeys._client_hotel_data = existingTripState._client_hotel_data
+  // Also persist the latest flight/hotel data from this request (if user just saved them)
+  if (flightInputData) clientKeys._client_flight_data = flightInputData
+  if (hotelSaveData) clientKeys._client_hotel_data = hotelSaveData
+
   // Upsert trip session with latest state
   await supabase.from('trip_sessions').upsert(
     {
       user_id: user.id,
-      trip_state: parsed.trip_state,
+      trip_state: { ...parsed.trip_state, ...clientKeys },
       conversation_phase: safePhase,
     },
     { onConflict: 'user_id' }

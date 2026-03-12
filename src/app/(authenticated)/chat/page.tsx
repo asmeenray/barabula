@@ -126,6 +126,9 @@ function ChatPageInner() {
         .then(session => {
           if (session?.conversation_phase) setConversationPhase(session.conversation_phase)
           if (session?.trip_state) setTripState(session.trip_state)
+          // Restore persisted flight/hotel data from session
+          if (session?.flight_input_data) setFlightInputData(session.flight_input_data)
+          if (session?.hotel_save_data) setHotelSaveData(session.hotel_save_data)
         })
         .catch(() => {/* silent */})
     }
@@ -146,6 +149,26 @@ function ChatPageInner() {
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages, sending])
+
+  // Persist flight/hotel data to session whenever the user saves them
+  // historyLoading guard prevents saving the null initial state on mount
+  useEffect(() => {
+    if (historyLoading) return
+    fetch('/api/chat/session', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ flight_input_data: flightInputData }),
+    }).catch(() => {/* silent */})
+  }, [flightInputData]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (historyLoading) return
+    fetch('/api/chat/session', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hotel_save_data: hotelSaveData }),
+    }).catch(() => {/* silent */})
+  }, [hotelSaveData]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Raw API call — does NOT add a user message (caller is responsible for that)
   async function callApi(content: string) {
