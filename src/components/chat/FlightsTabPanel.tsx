@@ -48,6 +48,73 @@ export function FlightsTabPanel({ tripState, initialData, onSave, onClose }: Fli
   const [returnDeparture, setReturnDeparture] = useState(initialData?.return_departure ?? '')
   const [returnArrival, setReturnArrival] = useState(initialData?.return_arrival ?? '')
 
+  const [outboundLooking, setOutboundLooking] = useState(false)
+  const [outboundLookupError, setOutboundLookupError] = useState<string | null>(null)
+  const [returnLooking, setReturnLooking] = useState(false)
+  const [returnLookupError, setReturnLookupError] = useState<string | null>(null)
+
+  async function handleLookupOutbound() {
+    setOutboundLooking(true)
+    setOutboundLookupError(null)
+    try {
+      const res = await fetch('/api/flights/lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          airline: outboundAirline,
+          flight_number: outboundFlightNumber,
+          from_airport: outboundFrom,
+          to_airport: outboundTo,
+          approx_departure: outboundDeparture,
+        }),
+      })
+      const data = await res.json()
+      if (data.found) {
+        if (data.from_airport) setOutboundFrom(data.from_airport)
+        if (data.to_airport) setOutboundTo(data.to_airport)
+        if (data.departure_time) setOutboundDeparture(data.departure_time)
+        if (data.arrival_time) setOutboundArrival(data.arrival_time)
+      } else {
+        setOutboundLookupError('Could not find this flight — please enter manually.')
+      }
+    } catch {
+      setOutboundLookupError('Lookup failed — please enter manually.')
+    } finally {
+      setOutboundLooking(false)
+    }
+  }
+
+  async function handleLookupReturn() {
+    setReturnLooking(true)
+    setReturnLookupError(null)
+    try {
+      const res = await fetch('/api/flights/lookup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          airline: returnAirline,
+          flight_number: returnFlightNumber,
+          from_airport: returnFrom,
+          to_airport: returnTo,
+          approx_departure: returnDeparture,
+        }),
+      })
+      const data = await res.json()
+      if (data.found) {
+        if (data.from_airport) setReturnFrom(data.from_airport)
+        if (data.to_airport) setReturnTo(data.to_airport)
+        if (data.departure_time) setReturnDeparture(data.departure_time)
+        if (data.arrival_time) setReturnArrival(data.arrival_time)
+      } else {
+        setReturnLookupError('Could not find this flight — please enter manually.')
+      }
+    } catch {
+      setReturnLookupError('Lookup failed — please enter manually.')
+    } finally {
+      setReturnLooking(false)
+    }
+  }
+
   function handleSave() {
     onSave({
       origin_city: originCity,
@@ -160,6 +227,17 @@ export function FlightsTabPanel({ tripState, initialData, onSave, onClose }: Fli
               />
             </div>
           </div>
+          <button
+            type="button"
+            onClick={handleLookupOutbound}
+            disabled={outboundLooking || (!outboundAirline && !outboundFlightNumber)}
+            className="mt-2 w-full border border-coral/40 text-coral rounded-xl py-2 text-xs font-semibold hover:bg-coral/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {outboundLooking ? 'Searching...' : 'Look up flight'}
+          </button>
+          {outboundLookupError && (
+            <p className="text-xs text-umber/70 mt-1">{outboundLookupError}</p>
+          )}
         </div>
 
         {/* Return flight */}
@@ -227,6 +305,17 @@ export function FlightsTabPanel({ tripState, initialData, onSave, onClose }: Fli
               />
             </div>
           </div>
+          <button
+            type="button"
+            onClick={handleLookupReturn}
+            disabled={returnLooking || (!returnAirline && !returnFlightNumber)}
+            className="mt-2 w-full border border-coral/40 text-coral rounded-xl py-2 text-xs font-semibold hover:bg-coral/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {returnLooking ? 'Searching...' : 'Look up flight'}
+          </button>
+          {returnLookupError && (
+            <p className="text-xs text-umber/70 mt-1">{returnLookupError}</p>
+          )}
         </div>
       </div>
 
