@@ -188,7 +188,7 @@ Plans:
 **Goal:** Close the three critical competitive gaps: enrich activity cards with Unsplash photos and Google Places ratings (fetched at generation time, stored in extra_data), add shareable read-only trip links via /itinerary/[id]?share=true with a soft acquisition CTA for guests, and add Unsplash photos to landing page destination cards. Also removes glassmorphism backdrop-filter blur from activity cards for GPU performance and replaces with modern solid-background photo-first card design.
 **Requirements**: TBD
 **Depends on:** Phase 10
-**Plans:** 1/4 plans executed
+**Plans:** 2/4 plans executed
 
 Plans:
 - [ ] 11-01-PLAN.md — TDD: Unsplash API migration (fetchCityImage + fetchActivityImage), Google Places fetcher (fetchPlacesData) with tests

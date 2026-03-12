@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 11-visual-enrichment-and-trip-sharing-01-PLAN.md
-last_updated: "2026-03-12T10:49:55.723Z"
+stopped_at: Completed 11-visual-enrichment-and-trip-sharing-02-PLAN.md
+last_updated: "2026-03-12T10:59:02.437Z"
 last_activity: 2026-03-09 — Roadmap created, phases derived from requirements
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 40
-  completed_plans: 34
+  completed_plans: 35
   percent: 0
 ---
 
@@ -87,6 +87,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 10-rich-itinerary-ai-response-detailed-daily-plans-with-timings-flights-hotels-restaurants-and-editable-tiles P03 | 10min | 2 tasks | 5 files |
 | Phase 10-rich-itinerary-ai-response P04 | 5min | 2 tasks | 9 files |
 | Phase 11-visual-enrichment-and-trip-sharing P01 | 2min | 3 tasks | 4 files |
+| Phase 11-visual-enrichment-and-trip-sharing P02 | 7min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -186,6 +187,8 @@ Recent decisions affecting current work:
 - [Phase 11-visual-enrichment-and-trip-sharing]: fetchUnsplashImage() shared helper extracted — fetchCityImage and fetchActivityImage share identical API call logic
 - [Phase 11-visual-enrichment-and-trip-sharing]: Foursquare Authorization header uses raw key (no Bearer prefix) — Foursquare v3 API pattern
 - [Phase 11-visual-enrichment-and-trip-sharing]: fetchActivityImage fallback: destination-only query when primary activityName+destination query returns non-ok
+- [Phase 11-visual-enrichment-and-trip-sharing]: No backdropFilter on activity cards — solid rgba backgrounds, no GPU compositing layers
+- [Phase 11-visual-enrichment-and-trip-sharing]: layout prop removed from ActivityCard motion.div — reduces layout animation overhead
 
 ### Pending Todos
 
@@ -204,6 +207,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T10:49:55.705Z
-Stopped at: Completed 11-visual-enrichment-and-trip-sharing-01-PLAN.md
+Last session: 2026-03-12T10:59:02.427Z
+Stopped at: Completed 11-visual-enrichment-and-trip-sharing-02-PLAN.md
 Resume file: None
