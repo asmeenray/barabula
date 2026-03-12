@@ -32,14 +32,14 @@ Close the three critical competitive gaps identified by the travel AI competitiv
 - **Acquisition CTA:** Sticky banner at the bottom for unauthenticated viewers: "Love this trip? Plan yours with Barabula" + Sign Up button (coral). Non-intrusive soft CTA, not a paywall.
 - **Share button UX:** Clicking Share copies the URL to clipboard + shows a toast: "Link copied — anyone with this link can view your trip." If already shared, clicking again offers to disable sharing.
 
-### Google Places Ratings
+### Ratings (Foursquare Places API)
 
-- **Data shown:** Star rating (e.g., ★ 4.6) + review count (e.g., 2,847 reviews). Displayed on activity cards below the photo.
-- **API:** Google Places Text Search API — query by activity name + destination (e.g., "Eiffel Tower, Paris"). Uses the $200/month free credit (covers ~5,800 requests/month — sufficient for early-stage usage).
+- **Data shown:** Star rating (e.g., ★ 4.6) + price tier ($ / $$ / $$$ / $$$$). Displayed on activity cards below the photo.
+- **API:** Foursquare Places Search API v3 — `GET https://api.foursquare.com/v3/places/search?query={name}&near={destination}&limit=1&fields=rating,price,stats`. No billing account required — free tier covers 1,000 requests/day. Key: `FOURSQUARE_API_KEY`.
 - **Fetch timing:** At AI generation time, alongside the photo fetch. Stored in activity `extra_data` JSONB.
-- **Storage keys in extra_data:** `places_rating` (number), `places_review_count` (number), `places_price_level` (0–4 integer). Price level shown on cards as $ / $$ / $$$ / $$$$.
-- **Fallback:** If Places Text Search returns no match, gracefully omit — card shows photo but no rating. No placeholder stars, no fake data.
-- **No opening hours in Phase 11:** Ratings + price level only. Hours require a separate Places Details API call (additional cost). Defer hours to a future phase.
+- **Storage keys in extra_data:** `places_rating` (number, 0–10 from Foursquare, displayed as /2 for 5-star), `places_price_level` (1–4 integer from Foursquare, shown as $ / $$ / $$$ / $$$$). Review count omitted — Foursquare free tier does not reliably return `stats.total_ratings`.
+- **Fallback:** If Foursquare returns no match, gracefully omit — card shows photo but no rating. No placeholder stars, no fake data.
+- **No opening hours in Phase 11:** Ratings + price level only. Defer hours to a future phase.
 
 ### Visual Redesign Scope (Glassmorphism)
 
