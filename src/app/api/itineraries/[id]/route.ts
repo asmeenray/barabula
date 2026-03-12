@@ -7,8 +7,18 @@ export async function GET(
 ) {
   const { id } = await params
   const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
+  // Check if itinerary is public — if so, skip auth requirement
+  const { data: publicCheck } = await supabase
+    .from('itineraries')
+    .select('is_public')
+    .eq('id', id)
+    .maybeSingle()
+  const isPublicItinerary = publicCheck?.is_public === true
+  if (!isPublicItinerary) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  }
 
   const { data, error } = await supabase
     .from('itineraries')
@@ -35,6 +45,7 @@ export async function PATCH(
   if (body.destination !== undefined) updates.destination = body.destination
   if (body.start_date !== undefined) updates.start_date = body.start_date
   if (body.end_date !== undefined) updates.end_date = body.end_date
+  if (body.is_public !== undefined) updates.is_public = Boolean(body.is_public)
   if (body.extra_data !== undefined) {
     // Safe merge: read existing extra_data first to avoid overwriting sibling keys
     const { data: existing } = await supabase

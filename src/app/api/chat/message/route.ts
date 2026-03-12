@@ -4,7 +4,8 @@ import OpenAI from 'openai'
 import { AIResponseSchema, zodResponseFormat } from '@/lib/ai/schemas'
 import { buildSystemPrompt } from '@/lib/ai/system-prompt'
 import type { TripState, ConversationPhase } from '@/lib/ai/schemas'
-import { fetchCityImage } from '@/lib/unsplash'
+import { fetchCityImage, fetchActivityImage } from '@/lib/unsplash'
+import { fetchPlacesData } from '@/lib/places'
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -130,27 +131,43 @@ export async function POST(req: NextRequest) {
         .eq('id', newItinerary.id)
     }
 
-    // Insert activities from all days (flatten)
-    const activities = days.flatMap(day =>
-      day.activities.map(act => ({
-        itinerary_id: newItinerary.id,
-        day_number: day.day_number,
-        name: act.name,
-        time: act.time,
-        description: act.description,
-        location: act.location,
-        activity_type: act.activity_type ?? null,
-        duration: act.duration ?? null,
-        tips: act.tips ?? null,
-        extra_data: (act.activity_type === 'hotel')
-          ? {
-              hotel_name: act.hotel_name,
-              star_rating: act.star_rating,
-              check_in: act.check_in,
-              check_out: act.check_out,
-            }
-          : {},
-      }))
+    // Insert activities from all days — enrich with photo + places data in parallel
+    const activityDestination = itineraryFields.destination ?? itineraryFields.title ?? ''
+    const activities = await Promise.all(
+      days.flatMap(day =>
+        day.activities.map(async (act) => {
+          const isHotel = act.activity_type === 'hotel'
+          const [photoUrl, placesData] = await Promise.all([
+            isHotel ? Promise.resolve(null) : fetchActivityImage(act.name, activityDestination),
+            isHotel ? Promise.resolve({ rating: null, priceLevel: null }) : fetchPlacesData(act.name, activityDestination),
+          ])
+          const baseExtraData = isHotel
+            ? {
+                hotel_name: act.hotel_name,
+                star_rating: act.star_rating,
+                check_in: act.check_in,
+                check_out: act.check_out,
+              }
+            : {}
+          return {
+            itinerary_id: newItinerary.id,
+            day_number: day.day_number,
+            name: act.name,
+            time: act.time,
+            description: act.description,
+            location: act.location,
+            activity_type: act.activity_type ?? null,
+            duration: act.duration ?? null,
+            tips: act.tips ?? null,
+            extra_data: {
+              ...baseExtraData,
+              ...(photoUrl ? { photo_url: photoUrl } : {}),
+              ...(placesData.rating !== null ? { places_rating: placesData.rating } : {}),
+              ...(placesData.priceLevel !== null ? { places_price_level: placesData.priceLevel } : {}),
+            },
+          }
+        })
+      )
     )
     if (activities.length > 0) {
       await supabase.from('activities').insert(activities)
