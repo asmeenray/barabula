@@ -39,7 +39,7 @@ export async function POST(req: NextRequest) {
 
   const completion = await openai.chat.completions.parse({
     model: 'gpt-4o',
-    max_tokens: 4096,
+    max_tokens: 8192,
     messages: [
       { role: 'system', content: systemPrompt },
       ...(history ?? []).map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
@@ -81,7 +81,7 @@ export async function POST(req: NextRequest) {
 
   // If itinerary complete and itinerary data present, persist itinerary + activities
   if (safePhase === 'itinerary_complete' && parsed.itinerary) {
-    const { days, ...itineraryFields } = parsed.itinerary
+    const { days, flights, daily_food, ...itineraryFields } = parsed.itinerary
 
     // Normalize dates to YYYY-MM-DD (model sometimes returns "20th March 2026" etc.)
     const normalizeDate = (raw: string): string => {
@@ -115,6 +115,21 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Persist flights and daily_food into itinerary extra_data
+    // Note: this is a fresh insert so extra_data is '{}' — safe to set directly.
+    // For future edits, the PATCH route reads existing extra_data first and merges (Pitfall 3 pattern).
+    if (flights?.length || daily_food?.length) {
+      await supabase
+        .from('itineraries')
+        .update({
+          extra_data: {
+            flights: flights ?? [],
+            daily_food: daily_food ?? [],
+          }
+        })
+        .eq('id', newItinerary.id)
+    }
+
     // Insert activities from all days (flatten)
     const activities = days.flatMap(day =>
       day.activities.map(act => ({
@@ -125,6 +140,8 @@ export async function POST(req: NextRequest) {
         description: act.description,
         location: act.location,
         activity_type: act.activity_type ?? null,
+        duration: act.duration ?? null,
+        tips: act.tips ?? null,
         extra_data: (act.activity_type === 'hotel')
           ? {
               hotel_name: act.hotel_name,
