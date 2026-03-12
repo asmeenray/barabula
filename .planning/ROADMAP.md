@@ -175,7 +175,7 @@ Plans:
 **Goal:** AI generates richer itineraries with specific clock-time activities, flight suggestions, daily food recommendations, and activity duration/tips — all editable from the itinerary page via FlightCards, an Eat & Drink tab, and an expanded ActivityForm modal
 **Requirements**: TBD
 **Depends on:** Phase 9
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [ ] 10-01-PLAN.md — Extend TypeScript types, Zod schemas (Flight, DailyFood, duration/tips on Activity), and DB migration for activities columns
