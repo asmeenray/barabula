@@ -16,6 +16,7 @@ interface DaySectionProps {
   onEditActivity: (activity: Activity) => void
   onDeleteActivity: (id: string) => Promise<void>
   sequenceOffset?: number
+  isShareMode?: boolean
 }
 
 function TimeChip({ time }: { time?: string | null }) {
@@ -63,9 +64,10 @@ interface ActivityCardItemProps {
   onCardClick: () => void
   onEdit: () => void
   onDelete: () => Promise<void>
+  isShareMode?: boolean
 }
 
-function ActivityCardItem({ activity, index, isActive, isExpanded, isLast, onCardClick, onEdit, onDelete }: ActivityCardItemProps) {
+function ActivityCardItem({ activity, index, isActive, isExpanded, isLast, onCardClick, onEdit, onDelete, isShareMode = false }: ActivityCardItemProps) {
   const isHotel = activity.activity_type === 'hotel'
   const hotelName = isHotel
     ? (activity.extra_data as Record<string, unknown> | null)?.hotel_name as string | undefined ?? activity.name
@@ -246,23 +248,25 @@ function ActivityCardItem({ activity, index, isActive, isExpanded, isLast, onCar
                   </div>
                 )}
 
-                {/* Actions */}
-                <div className="flex items-center gap-2 pt-1">
-                  <button
-                    onClick={e => { e.stopPropagation(); onEdit() }}
-                    className="text-[11px] font-semibold px-3 py-1 rounded-full transition-all duration-150"
-                    style={{ color: '#285185', background: 'rgba(40,81,133,0.08)' }}
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={e => { e.stopPropagation(); onDelete() }}
-                    className="text-[11px] font-semibold px-3 py-1 rounded-full transition-all duration-150"
-                    style={{ color: 'rgba(200,50,50,0.7)', background: 'rgba(200,50,50,0.06)' }}
-                  >
-                    Remove
-                  </button>
-                </div>
+                {/* Actions — hidden in share/read-only mode */}
+                {!isShareMode && (
+                  <div className="flex items-center gap-2 pt-1">
+                    <button
+                      onClick={e => { e.stopPropagation(); onEdit() }}
+                      className="text-[11px] font-semibold px-3 py-1 rounded-full transition-all duration-150"
+                      style={{ color: '#285185', background: 'rgba(40,81,133,0.08)' }}
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={e => { e.stopPropagation(); onDelete() }}
+                      className="text-[11px] font-semibold px-3 py-1 rounded-full transition-all duration-150"
+                      style={{ color: 'rgba(200,50,50,0.7)', background: 'rgba(200,50,50,0.06)' }}
+                    >
+                      Remove
+                    </button>
+                  </div>
+                )}
               </div>
             </motion.div>
           )}
@@ -280,6 +284,7 @@ function DaySectionInner({
   onAddActivity,
   onEditActivity,
   onDeleteActivity,
+  isShareMode = false,
 }: DaySectionProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
@@ -338,24 +343,27 @@ function DaySectionInner({
               onCardClick={() => handleCardClick(activity.id)}
               onEdit={() => onEditActivity(activity)}
               onDelete={() => onDeleteActivity(activity.id)}
+              isShareMode={isShareMode}
             />
           ))}
         </div>
 
-        {/* Add button */}
-        <button
-          onClick={() => onAddActivity(dayNumber)}
-          className="mt-2 flex items-center gap-2 px-2 py-1.5 rounded-xl text-xs font-medium transition-all duration-150 group"
-          style={{ color: 'rgba(111,72,73,0.4)' }}
-        >
-          <div
-            className="w-4 h-4 rounded-full border border-dashed flex items-center justify-center transition-colors duration-150 group-hover:border-[#D67940]"
-            style={{ borderColor: 'rgba(204,217,226,0.6)' }}
+        {/* Add button — hidden in share/read-only mode */}
+        {!isShareMode && (
+          <button
+            onClick={() => onAddActivity(dayNumber)}
+            className="mt-2 flex items-center gap-2 px-2 py-1.5 rounded-xl text-xs font-medium transition-all duration-150 group"
+            style={{ color: 'rgba(111,72,73,0.4)' }}
           >
-            <span className="text-[9px] leading-none group-hover:text-[#D67940]">+</span>
-          </div>
-          <span className="group-hover:text-[#D67940] transition-colors">Add activity</span>
-        </button>
+            <div
+              className="w-4 h-4 rounded-full border border-dashed flex items-center justify-center transition-colors duration-150 group-hover:border-[#D67940]"
+              style={{ borderColor: 'rgba(204,217,226,0.6)' }}
+            >
+              <span className="text-[9px] leading-none group-hover:text-[#D67940]">+</span>
+            </div>
+            <span className="group-hover:text-[#D67940] transition-colors">Add activity</span>
+          </button>
+        )}
       </div>
     </section>
   )

@@ -17,6 +17,10 @@ interface ItineraryHeroProps {
   onTitleSave: () => void
   onToggleMap: () => void
   showMap: boolean
+  // Share mode props
+  isShareMode?: boolean
+  isPublic?: boolean
+  onShare?: () => void
 }
 
 type DestinationPhoto = { url: string; photographer?: string; photographerUrl?: string } | null
@@ -26,6 +30,7 @@ export function ItineraryHero({
   onBack, onDelete, onEditTitle,
   editingTitle, titleDraft, onTitleDraftChange, onTitleSave,
   onToggleMap, showMap,
+  isShareMode = false, isPublic = false, onShare,
 }: ItineraryHeroProps) {
   const [photo, setPhoto] = useState<DestinationPhoto>(null)
   const [loaded, setLoaded] = useState(false)
@@ -84,35 +89,95 @@ export function ItineraryHero({
 
         {/* Right actions */}
         <div className="flex items-center gap-2">
-          {/* Show Map toggle button */}
-          <button
-            onClick={onToggleMap}
-            aria-label={showMap ? 'Hide Map' : 'Show Map'}
-            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200"
-            style={{
-              background: showMap ? 'rgba(214,121,64,0.9)' : 'rgba(214,121,64,0.85)',
-              color: 'white',
-              backdropFilter: 'blur(8px)',
-              border: '1px solid rgba(214,121,64,0.5)',
-              boxShadow: showMap ? '0 2px 12px rgba(214,121,64,0.35)' : '0 2px 8px rgba(214,121,64,0.2)',
-            }}
-          >
-            {/* Map pin SVG icon */}
-            <svg width="11" height="13" viewBox="0 0 11 13" fill="none">
-              <path d="M5.5 0C3.015 0 1 2.015 1 4.5C1 7.628 5.5 13 5.5 13C5.5 13 10 7.628 10 4.5C10 2.015 7.985 0 5.5 0Z" fill="white"/>
-              <circle cx="5.5" cy="4.5" r="1.8" fill="rgba(214,121,64,0.9)"/>
-            </svg>
-            {showMap ? 'Hide Map' : 'Show Map'}
-          </button>
+          {/* Shared itinerary badge — visible in share mode */}
+          {isShareMode && (
+            <div
+              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold"
+              style={{
+                background: 'rgba(255,255,255,0.15)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid rgba(255,255,255,0.25)',
+                color: 'rgba(255,255,255,0.85)',
+              }}
+            >
+              {/* Lock icon */}
+              <svg width="9" height="11" viewBox="0 0 24 24" fill="none">
+                <rect x="3" y="11" width="18" height="11" rx="2" stroke="white" strokeWidth="2"/>
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" stroke="white" strokeWidth="2" strokeLinecap="round"/>
+              </svg>
+              Shared itinerary
+            </div>
+          )}
 
-          {/* Delete button */}
-          <button
-            onClick={onDelete}
-            className="shrink-0 px-2.5 py-1 rounded-full text-[10px] font-medium transition-all duration-150"
-            style={{ color: 'rgba(255,255,255,0.35)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
-          >
-            Delete
-          </button>
+          {/* Share button — owner view only */}
+          {!isShareMode && onShare && (
+            <button
+              onClick={onShare}
+              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200"
+              style={{
+                background: isPublic
+                  ? '#D67940'
+                  : 'rgba(255,255,255,0.15)',
+                color: 'white',
+                backdropFilter: 'blur(8px)',
+                border: isPublic
+                  ? '1px solid rgba(214,121,64,0.6)'
+                  : '1px solid rgba(255,255,255,0.25)',
+                boxShadow: isPublic
+                  ? '0 2px 12px rgba(214,121,64,0.4), 0 0 0 3px rgba(214,121,64,0.15)'
+                  : '0 2px 8px rgba(0,0,0,0.1)',
+              }}
+            >
+              {/* Link / share icon */}
+              {isPublic ? (
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+                  <path d="M9 12l2 2 4-4" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M10 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-4" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M15 3h6v6" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M21 3l-7 7" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              ) : (
+                <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+                  <path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98M21 5a3 3 0 1 1-6 0 3 3 0 0 1 6 0zM9 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0zm12 7a3 3 0 1 1-6 0 3 3 0 0 1 6 0z" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                </svg>
+              )}
+              {isPublic ? 'Sharing On' : 'Share Trip'}
+            </button>
+          )}
+
+          {/* Show Map toggle button — hidden in share mode */}
+          {!isShareMode && (
+            <button
+              onClick={onToggleMap}
+              aria-label={showMap ? 'Hide Map' : 'Show Map'}
+              className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200"
+              style={{
+                background: showMap ? 'rgba(214,121,64,0.9)' : 'rgba(214,121,64,0.85)',
+                color: 'white',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid rgba(214,121,64,0.5)',
+                boxShadow: showMap ? '0 2px 12px rgba(214,121,64,0.35)' : '0 2px 8px rgba(214,121,64,0.2)',
+              }}
+            >
+              {/* Map pin SVG icon */}
+              <svg width="11" height="13" viewBox="0 0 11 13" fill="none">
+                <path d="M5.5 0C3.015 0 1 2.015 1 4.5C1 7.628 5.5 13 5.5 13C5.5 13 10 7.628 10 4.5C10 2.015 7.985 0 5.5 0Z" fill="white"/>
+                <circle cx="5.5" cy="4.5" r="1.8" fill="rgba(214,121,64,0.9)"/>
+              </svg>
+              {showMap ? 'Hide Map' : 'Show Map'}
+            </button>
+          )}
+
+          {/* Delete button — hidden in share mode */}
+          {!isShareMode && (
+            <button
+              onClick={onDelete}
+              className="shrink-0 px-2.5 py-1 rounded-full text-[10px] font-medium transition-all duration-150"
+              style={{ color: 'rgba(255,255,255,0.35)', background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+            >
+              Delete
+            </button>
+          )}
         </div>
       </div>
 
@@ -136,9 +201,9 @@ export function ItineraryHero({
           />
         ) : (
           <h1
-            className="font-serif text-2xl text-white leading-tight cursor-pointer hover:opacity-80 transition-opacity"
-            onClick={onEditTitle}
-            title="Click to rename"
+            className={`font-serif text-2xl text-white leading-tight transition-opacity ${!isShareMode ? 'cursor-pointer hover:opacity-80' : ''}`}
+            onClick={isShareMode ? undefined : onEditTitle}
+            title={isShareMode ? undefined : 'Click to rename'}
           >
             {title}
           </h1>

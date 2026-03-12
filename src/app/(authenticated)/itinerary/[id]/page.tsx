@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import useSWR from 'swr'
 import { motion, AnimatePresence } from 'motion/react'
@@ -23,6 +23,7 @@ type ItineraryWithActivities = Itinerary & {
   activities: Activity[]
   cover_image_url?: string | null
   extra_data?: { flights?: Flight[]; daily_food?: DailyFood[] } | null
+  is_public?: boolean
 }
 
 const fetcher = (url: string) => fetch(url).then(r => {
@@ -64,6 +65,8 @@ export default function ItineraryDetailPage() {
   const params = useParams()
   const id = params.id as string
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const isShareMode = searchParams.get('share') === 'true'
 
   const { data, error, isLoading, mutate } = useSWR<ItineraryWithActivities>(
     `/api/itineraries/${id}`,
@@ -88,10 +91,59 @@ export default function ItineraryDetailPage() {
   const [mobileTab, setMobileTab] = useState<'list' | 'map'>('list')
   const [mainTab, setMainTab] = useState<'itinerary' | 'eat-drink'>('itinerary')
 
+  // Share state
+  const [isPublic, setIsPublic] = useState(false)
+  const [shareToast, setShareToast] = useState(false)
+  // Guest CTA banner dismissed state (persisted via sessionStorage)
+  const [ctaBannerVisible, setCtaBannerVisible] = useState(false)
+
   // Drag-to-resize
   const [leftPct, setLeftPct] = useState(50)
   const containerRef = useRef<HTMLDivElement>(null)
   const isDragging = useRef(false)
+
+  // Sync isPublic from loaded data
+  useEffect(() => {
+    if (data) setIsPublic(data.is_public === true)
+  }, [data])
+
+  // Initialize CTA banner visibility from sessionStorage
+  useEffect(() => {
+    if (!isShareMode) return
+    const dismissed = sessionStorage.getItem('share-cta-dismissed') === 'true'
+    if (!dismissed) {
+      // Small delay for slide-up entrance animation
+      const timer = setTimeout(() => setCtaBannerVisible(true), 300)
+      return () => clearTimeout(timer)
+    }
+  }, [isShareMode])
+
+  const dismissCtaBanner = useCallback(() => {
+    setCtaBannerVisible(false)
+    sessionStorage.setItem('share-cta-dismissed', 'true')
+  }, [])
+
+  const handleShare = useCallback(async () => {
+    if (!data) return
+    const newPublic = !isPublic
+    // Optimistic update
+    setIsPublic(newPublic)
+    try {
+      await fetch(`/api/itineraries/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ is_public: newPublic }),
+      })
+      if (newPublic) {
+        const shareUrl = `${window.location.origin}/itinerary/${id}?share=true`
+        await navigator.clipboard.writeText(shareUrl)
+        setShareToast(true)
+        setTimeout(() => setShareToast(false), 3000)
+      }
+    } catch {
+      setIsPublic(!newPublic) // rollback on error
+    }
+  }, [data, id, isPublic])
 
   const onMouseMove = useCallback((e: MouseEvent) => {
     if (!isDragging.current || !containerRef.current) return
@@ -196,16 +248,18 @@ export default function ItineraryDetailPage() {
   }, [id, titleDraft, data?.title, mutate])
 
   const openAddActivity = useCallback((dayNumber: number) => {
+    if (isShareMode) return
     setEditingActivity(null)
     setFormDay(dayNumber)
     setActivityFormOpen(true)
-  }, [])
+  }, [isShareMode])
 
   const openEditActivity = useCallback((activity: Activity) => {
+    if (isShareMode) return
     setEditingActivity(activity)
     setFormDay(activity.day_number)
     setActivityFormOpen(true)
-  }, [])
+  }, [isShareMode])
 
   const handleSaveActivity = useCallback(async (actData: Omit<Activity, 'id' | 'activity_type'>) => {
     if (editingActivity) {
@@ -344,6 +398,9 @@ export default function ItineraryDetailPage() {
         onTitleSave={saveTitle}
         showMap={showMap}
         onToggleMap={handleToggleMap}
+        isShareMode={isShareMode}
+        isPublic={isPublic}
+        onShare={handleShare}
       />
 
       {/* Mobile tab toggle — only shown when map is visible */}
@@ -430,6 +487,7 @@ export default function ItineraryDetailPage() {
                           onAddActivity={openAddActivity}
                           onEditActivity={openEditActivity}
                           onDeleteActivity={handleDeleteActivity}
+                          isShareMode={isShareMode}
                         />
                       </motion.div>
                     ))}
@@ -511,7 +569,10 @@ export default function ItineraryDetailPage() {
           )}
 
           {/* Full-width scrollable content */}
-          <div className="flex-1 overflow-y-auto px-3 md:px-6 py-4 max-w-3xl mx-auto w-full">
+          <div
+            className="flex-1 overflow-y-auto px-3 md:px-6 py-4 max-w-3xl mx-auto w-full"
+            style={isShareMode ? { paddingBottom: '88px' } : undefined}
+          >
             {mainTab === 'itinerary' ? (
               <>
                 {/* Outbound flight cards */}
@@ -535,6 +596,7 @@ export default function ItineraryDetailPage() {
                         onAddActivity={openAddActivity}
                         onEditActivity={openEditActivity}
                         onDeleteActivity={handleDeleteActivity}
+                        isShareMode={isShareMode}
                       />
                     </motion.div>
                   ))}
@@ -555,9 +617,9 @@ export default function ItineraryDetailPage() {
         </div>
       )}
 
-      {/* Activity form modal */}
+      {/* Activity form modal — blocked in share mode */}
       <AnimatePresence>
-        {activityFormOpen && (
+        {activityFormOpen && !isShareMode && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -583,6 +645,101 @@ export default function ItineraryDetailPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Share toast — "Link copied" confirmation */}
+      <AnimatePresence>
+        {shareToast && (
+          <motion.div
+            initial={{ opacity: 0, y: 16 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed bottom-6 left-1/2 -translate-x-1/2 px-5 py-3 rounded-2xl text-sm font-medium text-white shadow-lg z-50"
+            style={{ background: 'rgba(40,81,133,0.95)', backdropFilter: 'blur(8px)', whiteSpace: 'nowrap' }}
+          >
+            Link copied — anyone with this link can view your trip
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Guest acquisition CTA banner — shown in share mode */}
+      <AnimatePresence>
+        {isShareMode && ctaBannerVisible && (
+          <motion.div
+            initial={{ opacity: 0, y: 32 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 16 }}
+            transition={{ duration: 0.3, ease: [0.22, 1, 0.36, 1] }}
+            className="fixed bottom-0 left-0 right-0 z-40"
+            style={{
+              background: 'linear-gradient(135deg, #285185 0%, #1c2c40 60%, #2a3d5a 100%)',
+              borderTop: '1px solid rgba(214,121,64,0.3)',
+              backgroundSize: '200% 200%',
+            }}
+          >
+            {/* Shimmer overlay */}
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                background: 'linear-gradient(105deg, transparent 40%, rgba(255,255,255,0.04) 50%, transparent 60%)',
+                animation: 'shimmer 3s ease-in-out infinite',
+              }}
+            />
+            <div className="relative px-5 py-4 flex items-center justify-between gap-4 max-w-3xl mx-auto">
+              <div className="min-w-0">
+                <p className="font-semibold text-sm leading-snug" style={{ color: '#F5EDE3' }}>
+                  Planning your own adventure?
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: 'rgba(245,237,227,0.6)' }}>
+                  Build trips like this with{' '}
+                  <span className="font-logo" style={{ color: '#D67940', fontSize: '13px' }}>Barabula.</span>
+                  {' '}— free, AI-powered.
+                </p>
+              </div>
+              <div className="flex items-center gap-2 shrink-0">
+                <a
+                  href="/register"
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-white transition-all duration-150 hover:opacity-90 active:scale-95"
+                  style={{
+                    background: '#D67940',
+                    boxShadow: '0 2px 10px rgba(214,121,64,0.35)',
+                  }}
+                >
+                  Sign up free
+                </a>
+                <a
+                  href="/"
+                  className="px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-150 hover:opacity-80"
+                  style={{
+                    color: 'rgba(245,237,227,0.75)',
+                    border: '1px solid rgba(245,237,227,0.2)',
+                  }}
+                >
+                  See how it works
+                </a>
+                <button
+                  onClick={dismissCtaBanner}
+                  aria-label="Dismiss"
+                  className="w-6 h-6 rounded-full flex items-center justify-center transition-all duration-150 hover:opacity-70"
+                  style={{ color: 'rgba(245,237,227,0.4)' }}
+                >
+                  <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
+                    <path d="M18 6L6 18M6 6l12 12" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* CSS keyframes for shimmer animation */}
+      <style>{`
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(200%); }
+        }
+      `}</style>
     </div>
   )
 }

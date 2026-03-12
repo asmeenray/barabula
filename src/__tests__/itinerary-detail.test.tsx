@@ -33,6 +33,7 @@ vi.mock('next/navigation', () => ({
   useParams: () => ({ id: 'itin-1' }),
   useRouter: () => ({ push: vi.fn() }),
   usePathname: () => '/itinerary/itin-1',
+  useSearchParams: () => ({ get: () => null }),
 }))
 
 import useSWR from 'swr'
