@@ -164,7 +164,7 @@ Plans:
 **Goal:** Premium itinerary detail page: map lazy-loaded behind a "Show Map" coral toggle, glassmorphism UI system matching the landing hero, full-bleed cover image hero, day-by-day timeline with hotel cards, and bidirectional map-to-card interaction — all using the Barabula brand palette
 **Requirements**: HOTEL-01, BLUE-01, MAP-01, MAP-02, ITIN-01, ITIN-02, HERO-01
 **Depends on:** Phase 8
-**Plans:** 2 plans
+**Plans:** 4/3 plans complete
 
 Plans:
 - [ ] 09-01-PLAN.md — Map lazy-load toggle: "Show Map" coral button in hero, showMap state, conditional ItineraryMap mount, geocoding deferred until opt-in
