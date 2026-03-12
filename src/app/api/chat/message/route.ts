@@ -64,6 +64,17 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: 'AI response parse failed' }, { status: 500 })
   }
 
+  // Diagnostics: warn if AI returned fewer days than the trip duration
+  if (parsed?.itinerary && parsed.trip_state?.duration_days) {
+    const actualDays = parsed.itinerary.days.length
+    const expectedDays = parsed.trip_state.duration_days
+    if (actualDays < expectedDays) {
+      console.warn(
+        `[chat/message] Partial itinerary detected: expected ${expectedDays} days, got ${actualDays} days.`
+      )
+    }
+  }
+
   // Server guard: prevent premature itinerary_complete phase flip when itinerary is missing
   let safePhase = parsed.conversation_phase
   if (safePhase === 'itinerary_complete' && !parsed.itinerary) {
