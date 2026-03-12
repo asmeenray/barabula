@@ -29,24 +29,33 @@ export function HotelCard({ activity, isActive = false, onCardClick }: HotelCard
       onClick={onCardClick}
       whileHover={{ y: -1, transition: { duration: 0.15 } }}
       whileTap={{ scale: 0.99 }}
-      className={`
-        relative rounded-2xl cursor-pointer transition-all duration-200 overflow-hidden
-        ${isActive
-          ? 'shadow-lg shadow-navy/15 border border-navy/30 ring-1 ring-navy/10'
-          : 'border border-sky/50 hover:shadow-md hover:border-sky hover:shadow-navy/8'
-        }
-      `}
+      className="relative rounded-2xl cursor-pointer transition-all duration-200 overflow-hidden"
+      style={{
+        border: isActive
+          ? '1px solid rgba(40,81,133,0.30)'
+          : '1px solid rgba(204,217,226,0.50)',
+        boxShadow: isActive
+          ? '0 4px 16px rgba(40,81,133,0.12), 0 1px 4px rgba(40,81,133,0.06)'
+          : '0 1px 4px rgba(40,81,133,0.04)',
+        ...(isActive ? { outline: '1px solid rgba(40,81,133,0.12)', outlineOffset: '0' } : {}),
+      }}
     >
-      {/* Glassmorphism navy background */}
-      <div className="absolute inset-0 bg-gradient-to-br from-navy/8 via-sky/20 to-sky/10 backdrop-blur-sm" />
+      {/* Glassmorphism navy-tinted background */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background: 'linear-gradient(135deg, rgba(40,81,133,0.08) 0%, rgba(204,217,226,0.20) 50%, rgba(204,217,226,0.10) 100%)',
+          backdropFilter: 'blur(12px)',
+        }}
+      />
 
       <div className="relative p-4">
         <div className="flex items-start gap-3">
           {/* Hotel icon with navy bg */}
-          <div className={`
-            w-10 h-10 rounded-xl flex items-center justify-center shrink-0 text-base
-            ${isActive ? 'bg-navy' : 'bg-navy/90'}
-          `}>
+          <div
+            className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+            style={{ background: '#285185' }}
+          >
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none">
               <path d="M3 21V8l9-6 9 6v13" stroke="white" strokeWidth="1.8" strokeLinejoin="round"/>
               <path d="M9 21V15h6v6" stroke="white" strokeWidth="1.8" strokeLinejoin="round"/>
@@ -56,8 +65,18 @@ export function HotelCard({ activity, isActive = false, onCardClick }: HotelCard
 
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2">
-              <p className="font-medium text-navy text-sm leading-snug">{hotelName}</p>
-              <span className="text-[10px] font-semibold text-navy/50 bg-navy/8 px-2 py-0.5 rounded-full shrink-0 tracking-wide uppercase">
+              <p className="font-medium text-sm leading-snug" style={{ color: '#285185' }}>
+                {hotelName}
+              </p>
+              {/* Stay badge — navy glass pill */}
+              <span
+                className="text-[10px] font-semibold px-2 py-0.5 rounded-full shrink-0 tracking-wide uppercase"
+                style={{
+                  color: '#285185',
+                  background: 'rgba(40,81,133,0.10)',
+                  border: '1px solid rgba(40,81,133,0.12)',
+                }}
+              >
                 Stay
               </span>
             </div>
@@ -71,7 +90,7 @@ export function HotelCard({ activity, isActive = false, onCardClick }: HotelCard
                   </svg>
                 ))}
                 {starRating > 5 && (
-                  <span className="text-[10px] text-umber/60">+{starRating - 5}</span>
+                  <span className="text-[10px]" style={{ color: 'rgba(111,72,73,0.60)' }}>+{starRating - 5}</span>
                 )}
               </div>
             )}
@@ -80,7 +99,7 @@ export function HotelCard({ activity, isActive = false, onCardClick }: HotelCard
             {(checkIn || checkOut) && (
               <div className="flex items-center gap-3 mt-1.5">
                 {checkIn && (
-                  <div className="flex items-center gap-1 text-xs text-umber/70">
+                  <div className="flex items-center gap-1 text-xs" style={{ color: 'rgba(111,72,73,0.70)' }}>
                     <svg width="10" height="10" viewBox="0 0 24 24" fill="none">
                       <rect x="3" y="4" width="18" height="18" rx="2" stroke="#6F4849" strokeWidth="2"/>
                       <path d="M16 2v4M8 2v4M3 10h18" stroke="#6F4849" strokeWidth="2" strokeLinecap="round"/>
@@ -89,7 +108,7 @@ export function HotelCard({ activity, isActive = false, onCardClick }: HotelCard
                   </div>
                 )}
                 {checkOut && (
-                  <div className="flex items-center gap-1 text-xs text-umber/70">
+                  <div className="flex items-center gap-1 text-xs" style={{ color: 'rgba(111,72,73,0.70)' }}>
                     <span>Out: {checkOut}</span>
                   </div>
                 )}
@@ -97,7 +116,7 @@ export function HotelCard({ activity, isActive = false, onCardClick }: HotelCard
             )}
 
             {activity.location && (
-              <p className="text-xs text-umber/50 mt-1 flex items-center gap-1">
+              <p className="text-xs mt-1 flex items-center gap-1" style={{ color: 'rgba(111,72,73,0.50)' }}>
                 <svg width="8" height="10" viewBox="0 0 10 12" fill="none">
                   <path d="M5 0C2.794 0 1 1.794 1 4C1 6.628 5 12 5 12C5 12 9 6.628 9 4C9 1.794 7.206 0 5 0Z" fill="#6F4849" fillOpacity="0.4"/>
                 </svg>
