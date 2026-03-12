@@ -16,6 +16,7 @@ import Link from 'next/link'
 import { getPrompt, clearPrompt } from '@/lib/landing/prompt-store'
 import type { ChatMessage, ConversationPhase, TripState } from '@/lib/types'
 import type { FlightInputData } from '@/components/chat/FlightsTabPanel'
+import type { HotelSaveData } from '@/components/chat/HotelsTabPanel'
 
 type LocalMessage = {
   id: string
@@ -71,7 +72,8 @@ function ChatPageInner() {
   const [tripState, setTripState] = useState<Partial<TripState>>({})
   const [activeTab, setActiveTab] = useState<'flights' | 'hotels' | null>(null)
   const [flightInputData, setFlightInputData] = useState<FlightInputData | null>(null)
-  const [hotelPreference, setHotelPreference] = useState<string | null>(null)
+  const [hotelSaveData, setHotelSaveData] = useState<HotelSaveData | null>(null)
+  const hotelPreference = hotelSaveData?.mode === 'preference' ? hotelSaveData.preference : null
   const [showMobileOverlay, setShowMobileOverlay] = useState(false)
   const router = useRouter()
   const bottomRef = useRef<HTMLDivElement>(null)
@@ -321,7 +323,7 @@ function ChatPageInner() {
             <HotelsTabPanel
               tripState={tripState}
               hotelPreference={hotelPreference}
-              onSave={(pref) => setHotelPreference(pref)}
+              onSave={(data) => setHotelSaveData(data)}
               onClose={() => setActiveTab(null)}
             />
           </motion.div>
