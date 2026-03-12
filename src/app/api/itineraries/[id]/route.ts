@@ -35,6 +35,16 @@ export async function PATCH(
   if (body.destination !== undefined) updates.destination = body.destination
   if (body.start_date !== undefined) updates.start_date = body.start_date
   if (body.end_date !== undefined) updates.end_date = body.end_date
+  if (body.extra_data !== undefined) {
+    // Safe merge: read existing extra_data first to avoid overwriting sibling keys
+    const { data: existing } = await supabase
+      .from('itineraries')
+      .select('extra_data')
+      .eq('id', id)
+      .single()
+    const existingExtraData = (existing?.extra_data ?? {}) as Record<string, unknown>
+    updates.extra_data = { ...existingExtraData, ...body.extra_data }
+  }
 
   const { data, error } = await supabase
     .from('itineraries')
