@@ -195,27 +195,36 @@ export function HotelsTabPanel({ tripState, hotelPreference, onSave, onClose }: 
               <p className="text-xs text-umber/70 mt-1">{lookupError}</p>
             )}
 
-            {/* Result card */}
+            {/* Result card — selected state with checkmark */}
             {foundHotel && (
-              <div className="mt-3 border border-sky/30 rounded-xl p-3 bg-sand/40">
-                <p className="text-sm font-semibold text-navy">{foundHotel.full_name}</p>
-                <p className="text-xs text-umber mt-0.5">{foundHotel.area}, {foundHotel.city}</p>
-                <p className="text-xs text-umber/70 mt-0.5">{'★'.repeat(foundHotel.star_rating)} ({foundHotel.star_rating}-star)</p>
+              <div className="mt-3 border border-coral/50 rounded-xl p-3 bg-coral/5">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-navy">{foundHotel.full_name}</p>
+                    <p className="text-xs text-umber mt-0.5">{foundHotel.area}, {foundHotel.city}</p>
+                    <p className="text-xs text-umber/70 mt-0.5">{'★'.repeat(foundHotel.star_rating)} ({foundHotel.star_rating}-star)</p>
+                  </div>
+                  <div className="shrink-0 w-5 h-5 rounded-full bg-coral flex items-center justify-center mt-0.5">
+                    <svg width="10" height="8" viewBox="0 0 10 8" fill="none">
+                      <path d="M1 4L3.5 6.5L9 1" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
+                </div>
               </div>
             )}
           </>
         )}
-
-        {/* Save button */}
-        <button
-          type="button"
-          onClick={handleSave}
-          disabled={mode === 'specific' && !foundHotel}
-          className="w-full bg-coral text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-coral/90 transition-colors disabled:opacity-40 mt-4"
-        >
-          {mode === 'specific' ? 'Save hotel' : 'Save preference'}
-        </button>
       </div>
+
+      {/* Save button — outside scroll container so it's always visible */}
+      <button
+        type="button"
+        onClick={handleSave}
+        disabled={mode === 'specific' && !foundHotel}
+        className="w-full bg-coral text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-coral/90 transition-colors disabled:opacity-40 mt-4"
+      >
+        {mode === 'specific' ? 'Save hotel' : 'Save preference'}
+      </button>
     </div>
   )
 }
