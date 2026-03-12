@@ -31,6 +31,12 @@ const inputClass =
 
 const labelClass = 'block text-xs font-medium text-umber mb-1'
 
+function buildGoogleFlightsUrl(state: Partial<TripState>): string {
+  const date = state.dates_start ? encodeURIComponent(state.dates_start) : ''
+  const q = `flights from ${state.origin ?? ''} to ${state.destination ?? ''} on ${date}`.trim()
+  return `https://www.google.com/travel/flights?q=${encodeURIComponent(q)}`
+}
+
 export function FlightsTabPanel({ tripState, initialData, onSave, onClose }: FlightsTabPanelProps) {
   const origin = tripState.origin ?? ''
   const destination = tripState.destination ?? ''
@@ -157,6 +163,19 @@ export function FlightsTabPanel({ tripState, initialData, onSave, onClose }: Fli
           ✕
         </button>
       </div>
+
+      {(tripState.origin || tripState.destination) && (
+        <div className="mb-3">
+          <a
+            href={buildGoogleFlightsUrl(tripState)}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-xs font-semibold text-coral hover:opacity-70 transition-opacity"
+          >
+            Search on Google Flights →
+          </a>
+        </div>
+      )}
 
       <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-1">
         {/* Origin city */}

@@ -73,6 +73,9 @@ function ChatPageInner() {
   const [activeTab, setActiveTab] = useState<'flights' | 'hotels' | null>(null)
   const [flightInputData, setFlightInputData] = useState<FlightInputData | null>(null)
   const [hotelSaveData, setHotelSaveData] = useState<HotelSaveData | null>(null)
+  const [foundHotelData, setFoundHotelData] = useState<{
+    full_name: string; area: string; city: string; star_rating: number
+  } | null>(null)
   const hotelPreference = hotelSaveData?.mode === 'preference' ? hotelSaveData.preference : null
   const [showMobileOverlay, setShowMobileOverlay] = useState(false)
   const router = useRouter()
@@ -323,7 +326,15 @@ function ChatPageInner() {
             <HotelsTabPanel
               tripState={tripState}
               hotelPreference={hotelPreference}
-              onSave={(data) => setHotelSaveData(data)}
+              initialMode={hotelSaveData?.mode ?? 'preference'}
+              initialFoundHotel={foundHotelData}
+              onFoundHotel={setFoundHotelData}
+              onSave={(data) => {
+                setHotelSaveData(data)
+                if (data._found_hotel_card !== undefined) {
+                  setFoundHotelData(data._found_hotel_card ?? null)
+                }
+              }}
               onClose={() => setActiveTab(null)}
             />
           </motion.div>
