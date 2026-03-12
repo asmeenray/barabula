@@ -105,6 +105,13 @@ export function HotelsTabPanel({ tripState, hotelPreference, onSave, onClose }: 
         </button>
       </div>
 
+      {/* Destination pill */}
+      {tripState.destination && (
+        <p className="text-xs text-umber/70 mb-3">
+          Searching in <span className="font-semibold text-navy">{tripState.destination}</span>
+        </p>
+      )}
+
       {/* Mode toggle */}
       <div className="flex gap-2 mb-4">
         <button

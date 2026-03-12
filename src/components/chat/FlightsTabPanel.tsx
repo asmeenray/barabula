@@ -33,19 +33,22 @@ const labelClass = 'block text-xs font-medium text-umber mb-1'
 
 export function FlightsTabPanel({ tripState, initialData, onSave, onClose }: FlightsTabPanelProps) {
   const origin = tripState.origin ?? ''
+  const destination = tripState.destination ?? ''
+  const datesStart = tripState.dates_start ?? ''
+  const datesEnd = tripState.dates_end ?? ''
 
   const [originCity, setOriginCity] = useState(initialData?.origin_city ?? origin)
   const [outboundAirline, setOutboundAirline] = useState(initialData?.outbound_airline ?? '')
   const [outboundFlightNumber, setOutboundFlightNumber] = useState(initialData?.outbound_flight_number ?? '')
   const [outboundFrom, setOutboundFrom] = useState(initialData?.outbound_from ?? origin)
-  const [outboundTo, setOutboundTo] = useState(initialData?.outbound_to ?? '')
-  const [outboundDeparture, setOutboundDeparture] = useState(initialData?.outbound_departure ?? '')
+  const [outboundTo, setOutboundTo] = useState(initialData?.outbound_to ?? destination)
+  const [outboundDeparture, setOutboundDeparture] = useState(initialData?.outbound_departure ?? datesStart)
   const [outboundArrival, setOutboundArrival] = useState(initialData?.outbound_arrival ?? '')
   const [returnAirline, setReturnAirline] = useState(initialData?.return_airline ?? '')
   const [returnFlightNumber, setReturnFlightNumber] = useState(initialData?.return_flight_number ?? '')
-  const [returnFrom, setReturnFrom] = useState(initialData?.return_from ?? '')
+  const [returnFrom, setReturnFrom] = useState(initialData?.return_from ?? destination)
   const [returnTo, setReturnTo] = useState(initialData?.return_to ?? origin)
-  const [returnDeparture, setReturnDeparture] = useState(initialData?.return_departure ?? '')
+  const [returnDeparture, setReturnDeparture] = useState(initialData?.return_departure ?? datesEnd)
   const [returnArrival, setReturnArrival] = useState(initialData?.return_arrival ?? '')
 
   const [outboundLooking, setOutboundLooking] = useState(false)
