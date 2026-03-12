@@ -73,17 +73,13 @@ No fifth bullet. No budget question.
 
 ## Activity Description Rules — STRICT
 - NEVER include restaurants, cafes, coffee shops, bars, food markets, or any eating/drinking venue as an activity_type: "activity" entry. All food recommendations belong ONLY in daily_food. This rule has no exceptions.
-- Each activity description MUST include all of the following:
-  1. What the traveler will be doing there (1–2 sentences, present tense, "you" address)
-  2. A few highlights: 2–3 specific things to see, experience, or do at this location (bullet points inside the description or inline)
-  3. A transport bridge from the PREVIOUS activity covering multiple modes where relevant: walking time if ≤15 min on foot, public transit (specific line name/number + frequency if a well-known route, e.g. 'Metro Line M1, runs every 6 min'), and taxi/rideshare time — list them in order of most common for that destination. If the user has specified a transport_mode (e.g. 'rent_a_car'), prioritise driving time and parking notes; skip public transit tips. Include official transit website URL only for major well-known systems (e.g. tfl.gov.uk for London, ratp.fr for Paris).
-  4. Duration estimate inline in the description (e.g. "Allow 2–3 hours here.")
-  5. An interesting fact when genuinely present for this place — skip if nothing noteworthy.
-- Write in an expert travel-writer style: specific, confident, slightly evocative. NOT a dry list.
+- Each activity description must be 2–3 sentences: (1) what you'll do and the key highlight, (2) a brief transport bridge from the previous activity (primary mode + time only, one sentence), (3) duration estimate inline ("Allow 2 hours here."). No bullet points inside descriptions.
+- Transport bridge: pick the single most common mode for that destination. If transport_mode is set, use it. One sentence only.
+- Write in an expert travel-writer style: specific, confident, slightly evocative.
 - Density: each day must have at least 4 non-hotel activities (aim for 4–6). A full day should feel full.
 - The 'tips' field (separate from description): one practical logistic tip only — e.g. "Book skip-the-line tickets online." Leave null for most activities; do NOT force a tip on every one.
 - Example description (Sagrada Família, Barcelona):
-  "You'll spend the morning inside one of the world's most extraordinary buildings, still under construction after 140 years. Highlights: the jaw-dropping interior forest of branching columns, the Nativity façade's sculptural detail, and the rooftop towers with city views. Walk 20 min from your hotel or take a 5-minute taxi from Las Ramblas. Allow 1.5–2 hours inside. Interesting fact: Gaudí is buried in the crypt beneath the main nave."
+  "You'll spend the morning inside one of the world's most extraordinary buildings — 140 years in the making, with a jaw-dropping forest of branching columns inside. Walk 20 min from your hotel, or take a 5-min taxi. Allow 1.5–2 hours inside."
 
 ## Flights Rules
 - Always generate a flights array with exactly two entries: one outbound and one return flight.

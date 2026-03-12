@@ -52,16 +52,40 @@ export async function POST(req: NextRequest) {
 
   const systemPrompt = buildSystemPrompt(mergedTripState, currentPhase, flightInputData, hotelSaveData)
 
-  const completion = await openai.chat.completions.parse({
-    model: 'gpt-4o',
-    max_tokens: 16000,
-    messages: [
-      { role: 'system', content: systemPrompt },
-      ...(history ?? []).map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
-      { role: 'user', content },
-    ],
-    response_format: zodResponseFormat(AIResponseSchema, 'ai_response'),
-  })
+  const CONCISE_PREFIX = 'CONCISE MODE: Keep every activity description to 2 sentences maximum. One sentence for the transport bridge. No bullet points inside descriptions. No interesting facts.\n\n'
+
+  const buildMessages = (concise = false) => [
+    { role: 'system' as const, content: concise ? CONCISE_PREFIX + systemPrompt : systemPrompt },
+    ...(history ?? []).map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+    { role: 'user' as const, content },
+  ]
+
+  let completion
+  try {
+    completion = await openai.chat.completions.parse({
+      model: 'gpt-4o',
+      max_tokens: 16000,
+      messages: buildMessages(),
+      response_format: zodResponseFormat(AIResponseSchema, 'ai_response'),
+    })
+  } catch (err: unknown) {
+    const isLengthError = err instanceof Error && err.constructor.name === 'LengthFinishReasonError'
+    if (isLengthError) {
+      console.warn('[chat/message] Token limit hit — retrying with concise mode')
+      try {
+        completion = await openai.chat.completions.parse({
+          model: 'gpt-4o',
+          max_tokens: 16000,
+          messages: buildMessages(true),
+          response_format: zodResponseFormat(AIResponseSchema, 'ai_response'),
+        })
+      } catch {
+        return Response.json({ error: 'Itinerary too large to generate — try a shorter trip or fewer days.' }, { status: 500 })
+      }
+    } else {
+      throw err
+    }
+  }
 
   const parsed = completion.choices[0].message.parsed
 
@@ -71,14 +95,17 @@ export async function POST(req: NextRequest) {
     return Response.json({ error: 'AI response parse failed' }, { status: 500 })
   }
 
-  // Diagnostics: warn if AI returned fewer days than the trip duration
-  if (parsed?.itinerary && parsed.trip_state?.duration_days) {
+  // Guard: reject partial itineraries — do not store incomplete day arrays
+  if (parsed.itinerary && parsed.trip_state?.duration_days) {
     const actualDays = parsed.itinerary.days.length
     const expectedDays = parsed.trip_state.duration_days
     if (actualDays < expectedDays) {
-      console.warn(
-        `[chat/message] Partial itinerary detected: expected ${expectedDays} days, got ${actualDays} days.`
-      )
+      console.warn(`[chat/message] Partial itinerary: expected ${expectedDays} days, got ${actualDays} — rejecting`)
+      return Response.json({
+        content: `I wasn't able to fit all ${expectedDays} days into one response. Please send "try again" and I'll regenerate with shorter descriptions.`,
+        conversationPhase: 'ready_for_summary',
+        tripState: parsed.trip_state,
+      })
     }
   }
 
