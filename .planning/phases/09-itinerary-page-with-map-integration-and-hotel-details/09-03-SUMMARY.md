@@ -1,151 +1,121 @@
 ---
 phase: 09-itinerary-page-with-map-integration-and-hotel-details
-plan: 03
+plan: "03"
 subsystem: ui
-tags: [react-map-gl, maplibre-gl, mapbox, geocoding, testing, vitest]
+tags: [react, performance, useMemo, useCallback, react-memo, SWR]
 
 # Dependency graph
 requires:
   - phase: 09-itinerary-page-with-map-integration-and-hotel-details
-    provides: Activity types, itinerary structure, brand palette enforcement
+    provides: showMap state, DaySection component, handlers in page.tsx
 
 provides:
-  - react-map-gl + maplibre-gl installed and importable
-  - ItineraryMap component (SSR-safe, use client) with coral/navy branded pins
-  - geocoding.ts with extra_data cache-first + Mapbox API fallback
-  - next.config.ts Unsplash remotePatterns for next/image
-  - Wave 0 test scaffolds: itinerary-map, day-pill-nav, hotel-card, itinerary-hero
+  - useMemo for dayMap/sortedDays/displayedDays/dateRange/hasLocations in page.tsx
+  - useCallback on all handlers passed to child components
+  - React.memo wrapper on DaySection preventing unnecessary re-renders
+  - SWR tuned with revalidateOnFocus:false and dedupingInterval:30000
 
-affects:
-  - 09-04-PLAN (ItineraryMap and MapPin type consumer)
-  - DayPillNav component (test contract defined)
-  - HotelCard component (test contract defined)
-  - ItineraryHero component (test contract defined)
+affects: [itinerary detail page render performance, DaySection re-render behavior]
 
 # Tech tracking
 tech-stack:
-  added:
-    - react-map-gl@8.1.0 (MapLibre-backed map component for React)
-    - maplibre-gl@5.20.0 (open-source GL map renderer, free tiles)
+  added: []
   patterns:
-    - "'use client' required for maplibre CSS import — never import maplibre CSS in server components"
-    - "OpenFreeMap tile URL (https://tiles.openfreemap.org/styles/liberty) — free, no API key"
-    - "vi.mock('react-map-gl/maplibre') pattern for jsdom-safe map testing"
-    - "extra_data cache-first geocoding: check cached lat/lng before Mapbox API call"
-    - "inline style (not Tailwind) for map pin colors — brand hex values (#D67940, #285185)"
+    - "useMemo for derived state — dayMap/sortedDays/displayedDays only recalculate when data.activities changes"
+    - "useCallback for all child-facing handlers — stable references enable React.memo to work"
+    - "React.memo on DaySection — rerenders only on prop changes, not parent state changes"
+    - "SWR dedupingInterval:30000 + revalidateOnFocus:false — prevents noisy refetches on tab switch"
 
 key-files:
-  created:
-    - src/components/itinerary/ItineraryMap.tsx
-    - src/lib/geocoding.ts
-    - src/__tests__/itinerary-map.test.tsx
-    - src/__tests__/day-pill-nav.test.tsx
-    - src/__tests__/hotel-card.test.tsx
-    - src/__tests__/itinerary-hero.test.tsx
+  created: []
   modified:
-    - next.config.ts (added Unsplash + Google remotePatterns)
-    - package.json (react-map-gl, maplibre-gl added)
+    - src/app/(authenticated)/itinerary/[id]/page.tsx
+    - src/components/itinerary/DaySection.tsx
 
 key-decisions:
-  - "react-map-gl v8.1 used with /maplibre endpoint — no Mapbox API key required for rendering"
-  - "OpenFreeMap liberty style chosen for map tiles — free, no API key, good aesthetics"
-  - "Inline styles (not Tailwind) for pin colors — brand hex enforced without blue-* risk"
-  - "extra_data cache-first geocoding avoids repeated Mapbox API calls for previously resolved coordinates"
-  - "lh3.googleusercontent.com added alongside images.unsplash.com in remotePatterns — needed for Google avatar"
-  - "Wave 0 scaffold pattern: test files created before components — DayPillNav, HotelCard, ItineraryHero scaffolds define API contracts for Plan 04"
+  - "useMemo calls placed before early-return guards to comply with React hooks rules"
+  - "DaySectionInner + React.memo(DaySectionInner) export pattern used — cleaner than wrapping inline function expression"
+  - "handleBack/handleSetMobileTab/handleCloseActivityForm/handleOverlayClick extracted from inline JSX to named useCallback"
+  - "revalidateOnReconnect:false added alongside revalidateOnFocus:false — reduces spurious refetches on network reconnect"
 
 patterns-established:
-  - "Map components always 'use client' with CSS import inside the client file"
-  - "Pin interaction uses inline transform scale(1.25) for active state — smooth 0.2s ease transition"
-  - "flyTo({duration: 800}) on activeActivityId change via mapRef for animated camera movement"
+  - "Memoized derived state before early returns — hooks rules compliant pattern for useMemo with conditional render guards"
+  - "useCallback + React.memo pair — memo only prevents re-renders when combined with stable prop references"
 
-requirements-completed:
-  - MAP-01
-  - MAP-02
+requirements-completed: [ITIN-01, ITIN-02]
 
 # Metrics
-duration: 5min
-completed: 2026-03-11
+duration: 7min
+completed: 2026-03-12
 ---
 
-# Phase 09 Plan 03: Map Library Setup and ItineraryMap Component Summary
+# Phase 09 Plan 03: Performance Memoization Summary
 
-**MapLibre-backed ItineraryMap component with coral/navy brand pins, extra_data-cached geocoding helper, and Wave 0 test scaffolds for DayPillNav, HotelCard, and ItineraryHero**
+**useMemo on all derived state, useCallback on all handlers, React.memo on DaySection, SWR tuned — itinerary list renders once and stays stable across unrelated state changes**
 
 ## Performance
 
-- **Duration:** 5 min
-- **Started:** 2026-03-11T20:29:51Z
-- **Completed:** 2026-03-11T20:34:00Z
+- **Duration:** ~7 min
+- **Started:** 2026-03-12T00:24:23Z
+- **Completed:** 2026-03-12T00:31:23Z
 - **Tasks:** 2
-- **Files modified:** 8
+- **Files modified:** 2
 
 ## Accomplishments
-- Installed react-map-gl@8.1.0 and maplibre-gl@5.20.0 — MapLibre rendering, no Mapbox API key needed for tiles
-- Created SSR-safe `ItineraryMap` component with coral activity pins, navy hotel pins, flyTo animation, NavigationControl
-- Created `geocoding.ts` with extra_data cache-first lookup, then Mapbox API v6 forward geocoding with destination context
-- Configured next.config.ts Unsplash + Google remotePatterns for next/image
-- Created four Wave 0 test scaffolds defining API contracts for Plan 04 components
+
+- `dayMap`, `sortedDays`, `displayedDays`, `dateRange`, `hasLocations` all wrapped in `useMemo` with correct dependency arrays — no recalculation on unrelated state changes (geocodingProgress, mobileTab, activeActivityId, etc.)
+- All 14 child-facing handlers converted from plain functions to `useCallback` with correct deps — stable references across renders
+- 4 additional inline JSX arrow functions extracted to named `useCallback` callbacks: `handleBack`, `handleSetMobileTab`, `handleCloseActivityForm`, `handleOverlayClick`
+- SWR configured with `revalidateOnFocus: false`, `dedupingInterval: 30_000`, `revalidateOnReconnect: false` — no refetch on tab switch or network reconnect
+- `DaySection` wrapped in `React.memo` via `DaySectionInner` pattern — changes to `mapPins`, `geocodingProgress`, `showMap`, `mobileTab` no longer re-render all DaySections
+- Zero new TypeScript errors introduced
 
 ## Task Commits
 
 Each task was committed atomically:
 
-1. **Task 1: Install libraries, configure next.config, geocoding helper, test scaffolds** - `156fda4` (feat)
-2. **Task 2: Create ItineraryMap component** - `10071eb` (feat)
+1. **Task 1: useMemo for derived state + useCallback for all handlers in page.tsx** - `d882f8f` (perf)
+2. **Task 2: Wrap DaySection in React.memo** - `0d339ad` (perf)
 
 ## Files Created/Modified
-- `src/components/itinerary/ItineraryMap.tsx` - SSR-safe map component, exports MapPin type, coral/navy pins with active scale animation
-- `src/lib/geocoding.ts` - resolveActivityCoordinates with extra_data cache + Mapbox API v6 fallback
-- `next.config.ts` - Unsplash and Google remotePatterns for next/image
-- `package.json` / `package-lock.json` - react-map-gl, maplibre-gl added to dependencies
-- `src/__tests__/itinerary-map.test.tsx` - MAP-01 scaffold; vi.mock for react-map-gl/maplibre; passes
-- `src/__tests__/day-pill-nav.test.tsx` - MAP-02 scaffold; DayPillNav API contract; fails with module-not-found (expected)
-- `src/__tests__/hotel-card.test.tsx` - HOTEL-01 scaffold; HotelCard API contract; fails with module-not-found (expected)
-- `src/__tests__/itinerary-hero.test.tsx` - HERO-01 scaffold; ItineraryHero API contract; fails with module-not-found (expected)
+
+- `src/app/(authenticated)/itinerary/[id]/page.tsx` — useMemo on 5 derived values, useCallback on 14 handlers, SWR options tuned, inline JSX arrows extracted
+- `src/components/itinerary/DaySection.tsx` — React.memo wrapper via DaySectionInner rename pattern
 
 ## Decisions Made
-- Used react-map-gl v8.1 with `/maplibre` endpoint — MapLibre is free and open-source, no Mapbox API key needed for map rendering
-- OpenFreeMap liberty style tile URL — free hosted tiles with good aesthetics, no registration required
-- Inline styles (hex values) for pin colors — avoids any risk of Tailwind blue-* class violations for brand compliance
-- Added `lh3.googleusercontent.com` to remotePatterns alongside Unsplash — pre-existing Google avatar usage would break without it (Rule 2 auto-add)
-- Wave 0 scaffolds define test contracts before components exist — DayPillNav, HotelCard, ItineraryHero tests will pass once Plan 04 creates those components
+
+- useMemo calls placed before early-return guards to comply with React hooks rules — hooks must be called unconditionally, not conditionally after `if (isLoading)` / `if (error || !data)` returns
+- DaySectionInner + `export const DaySection = React.memo(DaySectionInner)` pattern used — cleaner than wrapping an inline function expression
+- handleBack/handleSetMobileTab/handleCloseActivityForm/handleOverlayClick extracted from inline JSX — eliminates last remaining inline arrow props passed to children
+- revalidateOnReconnect:false added alongside revalidateOnFocus:false — further reduces spurious refetches
 
 ## Deviations from Plan
 
-### Auto-fixed Issues
-
-**1. [Rule 2 - Missing Critical] Added lh3.googleusercontent.com to next.config.ts remotePatterns**
-- **Found during:** Task 1 (updating next.config.ts)
-- **Issue:** Plan only specified Unsplash. Google avatar images (lh3.googleusercontent.com) are already used in ProfileDropdown — omitting would break existing authenticated layouts
-- **Fix:** Added `{ protocol: 'https', hostname: 'lh3.googleusercontent.com' }` alongside Unsplash pattern
-- **Files modified:** next.config.ts
-- **Verification:** Pattern present in file
-- **Committed in:** 156fda4 (Task 1 commit)
-
----
-
-**Total deviations:** 1 auto-fixed (1 missing critical)
-**Impact on plan:** Necessary addition to prevent breaking existing Google avatar images. No scope creep.
+None — plan executed exactly as written. All five useMemo memoizations, all handlers useCallback-wrapped, DaySection memo-wrapped, SWR tuned per spec.
 
 ## Issues Encountered
-None — plan executed cleanly. Wave 0 test scaffolds for DayPillNav, HotelCard, ItineraryHero correctly fail with "Cannot find module" as expected (components don't exist until Plan 04).
+
+- Pre-existing TypeScript error in `src/__tests__/activity-row.test.tsx` (missing `extra_data` field in mock) — out of scope, not fixed (documented in Plan 01 SUMMARY)
+- Pre-existing test failures in split-layout, hotel-card, and chat-page tests — confirmed pre-existing, zero new regressions introduced
 
 ## User Setup Required
-The geocoding helper (`src/lib/geocoding.ts`) uses `NEXT_PUBLIC_MAPBOX_TOKEN`. Add this env var to your `.env.local` and Vercel project settings to enable geocoding:
 
-1. Visit https://account.mapbox.com — go to Access tokens
-2. Create a token restricted to your domain
-3. Add `NEXT_PUBLIC_MAPBOX_TOKEN=pk.your_token_here` to `.env.local`
-
-Note: The map renders tiles from OpenFreeMap without any API key. The Mapbox token is only needed for activity geocoding (resolving location names to lat/lng coordinates).
+None.
 
 ## Next Phase Readiness
-- `ItineraryMap` and `MapPin` type are ready for import by Plan 04
-- `geocoding.ts` ready for use in itinerary data fetch pipeline
-- Wave 0 scaffolds define DayPillNav, HotelCard, ItineraryHero API contracts for Plan 04 to fulfill
-- All requirements MAP-01 and MAP-02 verified complete
+
+- Performance optimizations complete — itinerary list renders stably with minimal re-renders
+- DaySection memoized — ready for future activity list optimizations
+- SWR tuned — itinerary data fetching is conservative and user-intent-driven
+- No blockers for subsequent plans in Phase 09
+
+## Self-Check: PASSED
+
+- FOUND: src/app/(authenticated)/itinerary/[id]/page.tsx
+- FOUND: src/components/itinerary/DaySection.tsx
+- FOUND commit d882f8f (Task 1)
+- FOUND commit 0d339ad (Task 2)
 
 ---
 *Phase: 09-itinerary-page-with-map-integration-and-hotel-details*
-*Completed: 2026-03-11*
+*Completed: 2026-03-12*

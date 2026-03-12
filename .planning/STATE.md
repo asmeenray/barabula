@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 09-itinerary-page-with-map-integration-and-hotel-details-01-PLAN.md
-last_updated: "2026-03-12T00:23:12.910Z"
+stopped_at: Completed 09-itinerary-page-with-map-integration-and-hotel-details-03-PLAN.md
+last_updated: "2026-03-12T00:33:13.078Z"
 last_activity: 2026-03-09 — Roadmap created, phases derived from requirements
 progress:
   total_phases: 9
@@ -80,6 +80,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 09-itinerary-page-with-map-integration-and-hotel-details P03 | 4min | 2 tasks | 8 files |
 | Phase 09-itinerary-page-with-map-integration-and-hotel-details P04 | 6min | 2 tasks | 7 files |
 | Phase 09-itinerary-page-with-map-integration-and-hotel-details P01 | 8min | 2 tasks | 4 files |
+| Phase 09-itinerary-page-with-map-integration-and-hotel-details P03 | 7min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -163,6 +164,8 @@ Recent decisions affecting current work:
 - [Phase 09-itinerary-page-with-map-integration-and-hotel-details]: Split layout: flex h-[calc(100vh-4rem)] overflow-hidden parent, overflow-y-auto left column, h-full right map column
 - [Phase 09-itinerary-page-with-map-integration-and-hotel-details]: showMap defaults to false — full-width itinerary list on page load, no geocoding until user opts in
 - [Phase 09-itinerary-page-with-map-integration-and-hotel-details]: handleToggleMap resets mapPins/geocodingProgress on hide and sets mobile tab — clean state for next toggle cycle
+- [Phase 09-itinerary]: useMemo calls placed before early-return guards — hooks must be called unconditionally, hooks rules compliant pattern
+- [Phase 09-itinerary]: DaySectionInner + React.memo(DaySectionInner) export — cleaner than wrapping inline function expression, enables named display in React DevTools
 
 ### Pending Todos
 
@@ -181,6 +184,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T00:23:12.900Z
-Stopped at: Completed 09-itinerary-page-with-map-integration-and-hotel-details-01-PLAN.md
+Last session: 2026-03-12T00:33:13.062Z
+Stopped at: Completed 09-itinerary-page-with-map-integration-and-hotel-details-03-PLAN.md
 Resume file: None
