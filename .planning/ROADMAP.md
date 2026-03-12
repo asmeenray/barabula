@@ -195,3 +195,15 @@ Plans:
 - [ ] 11-02-PLAN.md — Visual redesign: remove backdrop-filter blur from activity cards, add photo + rating display, upgrade DestinationCards to next/image + brand palette
 - [ ] 11-03-PLAN.md — Data pipeline: wire photo + places enrichment into generation route, DB migration (is_public), API route updates for anon reads + is_public PATCH
 - [ ] 11-04-PLAN.md — Sharing flow: middleware bypass for ?share=true, itinerary page share button + read-only mode + acquisition CTA
+
+### Phase 12: Mobile responsive web - single column chat on mobile, hide right panel, navigate to itinerary after chat
+
+**Goal:** Premium mobile experience: full-screen single-column chat on mobile (< 768px) with ContextPanel hidden, polished "Building your itinerary..." overlay with coral spinner on generation complete, auto-navigation to itinerary page, and a coral "Chat again" FAB on the itinerary page — all with iOS safe area support
+**Requirements**: MOB-01, MOB-02, MOB-03
+**Depends on:** Phase 11
+**Plans:** 3 plans
+
+Plans:
+- [ ] 12-01-PLAN.md — Wave 0: fix stale SplitLayout tests, add mobile overlay + FAB test scaffolds
+- [ ] 12-02-PLAN.md — SplitLayout responsive (hidden md:flex wrapper), viewport-fit=cover, mobile overlay + auto-nav in chat page
+- [ ] 12-03-PLAN.md — "Chat again" FAB on itinerary page with iOS safe area + share-mode position override, tab panel mobile overflow cap
