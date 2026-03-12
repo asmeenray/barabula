@@ -185,10 +185,13 @@ Plans:
 
 ### Phase 11: Visual Enrichment & Trip Sharing — photos, ratings, and public links
 
-**Goal:** Close the three critical competitive gaps: enrich activity cards with Unsplash photos and Google Places ratings (fetched at generation time, stored in extra_data), add shareable read-only trip links via /itinerary/[id]?share=true with a soft acquisition CTA for guests, and add Unsplash photos to landing page destination cards
+**Goal:** Close the three critical competitive gaps: enrich activity cards with Unsplash photos and Google Places ratings (fetched at generation time, stored in extra_data), add shareable read-only trip links via /itinerary/[id]?share=true with a soft acquisition CTA for guests, and add Unsplash photos to landing page destination cards. Also removes glassmorphism backdrop-filter blur from activity cards for GPU performance and replaces with modern solid-background photo-first card design.
 **Requirements**: TBD
 **Depends on:** Phase 10
-**Plans:** TBD
+**Plans:** 4 plans
 
 Plans:
-- [ ] TBD (run /gsd:plan-phase 11 to break down)
+- [ ] 11-01-PLAN.md — TDD: Unsplash API migration (fetchCityImage + fetchActivityImage), Google Places fetcher (fetchPlacesData) with tests
+- [ ] 11-02-PLAN.md — Visual redesign: remove backdrop-filter blur from activity cards, add photo + rating display, upgrade DestinationCards to next/image + brand palette
+- [ ] 11-03-PLAN.md — Data pipeline: wire photo + places enrichment into generation route, DB migration (is_public), API route updates for anon reads + is_public PATCH
+- [ ] 11-04-PLAN.md — Sharing flow: middleware bypass for ?share=true, itinerary page share button + read-only mode + acquisition CTA
