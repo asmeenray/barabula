@@ -303,6 +303,10 @@ export default function ItineraryDetailPage() {
 
   const handleBack = useCallback(() => router.push('/dashboard'), [router])
 
+  const handleContinuePlanning = useCallback(() => {
+    router.push('/chat')
+  }, [router])
+
   const handleSaveFlight = useCallback(async (updated: Flight) => {
     const flights = data?.extra_data?.flights ?? []
     const updatedFlights = flights.map(f =>
@@ -401,6 +405,7 @@ export default function ItineraryDetailPage() {
         isShareMode={isShareMode}
         isPublic={isPublic}
         onShare={handleShare}
+        onContinuePlanning={isShareMode ? undefined : handleContinuePlanning}
       />
 
       {/* Mobile tab toggle — only shown when map is visible */}
