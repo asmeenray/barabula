@@ -29,11 +29,16 @@ export async function middleware(request: NextRequest) {
   // against the Supabase Auth server; getSession() can be spoofed via cookies
   const { data: { user } } = await supabase.auth.getUser()
 
+  const isSharedItinerary =
+    request.nextUrl.pathname.startsWith('/itinerary/') &&
+    request.nextUrl.searchParams.get('share') === 'true'
+
   const isPublicPath =
     request.nextUrl.pathname === '/' ||
     request.nextUrl.pathname.startsWith('/login') ||
     request.nextUrl.pathname.startsWith('/register') ||
-    request.nextUrl.pathname.startsWith('/auth')
+    request.nextUrl.pathname.startsWith('/auth') ||
+    isSharedItinerary
 
   if (!user && !isPublicPath) {
     const url = request.nextUrl.clone()
