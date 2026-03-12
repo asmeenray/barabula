@@ -2,6 +2,7 @@
 
 import { motion } from 'motion/react'
 import Link from 'next/link'
+import Image from 'next/image'
 
 const DESTINATIONS = [
   {
@@ -11,6 +12,8 @@ const DESTINATIONS = [
     subtitle: '10 days · Nature & Auroras',
     // Downloaded from Pexels during plan setup
     image: '/images/destinations/iceland.jpg',
+    width: 800,
+    height: 480,
   },
   {
     id: 'maldives',
@@ -18,6 +21,8 @@ const DESTINATIONS = [
     title: 'Maldives',
     subtitle: '7 days · Overwater Bliss',
     image: '/images/destinations/maldives.jpg',
+    width: 800,
+    height: 480,
   },
   {
     id: 'kyoto',
@@ -25,6 +30,8 @@ const DESTINATIONS = [
     title: 'Kyoto',
     subtitle: '8 days · Temples & Food',
     image: '/images/destinations/kyoto.jpg',
+    width: 800,
+    height: 480,
   },
 ]
 
@@ -51,7 +58,8 @@ export function DestinationCards() {
         whileInView={{ opacity: 1, y: 0 }}
         viewport={{ once: true, margin: '-80px' }}
         transition={{ duration: 0.6 }}
-        className="font-serif text-4xl md:text-5xl text-gray-900 text-center mb-12"
+        className="font-serif text-4xl md:text-5xl text-center mb-12"
+        style={{ color: '#285185' }}
       >
         Where to go next
       </motion.h2>
@@ -70,20 +78,22 @@ export function DestinationCards() {
             className="group rounded-2xl overflow-hidden bg-white shadow-sm hover:shadow-md transition-shadow"
           >
             <div className="relative h-48 overflow-hidden">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src={dest.image}
                 alt={dest.title}
+                width={dest.width}
+                height={dest.height}
                 className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
               />
             </div>
             <div className="p-4">
-              <p className="text-xs text-gray-400 mb-1">{dest.label}</p>
-              <h3 className="font-semibold text-gray-900 text-lg mb-0.5">{dest.title}</h3>
-              <p className="text-sm text-gray-500 mb-3">{dest.subtitle}</p>
+              <p className="text-xs mb-1" style={{ color: 'rgba(111,72,73,0.5)' }}>{dest.label}</p>
+              <h3 className="font-semibold text-lg mb-0.5" style={{ color: '#285185' }}>{dest.title}</h3>
+              <p className="text-sm mb-3" style={{ color: 'rgba(111,72,73,0.6)' }}>{dest.subtitle}</p>
               <Link
                 href="/"
-                className="text-sm font-medium text-gray-900 hover:text-coral transition-colors inline-flex items-center gap-1"
+                className="text-sm font-medium inline-flex items-center gap-1"
+                style={{ color: '#D67940' }}
               >
                 Start planning →
               </Link>
@@ -100,8 +110,8 @@ export function DestinationCards() {
         transition={{ duration: 0.6 }}
         className="bg-white rounded-3xl p-10 text-center max-w-2xl mx-auto"
       >
-        <h3 className="font-serif text-3xl text-gray-900 mb-4">All-in-One AI Trip Planner</h3>
-        <p className="text-gray-500 leading-relaxed mb-6">
+        <h3 className="font-serif text-3xl mb-4" style={{ color: '#285185' }}>All-in-One AI Trip Planner</h3>
+        <p className="leading-relaxed mb-6" style={{ color: 'rgba(111,72,73,0.6)' }}>
           Looking for the perfect trip planner for your next family vacation, anniversary getaway, or
           birthday trip? You&apos;re in the right place. Ask me anything about planning your vacation
           — from dreamy destinations and cozy stays to flights and itineraries. No more juggling tabs
@@ -109,7 +119,8 @@ export function DestinationCards() {
         </p>
         <Link
           href="/login"
-          className="inline-flex items-center gap-2 bg-navy text-white rounded-xl px-6 py-3 text-sm font-semibold hover:bg-navy-light transition-colors"
+          className="inline-flex items-center gap-2 text-white rounded-xl px-6 py-3 text-sm font-semibold hover:opacity-90 transition-opacity"
+          style={{ backgroundColor: '#285185' }}
         >
           Create a new trip →
         </Link>
