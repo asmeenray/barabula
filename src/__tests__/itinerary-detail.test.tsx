@@ -150,4 +150,26 @@ describe('ItineraryDetailPage', () => {
     // Button label should now read "Hide Map"
     expect(screen.getByRole('button', { name: /hide map/i })).toBeInTheDocument()
   })
+
+  it('renders "Eat & Drink" tab button', () => {
+    ;(useSWR as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: mockData,
+      error: null,
+      isLoading: false,
+      mutate: vi.fn(),
+    })
+    render(<ItineraryDetailPage />)
+    expect(screen.getByRole('button', { name: /eat & drink/i })).toBeInTheDocument()
+  })
+
+  it('renders "Itinerary" tab button', () => {
+    ;(useSWR as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: mockData,
+      error: null,
+      isLoading: false,
+      mutate: vi.fn(),
+    })
+    render(<ItineraryDetailPage />)
+    expect(screen.getByRole('button', { name: /^itinerary$/i })).toBeInTheDocument()
+  })
 })

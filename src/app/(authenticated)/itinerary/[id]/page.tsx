@@ -9,10 +9,12 @@ import { DaySection } from '@/components/itinerary/DaySection'
 import { DayPillNav } from '@/components/itinerary/DayPillNav'
 import { ItineraryHero } from '@/components/itinerary/ItineraryHero'
 import { ActivityForm } from '@/components/itinerary/ActivityForm'
+import { FlightCard } from '@/components/itinerary/FlightCard'
+import { EatDrinkTab } from '@/components/itinerary/EatDrinkTab'
 import { SkeletonText } from '@/components/ui/Skeleton'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { resolveActivityCoordinates } from '@/lib/geocoding'
-import type { Activity, Itinerary } from '@/lib/types'
+import type { Activity, Itinerary, Flight, DailyFood } from '@/lib/types'
 import type { MapPin } from '@/components/itinerary/ItineraryMap'
 
 const ItineraryMap = dynamic(() => import('@/components/itinerary/ItineraryMap'), { ssr: false })
@@ -20,6 +22,7 @@ const ItineraryMap = dynamic(() => import('@/components/itinerary/ItineraryMap')
 type ItineraryWithActivities = Itinerary & {
   activities: Activity[]
   cover_image_url?: string | null
+  extra_data?: { flights?: Flight[]; daily_food?: DailyFood[] } | null
 }
 
 const fetcher = (url: string) => fetch(url).then(r => {
@@ -38,6 +41,17 @@ function groupByDay(activities: Activity[]): Map<number, Activity[]> {
   const timeRank = (t: string): number => {
     const lower = (t ?? '').toLowerCase()
     if (lower in TIME_ORDER) return TIME_ORDER[lower]
+    // Parse 12-hour clock: "9:00 AM", "12:30 PM", "1:00 PM"
+    const match = t.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i)
+    if (match) {
+      let hours = parseInt(match[1], 10)
+      const minutes = parseInt(match[2], 10)
+      const period = match[3].toUpperCase()
+      if (period === 'AM' && hours === 12) hours = 0
+      if (period === 'PM' && hours !== 12) hours += 12
+      return hours * 60 + minutes
+    }
+    // Fallback for 24h format "09:00"
     return 10 + (parseFloat(t.replace(':', '.')) || 0)
   }
   for (const [day, acts] of map) {
@@ -72,6 +86,7 @@ export default function ItineraryDetailPage() {
   const [activeActivityId, setActiveActivityId] = useState<string | null>(null)
   const [activeDay, setActiveDay] = useState<number | null>(null)
   const [mobileTab, setMobileTab] = useState<'list' | 'map'>('list')
+  const [mainTab, setMainTab] = useState<'itinerary' | 'eat-drink'>('itinerary')
 
   // Drag-to-resize
   const [leftPct, setLeftPct] = useState(50)
@@ -234,6 +249,30 @@ export default function ItineraryDetailPage() {
 
   const handleBack = useCallback(() => router.push('/dashboard'), [router])
 
+  const handleSaveFlight = useCallback(async (updated: Flight) => {
+    const flights = data?.extra_data?.flights ?? []
+    const updatedFlights = flights.map(f =>
+      f.direction === updated.direction ? updated : f
+    )
+    const existing = (data?.extra_data ?? {}) as Record<string, unknown>
+    await fetch(`/api/itineraries/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ extra_data: { ...existing, flights: updatedFlights } }),
+    })
+    mutate()
+  }, [data?.extra_data, id, mutate])
+
+  const handleSaveDailyFood = useCallback(async (updatedFood: DailyFood[]) => {
+    const existing = (data?.extra_data ?? {}) as Record<string, unknown>
+    await fetch(`/api/itineraries/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ extra_data: { ...existing, daily_food: updatedFood } }),
+    })
+    mutate()
+  }, [data?.extra_data, id, mutate])
+
   const handleSetMobileTab = useCallback((tab: 'list' | 'map') => {
     setMobileTab(tab)
   }, [])
@@ -335,44 +374,78 @@ export default function ItineraryDetailPage() {
             className={`${mobileTab === 'map' ? 'hidden' : 'flex flex-col'} md:flex md:flex-col overflow-hidden`}
             style={{ width: `${leftPct}%` }}
           >
-            {/* Sticky day pill strip */}
-            <div className="shrink-0 px-3 md:px-4 py-2 bg-white/80 backdrop-blur-md border-b border-sky/20">
-              <DayPillNav days={sortedDays} activeDay={activeDay} onDayChange={handleDayChange} />
-              {geocodingProgress > 0 && geocodingProgress < 100 && (
-                <div className="mt-1.5 h-px bg-sky/30 rounded-full overflow-hidden">
-                  <motion.div
-                    className="h-full bg-coral rounded-full"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${geocodingProgress}%` }}
-                    transition={{ duration: 0.4 }}
-                  />
-                </div>
-              )}
+            {/* Main tab bar — Itinerary / Eat & Drink */}
+            <div className="shrink-0 flex border-b border-sky/20 bg-white/80 backdrop-blur-md">
+              {(['itinerary', 'eat-drink'] as const).map(tab => (
+                <button key={tab} onClick={() => setMainTab(tab)}
+                  className="relative flex-1 py-2.5 text-xs font-semibold text-umber tracking-wide">
+                  {mainTab === tab && (
+                    <motion.div layoutId="main-tab-indicator-split"
+                      className="absolute bottom-0 left-4 right-4 h-0.5 bg-coral rounded-full" />
+                  )}
+                  {tab === 'itinerary' ? 'Itinerary' : 'Eat & Drink'}
+                </button>
+              ))}
             </div>
+
+            {/* Sticky day pill strip — only shown for itinerary tab */}
+            {mainTab === 'itinerary' && (
+              <div className="shrink-0 px-3 md:px-4 py-2 bg-white/80 backdrop-blur-md border-b border-sky/20">
+                <DayPillNav days={sortedDays} activeDay={activeDay} onDayChange={handleDayChange} />
+                {geocodingProgress > 0 && geocodingProgress < 100 && (
+                  <div className="mt-1.5 h-px bg-sky/30 rounded-full overflow-hidden">
+                    <motion.div
+                      className="h-full bg-coral rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${geocodingProgress}%` }}
+                      transition={{ duration: 0.4 }}
+                    />
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Scrollable content */}
             <div className="flex-1 overflow-y-auto px-2 md:px-3 py-3">
-              <AnimatePresence mode="popLayout">
-                {displayedDays.map(dayNumber => (
-                  <motion.div
-                    key={dayNumber}
-                    initial={{ opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: -6 }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <DaySection
-                      dayNumber={dayNumber}
-                      activities={dayMap.get(dayNumber) ?? []}
-                      activeActivityId={activeActivityId}
-                      onActivityClick={handlePinClick}
-                      onAddActivity={openAddActivity}
-                      onEditActivity={openEditActivity}
-                      onDeleteActivity={handleDeleteActivity}
-                    />
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+              {mainTab === 'itinerary' ? (
+                <>
+                  {/* Outbound flight cards */}
+                  {(data.extra_data?.flights ?? []).filter(f => f.direction === 'outbound').map((flight, i) => (
+                    <FlightCard key={`outbound-${i}`} flight={flight} onSave={handleSaveFlight} />
+                  ))}
+                  <AnimatePresence mode="popLayout">
+                    {displayedDays.map(dayNumber => (
+                      <motion.div
+                        key={dayNumber}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -6 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <DaySection
+                          dayNumber={dayNumber}
+                          activities={dayMap.get(dayNumber) ?? []}
+                          activeActivityId={activeActivityId}
+                          onActivityClick={handlePinClick}
+                          onAddActivity={openAddActivity}
+                          onEditActivity={openEditActivity}
+                          onDeleteActivity={handleDeleteActivity}
+                        />
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                  {/* Return flight cards */}
+                  {(data.extra_data?.flights ?? []).filter(f => f.direction === 'return').map((flight, i) => (
+                    <FlightCard key={`return-${i}`} flight={flight} onSave={handleSaveFlight} />
+                  ))}
+                </>
+              ) : (
+                <EatDrinkTab
+                  dailyFood={data.extra_data?.daily_food ?? []}
+                  itineraryId={id}
+                  onSave={handleSaveDailyFood}
+                />
+              )}
             </div>
           </div>
 
@@ -416,33 +489,68 @@ export default function ItineraryDetailPage() {
       ) : (
         /* Full-width layout — map hidden (default) */
         <div className="flex flex-col flex-1 overflow-hidden">
-          {/* Sticky day pill strip */}
-          <div className="shrink-0 px-3 md:px-4 py-2 bg-white/80 backdrop-blur-md border-b border-sky/20">
-            <DayPillNav days={sortedDays} activeDay={activeDay} onDayChange={handleDayChange} />
+          {/* Main tab bar — Itinerary / Eat & Drink */}
+          <div className="shrink-0 flex border-b border-sky/20 bg-white/80 backdrop-blur-md">
+            {(['itinerary', 'eat-drink'] as const).map(tab => (
+              <button key={tab} onClick={() => setMainTab(tab)}
+                className="relative flex-1 py-2.5 text-xs font-semibold text-umber tracking-wide">
+                {mainTab === tab && (
+                  <motion.div layoutId="main-tab-indicator"
+                    className="absolute bottom-0 left-4 right-4 h-0.5 bg-coral rounded-full" />
+                )}
+                {tab === 'itinerary' ? 'Itinerary' : 'Eat & Drink'}
+              </button>
+            ))}
           </div>
+
+          {/* Sticky day pill strip — only shown for itinerary tab */}
+          {mainTab === 'itinerary' && (
+            <div className="shrink-0 px-3 md:px-4 py-2 bg-white/80 backdrop-blur-md border-b border-sky/20">
+              <DayPillNav days={sortedDays} activeDay={activeDay} onDayChange={handleDayChange} />
+            </div>
+          )}
+
           {/* Full-width scrollable content */}
           <div className="flex-1 overflow-y-auto px-3 md:px-6 py-4 max-w-3xl mx-auto w-full">
-            <AnimatePresence mode="popLayout">
-              {displayedDays.map(dayNumber => (
-                <motion.div
-                  key={dayNumber}
-                  initial={{ opacity: 0, y: 6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -6 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <DaySection
-                    dayNumber={dayNumber}
-                    activities={dayMap.get(dayNumber) ?? []}
-                    activeActivityId={activeActivityId}
-                    onActivityClick={handlePinClick}
-                    onAddActivity={openAddActivity}
-                    onEditActivity={openEditActivity}
-                    onDeleteActivity={handleDeleteActivity}
-                  />
-                </motion.div>
-              ))}
-            </AnimatePresence>
+            {mainTab === 'itinerary' ? (
+              <>
+                {/* Outbound flight cards */}
+                {(data.extra_data?.flights ?? []).filter(f => f.direction === 'outbound').map((flight, i) => (
+                  <FlightCard key={`outbound-${i}`} flight={flight} onSave={handleSaveFlight} />
+                ))}
+                <AnimatePresence mode="popLayout">
+                  {displayedDays.map(dayNumber => (
+                    <motion.div
+                      key={dayNumber}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -6 }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <DaySection
+                        dayNumber={dayNumber}
+                        activities={dayMap.get(dayNumber) ?? []}
+                        activeActivityId={activeActivityId}
+                        onActivityClick={handlePinClick}
+                        onAddActivity={openAddActivity}
+                        onEditActivity={openEditActivity}
+                        onDeleteActivity={handleDeleteActivity}
+                      />
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+                {/* Return flight cards */}
+                {(data.extra_data?.flights ?? []).filter(f => f.direction === 'return').map((flight, i) => (
+                  <FlightCard key={`return-${i}`} flight={flight} onSave={handleSaveFlight} />
+                ))}
+              </>
+            ) : (
+              <EatDrinkTab
+                dailyFood={data.extra_data?.daily_food ?? []}
+                itineraryId={id}
+                onSave={handleSaveDailyFood}
+              />
+            )}
           </div>
         </div>
       )}

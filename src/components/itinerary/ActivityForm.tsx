@@ -16,6 +16,8 @@ export function ActivityForm({ initialData, dayNumber, itineraryId, onSave, onCa
   const [time, setTime] = useState(initialData?.time ?? '')
   const [location, setLocation] = useState(initialData?.location ?? '')
   const [description, setDescription] = useState(initialData?.description ?? '')
+  const [duration, setDuration] = useState(initialData?.duration ?? '')
+  const [tips, setTips] = useState(initialData?.tips ?? '')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -36,8 +38,8 @@ export function ActivityForm({ initialData, dayNumber, itineraryId, onSave, onCa
         location: location.trim() || null,
         description: description.trim() || null,
         extra_data: null,
-        duration: null,
-        tips: null,
+        duration: duration.trim() || null,
+        tips: tips.trim() || null,
       })
     } catch {
       setError('Failed to save activity. Please try again.')
@@ -95,6 +97,26 @@ export function ActivityForm({ initialData, dayNumber, itineraryId, onSave, onCa
               onChange={e => setDescription(e.target.value)}
               placeholder="What to do or see here..."
               rows={3}
+              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-coral"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">Duration</label>
+            <input
+              type="text"
+              value={duration}
+              onChange={e => setDuration(e.target.value)}
+              placeholder="e.g. 2–3 hours"
+              className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coral"
+            />
+          </div>
+          <div>
+            <label className="text-sm font-medium text-gray-700 block mb-1">Tips (optional)</label>
+            <textarea
+              value={tips}
+              onChange={e => setTips(e.target.value)}
+              placeholder="e.g. Book tickets online 2 weeks ahead"
+              rows={2}
               className="w-full border border-gray-300 rounded-xl px-3 py-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-coral"
             />
           </div>

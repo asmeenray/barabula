@@ -17,6 +17,8 @@ export async function PATCH(
   if (body.description !== undefined) updates.description = body.description || null
   if (body.location !== undefined) updates.location = body.location || null
   if (body.day_number !== undefined) updates.day_number = body.day_number
+  if (body.duration !== undefined) updates.duration = body.duration || null
+  if (body.tips !== undefined) updates.tips = body.tips || null
 
   const { data, error } = await supabase
     .from('activities')
