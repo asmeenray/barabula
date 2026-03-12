@@ -3,9 +3,11 @@ import { NextRequest } from 'next/server'
 import OpenAI from 'openai'
 import { AIResponseSchema, zodResponseFormat } from '@/lib/ai/schemas'
 import { buildSystemPrompt } from '@/lib/ai/system-prompt'
-import type { TripState, ConversationPhase } from '@/lib/ai/schemas'
+import type { TripState, ConversationPhase, Flight } from '@/lib/ai/schemas'
 import { fetchCityImage, fetchActivityImage } from '@/lib/unsplash'
 import { fetchPlacesData } from '@/lib/places'
+import type { FlightInputData } from '@/components/chat/FlightsTabPanel'
+import type { HotelSaveData } from '@/components/chat/HotelsTabPanel'
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
@@ -15,7 +17,12 @@ export async function POST(req: NextRequest) {
   // Lazy-initialize after auth so key is not required for unauthenticated calls
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
-  const { content } = await req.json()
+  const body = await req.json()
+  const { content, flightInputData, hotelSaveData } = body as {
+    content: string
+    flightInputData?: FlightInputData | null
+    hotelSaveData?: HotelSaveData | null
+  }
   if (!content?.trim()) return Response.json({ error: 'Message content is required' }, { status: 400 })
 
   // Load current trip session (if any)
@@ -36,11 +43,11 @@ export async function POST(req: NextRequest) {
     .order('created_at', { ascending: true })
     .limit(20)
 
-  const systemPrompt = buildSystemPrompt(currentTripState, currentPhase)
+  const systemPrompt = buildSystemPrompt(currentTripState, currentPhase, flightInputData, hotelSaveData)
 
   const completion = await openai.chat.completions.parse({
     model: 'gpt-4o',
-    max_tokens: 8192,
+    max_tokens: 16000,
     messages: [
       { role: 'system', content: systemPrompt },
       ...(history ?? []).map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
@@ -116,15 +123,16 @@ export async function POST(req: NextRequest) {
       }
     }
 
+    // Build final flights array: prefer user-provided flights over AI suggestions
+    const finalFlights = buildFinalFlights(flights ?? [], flightInputData)
+
     // Persist flights and daily_food into itinerary extra_data
-    // Note: this is a fresh insert so extra_data is '{}' — safe to set directly.
-    // For future edits, the PATCH route reads existing extra_data first and merges (Pitfall 3 pattern).
-    if (flights?.length || daily_food?.length) {
+    if (finalFlights.length || daily_food?.length) {
       await supabase
         .from('itineraries')
         .update({
           extra_data: {
-            flights: flights ?? [],
+            flights: finalFlights,
             daily_food: daily_food ?? [],
           }
         })
@@ -132,30 +140,44 @@ export async function POST(req: NextRequest) {
     }
 
     // Insert activities from all days — enrich with photo + places data in parallel
+    // Apply specific hotel override if user provided one
     const activityDestination = itineraryFields.destination ?? itineraryFields.title ?? ''
     const activities = await Promise.all(
       days.flatMap(day =>
         day.activities.map(async (act) => {
           const isHotel = act.activity_type === 'hotel'
+
+          // Apply user's specific hotel if provided
+          const hotelOverride = isHotel && hotelSaveData?.mode === 'specific' && hotelSaveData.specific_hotel_name
+            ? hotelSaveData
+            : null
+
           const [photoUrl, placesData] = await Promise.all([
             isHotel ? Promise.resolve(null) : fetchActivityImage(act.name, activityDestination),
             isHotel ? Promise.resolve({ rating: null, priceLevel: null }) : fetchPlacesData(act.name, activityDestination),
           ])
+
           const baseExtraData = isHotel
             ? {
-                hotel_name: act.hotel_name,
-                star_rating: act.star_rating,
+                hotel_name: hotelOverride?.specific_hotel_name ?? act.hotel_name,
+                star_rating: hotelOverride?.specific_hotel_stars ?? act.star_rating,
                 check_in: act.check_in,
                 check_out: act.check_out,
               }
             : {}
+
+          const actName = hotelOverride?.specific_hotel_name ?? act.name
+          const actLocation = hotelOverride
+            ? [hotelOverride.specific_hotel_area, hotelOverride.specific_hotel_city].filter(Boolean).join(', ')
+            : act.location
+
           return {
             itinerary_id: newItinerary.id,
             day_number: day.day_number,
-            name: act.name,
+            name: actName,
             time: act.time,
             description: act.description,
-            location: act.location,
+            location: actLocation,
             activity_type: act.activity_type ?? null,
             duration: act.duration ?? null,
             tips: act.tips ?? null,
@@ -186,4 +208,51 @@ export async function POST(req: NextRequest) {
     conversationPhase: safePhase,
     tripState: parsed.trip_state,
   })
+}
+
+/**
+ * Merges user-provided flight data with AI-generated flights.
+ * User-provided flights (is_suggested: false) take precedence over AI suggestions.
+ */
+function buildFinalFlights(aiFlights: Flight[], flightInputData: FlightInputData | null | undefined): Flight[] {
+  if (!flightInputData) return aiFlights
+
+  const userFlights: Flight[] = []
+
+  const hasOutbound = flightInputData.outbound_airline || flightInputData.outbound_flight_number
+    || flightInputData.outbound_from || flightInputData.outbound_to
+  if (hasOutbound) {
+    userFlights.push({
+      direction: 'outbound',
+      airline: flightInputData.outbound_airline || null,
+      flight_number: flightInputData.outbound_flight_number || null,
+      from_airport: flightInputData.outbound_from || null,
+      to_airport: flightInputData.outbound_to || null,
+      departure_time: flightInputData.outbound_departure || null,
+      arrival_time: flightInputData.outbound_arrival || null,
+      is_suggested: false,
+    })
+  }
+
+  const hasReturn = flightInputData.return_airline || flightInputData.return_flight_number
+    || flightInputData.return_from || flightInputData.return_to
+  if (hasReturn) {
+    userFlights.push({
+      direction: 'return',
+      airline: flightInputData.return_airline || null,
+      flight_number: flightInputData.return_flight_number || null,
+      from_airport: flightInputData.return_from || null,
+      to_airport: flightInputData.return_to || null,
+      departure_time: flightInputData.return_departure || null,
+      arrival_time: flightInputData.return_arrival || null,
+      is_suggested: false,
+    })
+  }
+
+  if (userFlights.length === 0) return aiFlights
+
+  // For each direction, prefer user flight over AI flight
+  const directions = new Set(userFlights.map(f => f.direction))
+  const keptAiFlights = aiFlights.filter(f => !directions.has(f.direction))
+  return [...userFlights, ...keptAiFlights]
 }

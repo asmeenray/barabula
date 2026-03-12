@@ -154,7 +154,7 @@ function ChatPageInner() {
       const res = await fetch('/api/chat/message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content }),
+        body: JSON.stringify({ content, flightInputData, hotelSaveData }),
       })
       const data = await res.json()
 
