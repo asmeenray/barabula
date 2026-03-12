@@ -224,7 +224,7 @@ Plans:
 **Goal:** Six confirmed bugs fixed and transport context enriched: AI date year inference corrected, multi-day itinerary truncation eliminated, flight times reliably non-null, hotel tab state fully restored on reopen, destination-image route uses Unsplash→Pexels fallback, and a "Getting around" intake chip adds transport mode context to AI planning
 **Requirements**: TBD
 **Depends on:** Phase 12
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 - [ ] 13-01-PLAN.md — AI prompt fixes: date year rule, multi-day completeness rule, flight times rule, transport bridge expansion; transport_mode in TripStateSchema; server-side days validation
