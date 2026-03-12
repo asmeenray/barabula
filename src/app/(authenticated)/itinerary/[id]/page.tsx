@@ -646,6 +646,42 @@ export default function ItineraryDetailPage() {
         )}
       </AnimatePresence>
 
+      {/* "Chat again" FAB — mobile only (md:hidden). Routes user back to chat for trip refinement. */}
+      <button
+        onClick={() => router.push('/chat')}
+        className={[
+          'fixed z-40 md:hidden',
+          'flex items-center gap-2',
+          'bg-coral text-white text-sm font-semibold rounded-full px-4 py-3',
+          'shadow-lg active:scale-95 transition-transform duration-100',
+          'right-5',
+          isShareMode && ctaBannerVisible ? 'bottom-[96px]' : 'bottom-6',
+        ].join(' ')}
+        style={{
+          boxShadow: '0 4px 16px rgba(214,121,64,0.35)',
+          bottom: isShareMode && ctaBannerVisible
+            ? 'calc(6rem + env(safe-area-inset-bottom, 0px))'
+            : 'calc(1.5rem + env(safe-area-inset-bottom, 0px))',
+        }}
+        aria-label="Chat again to refine your trip"
+      >
+        {/* Inline chat SVG — lucide-react not installed in project */}
+        <svg
+          width="16"
+          height="16"
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.5"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          aria-hidden="true"
+        >
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+        Chat again
+      </button>
+
       {/* Share toast — "Link copied" confirmation */}
       <AnimatePresence>
         {shareToast && (
