@@ -34,9 +34,9 @@ describe('QuickActionChips', () => {
     expect(container.firstChild).toBeNull()
   })
 
-  it('renders nothing when conversationPhase is gathering_details', () => {
-    const { container } = render(<QuickActionChips onSend={vi.fn()} conversationPhase="gathering_details" />)
-    expect(container.firstChild).toBeNull()
+  it('renders Getting around chip when conversationPhase is gathering_details', () => {
+    render(<QuickActionChips onSend={vi.fn()} conversationPhase="gathering_details" />)
+    expect(screen.getByText('Getting around')).toBeTruthy()
   })
 
   it('renders 5 chips when conversationPhase is ready_for_summary', () => {

@@ -18,7 +18,9 @@ const SUMMARY_CHIPS: ChipConfig[] = [
 
 const CHIP_SETS: Record<ConversationPhase, ChipConfig[]> = {
   gathering_destination: [],
-  gathering_details: [],
+  gathering_details: [
+    { label: 'Getting around', message: '__show_transport_panel__' },
+  ],
   ready_for_summary: SUMMARY_CHIPS,
   generating_itinerary: [],
   itinerary_complete: [
