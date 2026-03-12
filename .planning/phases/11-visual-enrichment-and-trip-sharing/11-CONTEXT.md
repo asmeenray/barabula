@@ -41,6 +41,13 @@ Close the three critical competitive gaps identified by the travel AI competitiv
 - **Fallback:** If Places Text Search returns no match, gracefully omit — card shows photo but no rating. No placeholder stars, no fake data.
 - **No opening hours in Phase 11:** Ratings + price level only. Hours require a separate Places Details API call (additional cost). Defer hours to a future phase.
 
+### Visual Redesign Scope (Glassmorphism)
+
+- **Remove backdrop-filter blur from:** Activity cards only — `ActivityCardItem` in `DaySection.tsx` and `ActivityCard.tsx` (ContextPanel preview)
+- **DO NOT touch:** Hero components — `VideoHero.tsx`, `ItineraryHero.tsx`, and any landing page hero sections. The glassmorphism on the hero pages is intentional and should be preserved.
+- Replace activity card blur with solid `rgba(255,255,255,0.95)` backgrounds — cleaner, faster, photo-first aesthetic
+- Goal: make the itinerary feel more beautiful and modern, not stripping glass effects everywhere
+
 ### Claude's Discretion
 - Loading skeleton design for activity card photos
 - Exact card photo aspect ratio and object-fit behavior
