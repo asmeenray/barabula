@@ -169,3 +169,16 @@ Plans:
 Plans:
 - [ ] 09-01-PLAN.md — Map lazy-load toggle: "Show Map" coral button in hero, showMap state, conditional ItineraryMap mount, geocoding deferred until opt-in
 - [ ] 09-02-PLAN.md — Glassmorphism upgrade: full cover image hero expansion, ActivityCard/HotelCard/DayPillNav/DaySection glassmorphism polish using frontend-design skill
+
+### Phase 10: Rich Itinerary AI Response — detailed daily plans with timings, flights, hotels, restaurants, and editable tiles
+
+**Goal:** AI generates richer itineraries with specific clock-time activities, flight suggestions, daily food recommendations, and activity duration/tips — all editable from the itinerary page via FlightCards, an Eat & Drink tab, and an expanded ActivityForm modal
+**Requirements**: TBD
+**Depends on:** Phase 9
+**Plans:** 4 plans
+
+Plans:
+- [ ] 10-01-PLAN.md — Extend TypeScript types, Zod schemas (Flight, DailyFood, duration/tips on Activity), and DB migration for activities columns
+- [ ] 10-02-PLAN.md — Update AI prompt (clock times, flights, food, hotel star inference) and chat message route (persist duration/tips/flights/daily_food)
+- [ ] 10-03-PLAN.md — Chat UI: interactive Flights/Hotels bottom tabs with expandable form panels (FlightsTabPanel, HotelsTabPanel)
+- [ ] 10-04-PLAN.md — Itinerary page UI: FlightCard with inline editing, EatDrinkTab, ActivityForm expanded, timeRank 12-hour fix, tab switcher
