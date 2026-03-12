@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 11-visual-enrichment-and-trip-sharing-02-PLAN.md
-last_updated: "2026-03-12T10:59:02.437Z"
+stopped_at: Completed 11-visual-enrichment-and-trip-sharing-03-PLAN.md
+last_updated: "2026-03-12T11:03:35.100Z"
 last_activity: 2026-03-09 — Roadmap created, phases derived from requirements
 progress:
   total_phases: 11
   completed_phases: 7
   total_plans: 40
-  completed_plans: 35
+  completed_plans: 36
   percent: 0
 ---
 
@@ -88,6 +88,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 10-rich-itinerary-ai-response P04 | 5min | 2 tasks | 9 files |
 | Phase 11-visual-enrichment-and-trip-sharing P01 | 2min | 3 tasks | 4 files |
 | Phase 11-visual-enrichment-and-trip-sharing P02 | 7min | 2 tasks | 3 files |
+| Phase 11-visual-enrichment-and-trip-sharing P03 | 2min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -189,6 +190,8 @@ Recent decisions affecting current work:
 - [Phase 11-visual-enrichment-and-trip-sharing]: fetchActivityImage fallback: destination-only query when primary activityName+destination query returns non-ok
 - [Phase 11-visual-enrichment-and-trip-sharing]: No backdropFilter on activity cards — solid rgba backgrounds, no GPU compositing layers
 - [Phase 11-visual-enrichment-and-trip-sharing]: layout prop removed from ActivityCard motion.div — reduces layout animation overhead
+- [Phase 11-visual-enrichment-and-trip-sharing]: is_public check done before auth gate in GET — single extra DB read avoids requiring auth to determine publicity
+- [Phase 11-visual-enrichment-and-trip-sharing]: Hotel activities skip fetchActivityImage and fetchPlacesData — no meaningful place data for lodging
 
 ### Pending Todos
 
@@ -207,6 +210,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T10:59:02.427Z
-Stopped at: Completed 11-visual-enrichment-and-trip-sharing-02-PLAN.md
+Last session: 2026-03-12T11:03:35.092Z
+Stopped at: Completed 11-visual-enrichment-and-trip-sharing-03-PLAN.md
 Resume file: None
