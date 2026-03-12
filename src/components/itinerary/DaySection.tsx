@@ -2,7 +2,10 @@
 
 import React, { useState } from 'react'
 import { motion, AnimatePresence } from 'motion/react'
+import Image from 'next/image'
 import type { Activity } from '@/lib/types'
+
+const PRICE_SYMBOLS: Record<number, string> = { 0: 'Free', 1: '$', 2: '$$', 3: '$$$', 4: '$$$$' }
 
 interface DaySectionProps {
   dayNumber: number
@@ -71,6 +74,10 @@ function ActivityCardItem({ activity, index, isActive, isExpanded, isLast, onCar
   const starRating = isHotel ? (activity.extra_data as Record<string, unknown> | null)?.star_rating as number | undefined : undefined
   const checkIn = isHotel ? (activity.extra_data as Record<string, unknown> | null)?.check_in as string | undefined : undefined
   const checkOut = isHotel ? (activity.extra_data as Record<string, unknown> | null)?.check_out as string | undefined : undefined
+  const photoUrl = !isHotel ? (activity.extra_data as Record<string, unknown> | null)?.photo_url as string | undefined : undefined
+  const placesRating = (activity.extra_data as Record<string, unknown> | null)?.places_rating as number | undefined
+  const placesReviewCount = (activity.extra_data as Record<string, unknown> | null)?.places_review_count as number | undefined
+  const placesPriceLevel = (activity.extra_data as Record<string, unknown> | null)?.places_price_level as number | undefined
 
   return (
     <motion.div
@@ -89,7 +96,6 @@ function ActivityCardItem({ activity, index, isActive, isExpanded, isLast, onCar
             : isExpanded
             ? 'rgba(255,255,255,0.88)'
             : 'rgba(255,255,255,0.65)',
-          backdropFilter: 'blur(12px)',
           border: isActive
             ? '1px solid rgba(214,121,64,0.35)'
             : '1px solid rgba(204,217,226,0.5)',
@@ -99,6 +105,20 @@ function ActivityCardItem({ activity, index, isActive, isExpanded, isLast, onCar
         }}
         onClick={onCardClick}
       >
+        {/* Photo header */}
+        {photoUrl && (
+          <div className="relative w-full overflow-hidden rounded-t-xl" style={{ height: '128px' }}>
+            <Image
+              src={photoUrl}
+              alt={activity.name}
+              fill
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 50vw"
+            />
+            <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(40,81,133,0.4) 0%, transparent 60%)' }} />
+          </div>
+        )}
+
         {/* Active left accent */}
         {isActive && (
           <div
@@ -175,6 +195,23 @@ function ActivityCardItem({ activity, index, isActive, isExpanded, isLast, onCar
                     <span className="text-xs leading-snug" style={{ color: 'rgba(111,72,73,0.7)' }}>
                       {activity.location}
                     </span>
+                  </div>
+                )}
+
+                {/* Rating / price row */}
+                {(placesRating !== undefined || placesPriceLevel !== undefined) && (
+                  <div className="flex items-center gap-2 text-[11px]">
+                    {placesRating !== undefined && (
+                      <>
+                        <span style={{ color: '#D67940' }}>★ {placesRating.toFixed(1)}</span>
+                        {placesReviewCount !== undefined && (
+                          <span style={{ color: 'rgba(111,72,73,0.5)' }}>({placesReviewCount.toLocaleString()})</span>
+                        )}
+                      </>
+                    )}
+                    {placesPriceLevel !== undefined && (
+                      <span style={{ color: 'rgba(40,81,133,0.5)' }}>{PRICE_SYMBOLS[placesPriceLevel]}</span>
+                    )}
                   </div>
                 )}
 

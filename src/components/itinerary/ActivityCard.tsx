@@ -1,5 +1,6 @@
 'use client'
 import { motion } from 'motion/react'
+import Image from 'next/image'
 import type { Activity } from '@/lib/types'
 
 interface ActivityCardProps {
@@ -10,16 +11,16 @@ interface ActivityCardProps {
 }
 
 export function ActivityCard({ activity, isActive = false, sequenceNumber, onCardClick }: ActivityCardProps) {
+  const photoUrl = (activity.extra_data as Record<string, unknown> | null)?.photo_url as string | undefined
+
   return (
     <motion.div
-      layout
       onClick={onCardClick}
       whileHover={{ y: -1, transition: { duration: 0.15 } }}
       whileTap={{ scale: 0.99 }}
-      className="relative rounded-2xl p-4 cursor-pointer transition-all duration-200"
+      className="relative rounded-2xl overflow-hidden cursor-pointer transition-all duration-200"
       style={{
         background: isActive ? 'rgba(255,255,255,0.95)' : 'rgba(255,255,255,0.60)',
-        backdropFilter: 'blur(12px)',
         border: isActive
           ? '1px solid rgba(214,121,64,0.30)'
           : '1px solid rgba(255,255,255,0.40)',
@@ -28,6 +29,21 @@ export function ActivityCard({ activity, isActive = false, sequenceNumber, onCar
           : '0 1px 4px rgba(40,81,133,0.04)',
       }}
     >
+      {/* Photo header */}
+      {photoUrl && (
+        <div className="relative w-full overflow-hidden rounded-t-2xl" style={{ height: '112px' }}>
+          <Image
+            src={photoUrl}
+            alt={activity.name}
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, 400px"
+          />
+          <div className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(40,81,133,0.35) 0%, transparent 60%)' }} />
+        </div>
+      )}
+
+      <div className="p-4">
       {/* Active left accent bar */}
       {isActive && (
         <div
@@ -94,6 +110,7 @@ export function ActivityCard({ activity, isActive = false, sequenceNumber, onCar
             </p>
           )}
         </div>
+      </div>
       </div>
     </motion.div>
   )
