@@ -2,19 +2,24 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import OpenAI from 'openai'
 
-const SYSTEM_PROMPT = `You are a hotel information assistant. When given a hotel name (and optional destination city), return the verified details for that hotel from your training data.
+const SYSTEM_PROMPT = `You are a helpful hotel information assistant for a travel planning app. Given a hotel name (possibly with spelling mistakes or incomplete) and optionally a destination city, find the best matching real hotel and return its details.
 
 Return ONLY valid JSON with this exact shape:
 {
   "found": true/false,
-  "full_name": "Exact official hotel name",
-  "area": "Neighbourhood or district (e.g. 'Shinjuku' or 'South Bank')",
+  "full_name": "Correct official hotel name",
+  "area": "Neighbourhood or district (e.g. 'Shinjuku', 'South Bank', 'Downtown'), or empty string if unknown",
   "city": "City name",
   "star_rating": 1-5 integer
 }
 
-If you cannot identify the hotel with confidence, return { "found": false }.
-Do not guess — return found: false if uncertain.`
+Important rules:
+- Always try to find a match. Correct spelling mistakes, interpret partial names, and use the destination city as context.
+- Examples: "Park Hiatt Tokyo" → "Park Hyatt Tokyo" (Shinjuku, Tokyo, 5-star). "Marriot" in Dubai → "Marriott Hotel Dubai" (4-star).
+- For hotel chains without a specific property name (e.g. just "Hilton" in Paris), return the flagship/most well-known property in that city.
+- Estimate star_rating from brand if needed: Ritz-Carlton/Four Seasons/Aman = 5, Marriott/Hilton/Hyatt = 4, Holiday Inn/Novotel = 3, Premier Inn/Ibis = 3.
+- Set found: false ONLY if the input is completely unrecognisable as a hotel name (random characters, clearly fictional).
+- Use the destination city to disambiguate when multiple properties exist.`
 
 export async function POST(request: Request) {
   try {

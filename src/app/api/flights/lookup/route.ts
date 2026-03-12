@@ -25,7 +25,13 @@ export async function POST(req: NextRequest) {
     approx_departure?: string
   }
 
-  const userMessage = `Find flight: ${airline ?? ''} ${flight_number ?? ''} from ${from_airport ?? 'unknown'} to ${to_airport ?? 'unknown'}${approx_departure ? `, approximate departure ${approx_departure}` : ''}`
+  const parts: string[] = []
+  if (airline) parts.push(`Airline: ${airline}`)
+  if (flight_number) parts.push(`Flight number: ${flight_number}`)
+  if (from_airport) parts.push(`Departing from: ${from_airport}`)
+  if (to_airport) parts.push(`Going to: ${to_airport}`)
+  if (approx_departure) parts.push(`Approximate departure time: ${approx_departure}`)
+  const userMessage = parts.length > 0 ? parts.join('\n') : 'No details provided'
 
   try {
     const completion = await openai.chat.completions.create({
@@ -34,20 +40,25 @@ export async function POST(req: NextRequest) {
       messages: [
         {
           role: 'system',
-          content: `You are a flight schedule lookup assistant. When given airline and flight number (or airline + route + approximate time), return the most likely real-world schedule for that flight based on your training data.
+          content: `You are a helpful flight information assistant for a travel planning app. The user wants to pre-fill their flight details. Given whatever partial information is available (airline name, flight number, city names, or route), do your best to identify useful airport information and fill in what you can.
 
 Return ONLY valid JSON with this exact shape:
 {
-  "found": true/false,
-  "from_airport": "IATA code or city name",
-  "to_airport": "IATA code or city name",
-  "departure_time": "HH:MM (24h) or 'H:MM AM/PM'",
-  "arrival_time": "HH:MM (24h) or 'H:MM AM/PM'",
-  "note": "optional short note if schedule varies by day or season"
+  "found": true,
+  "from_airport": "IATA code for departure airport (e.g. LHR, JFK, DXB)",
+  "to_airport": "IATA code for destination airport, or null if not provided",
+  "departure_time": "HH:MM 24h format if known, otherwise null",
+  "arrival_time": "HH:MM 24h format if known, otherwise null",
+  "note": "helpful note about the route, e.g. which terminal, typical flight duration, or if multiple airports serve this city"
 }
 
-If you cannot identify the flight with confidence, return { "found": false }.
-Do not hallucinate specific times if you are not confident — return found: false instead.`,
+Important rules:
+- Always set found: true and return your best answer. Even if you only have the departure city, return its main IATA airport code in from_airport.
+- City name to IATA: London → LHR (or LGW/STN), New York → JFK (or EWR/LGA), Paris → CDG (or ORY), Tokyo → NRT (or HND), Dubai → DXB, Singapore → SIN, Sydney → SYD, Los Angeles → LAX, etc.
+- If the user gives a city name instead of IATA code, convert it to the main IATA code for that city.
+- If you know the airline flies this route, add that info to the note.
+- departure_time and arrival_time should only be set if you are reasonably confident. Null is fine.
+- Only set found: false if the input is completely nonsensical (random characters with no recognisable airline, city, or airport).`,
         },
         {
           role: 'user',

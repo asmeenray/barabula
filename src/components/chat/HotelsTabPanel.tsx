@@ -58,7 +58,7 @@ export function HotelsTabPanel({ tripState, hotelPreference, onSave, onClose }: 
       if (data.found) {
         setFoundHotel({ full_name: data.full_name, area: data.area, city: data.city, star_rating: data.star_rating })
       } else {
-        setLookupError('Could not find this hotel — try adjusting the name or enter manually.')
+        setLookupError('Could not find a match — try adding the city name or check the spelling.')
       }
     } catch {
       setLookupError('Lookup failed — please enter manually.')

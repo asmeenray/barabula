@@ -50,12 +50,15 @@ export function FlightsTabPanel({ tripState, initialData, onSave, onClose }: Fli
 
   const [outboundLooking, setOutboundLooking] = useState(false)
   const [outboundLookupError, setOutboundLookupError] = useState<string | null>(null)
+  const [outboundNote, setOutboundNote] = useState<string | null>(null)
   const [returnLooking, setReturnLooking] = useState(false)
   const [returnLookupError, setReturnLookupError] = useState<string | null>(null)
+  const [returnNote, setReturnNote] = useState<string | null>(null)
 
   async function handleLookupOutbound() {
     setOutboundLooking(true)
     setOutboundLookupError(null)
+    setOutboundNote(null)
     try {
       const res = await fetch('/api/flights/lookup', {
         method: 'POST',
@@ -74,8 +77,9 @@ export function FlightsTabPanel({ tripState, initialData, onSave, onClose }: Fli
         if (data.to_airport) setOutboundTo(data.to_airport)
         if (data.departure_time) setOutboundDeparture(data.departure_time)
         if (data.arrival_time) setOutboundArrival(data.arrival_time)
+        if (data.note) setOutboundNote(data.note)
       } else {
-        setOutboundLookupError('Could not find this flight — please enter manually.')
+        setOutboundLookupError('Could not identify — try entering the airline name or departure city.')
       }
     } catch {
       setOutboundLookupError('Lookup failed — please enter manually.')
@@ -87,6 +91,7 @@ export function FlightsTabPanel({ tripState, initialData, onSave, onClose }: Fli
   async function handleLookupReturn() {
     setReturnLooking(true)
     setReturnLookupError(null)
+    setReturnNote(null)
     try {
       const res = await fetch('/api/flights/lookup', {
         method: 'POST',
@@ -105,8 +110,9 @@ export function FlightsTabPanel({ tripState, initialData, onSave, onClose }: Fli
         if (data.to_airport) setReturnTo(data.to_airport)
         if (data.departure_time) setReturnDeparture(data.departure_time)
         if (data.arrival_time) setReturnArrival(data.arrival_time)
+        if (data.note) setReturnNote(data.note)
       } else {
-        setReturnLookupError('Could not find this flight — please enter manually.')
+        setReturnLookupError('Could not identify — try entering the airline name or departure city.')
       }
     } catch {
       setReturnLookupError('Lookup failed — please enter manually.')
@@ -230,11 +236,14 @@ export function FlightsTabPanel({ tripState, initialData, onSave, onClose }: Fli
           <button
             type="button"
             onClick={handleLookupOutbound}
-            disabled={outboundLooking || (!outboundAirline && !outboundFlightNumber)}
+            disabled={outboundLooking || (!outboundAirline && !outboundFlightNumber && !outboundFrom && !outboundTo)}
             className="mt-2 w-full border border-coral/40 text-coral rounded-xl py-2 text-xs font-semibold hover:bg-coral/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {outboundLooking ? 'Searching...' : 'Look up flight'}
           </button>
+          {outboundNote && (
+            <p className="text-xs text-umber/70 mt-1">ℹ {outboundNote}</p>
+          )}
           {outboundLookupError && (
             <p className="text-xs text-umber/70 mt-1">{outboundLookupError}</p>
           )}
@@ -308,11 +317,14 @@ export function FlightsTabPanel({ tripState, initialData, onSave, onClose }: Fli
           <button
             type="button"
             onClick={handleLookupReturn}
-            disabled={returnLooking || (!returnAirline && !returnFlightNumber)}
+            disabled={returnLooking || (!returnAirline && !returnFlightNumber && !returnFrom && !returnTo)}
             className="mt-2 w-full border border-coral/40 text-coral rounded-xl py-2 text-xs font-semibold hover:bg-coral/5 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {returnLooking ? 'Searching...' : 'Look up flight'}
           </button>
+          {returnNote && (
+            <p className="text-xs text-umber/70 mt-1">ℹ {returnNote}</p>
+          )}
           {returnLookupError && (
             <p className="text-xs text-umber/70 mt-1">{returnLookupError}</p>
           )}
