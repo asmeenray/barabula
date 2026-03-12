@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 11-visual-enrichment-and-trip-sharing-03-PLAN.md
-last_updated: "2026-03-12T11:03:35.100Z"
+stopped_at: Completed 11-visual-enrichment-and-trip-sharing-04-PLAN.md
+last_updated: "2026-03-12T11:14:23.825Z"
 last_activity: 2026-03-09 — Roadmap created, phases derived from requirements
 progress:
   total_phases: 11
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 40
-  completed_plans: 36
+  completed_plans: 37
   percent: 0
 ---
 
@@ -89,6 +89,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 11-visual-enrichment-and-trip-sharing P01 | 2min | 3 tasks | 4 files |
 | Phase 11-visual-enrichment-and-trip-sharing P02 | 7min | 2 tasks | 3 files |
 | Phase 11-visual-enrichment-and-trip-sharing P03 | 2min | 2 tasks | 4 files |
+| Phase 11-visual-enrichment-and-trip-sharing P04 | 9min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -192,6 +193,8 @@ Recent decisions affecting current work:
 - [Phase 11-visual-enrichment-and-trip-sharing]: layout prop removed from ActivityCard motion.div — reduces layout animation overhead
 - [Phase 11-visual-enrichment-and-trip-sharing]: is_public check done before auth gate in GET — single extra DB read avoids requiring auth to determine publicity
 - [Phase 11-visual-enrichment-and-trip-sharing]: Hotel activities skip fetchActivityImage and fetchPlacesData — no meaningful place data for lodging
+- [Phase 11-visual-enrichment-and-trip-sharing]: isSharedItinerary added before isPublicPath in middleware — keeps bypass intent explicit and readable
+- [Phase 11-visual-enrichment-and-trip-sharing]: CTA banner shown for all share mode visitors including authenticated owners — sessionStorage dismiss persists per session
 
 ### Pending Todos
 
@@ -210,6 +213,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T11:03:35.092Z
-Stopped at: Completed 11-visual-enrichment-and-trip-sharing-03-PLAN.md
+Last session: 2026-03-12T11:14:10.888Z
+Stopped at: Completed 11-visual-enrichment-and-trip-sharing-04-PLAN.md
 Resume file: None
