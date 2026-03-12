@@ -193,8 +193,9 @@ env/
 *.db
 *.sqlite3
 *.sql
-# Exception: Supabase schema is source of truth and must be tracked
+# Exception: Supabase schema and migrations are source of truth and must be tracked
 !supabase/schema.sql
+!supabase/migrations/*.sql
 
 # IDE
 .vscode/

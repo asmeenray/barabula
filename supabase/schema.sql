@@ -48,7 +48,9 @@ CREATE TABLE public.activities (
   description   TEXT,
   location      TEXT,
   activity_type TEXT,
-  extra_data    JSONB DEFAULT '{}'
+  extra_data    JSONB DEFAULT '{}',
+  duration      TEXT,
+  tips          TEXT
 );
 
 CREATE TABLE public.chat_history (
