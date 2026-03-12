@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 vi.mock('next/image', () => ({
@@ -119,5 +119,35 @@ describe('ItineraryDetailPage', () => {
     render(<ItineraryDetailPage />)
     expect(screen.getByText('Senso-ji Temple')).toBeInTheDocument()
     expect(screen.getByText('Shibuya Crossing')).toBeInTheDocument()
+  })
+
+  it('Show Map button is visible on load and map is hidden', () => {
+    ;(useSWR as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: mockData,
+      error: null,
+      isLoading: false,
+      mutate: vi.fn(),
+    })
+    render(<ItineraryDetailPage />)
+    // Show Map button should be visible
+    expect(screen.getByRole('button', { name: /show map/i })).toBeInTheDocument()
+    // Map container should NOT be in the document initially
+    expect(screen.queryByTestId('map-container')).not.toBeInTheDocument()
+  })
+
+  it('clicking Show Map mounts the map', () => {
+    ;(useSWR as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: mockData,
+      error: null,
+      isLoading: false,
+      mutate: vi.fn(),
+    })
+    render(<ItineraryDetailPage />)
+    const showMapBtn = screen.getByRole('button', { name: /show map/i })
+    fireEvent.click(showMapBtn)
+    // Map container should now be in the document
+    expect(screen.getByTestId('map-container')).toBeInTheDocument()
+    // Button label should now read "Hide Map"
+    expect(screen.getByRole('button', { name: /hide map/i })).toBeInTheDocument()
   })
 })
