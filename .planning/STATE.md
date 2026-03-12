@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 10-rich-itinerary-ai-response-01-PLAN.md
-last_updated: "2026-03-12T01:21:24.205Z"
+stopped_at: Completed 10-rich-itinerary-ai-response-02-PLAN.md
+last_updated: "2026-03-12T01:26:44.687Z"
 last_activity: 2026-03-09 — Roadmap created, phases derived from requirements
 progress:
   total_phases: 10
   completed_phases: 6
   total_plans: 36
-  completed_plans: 30
+  completed_plans: 31
   percent: 0
 ---
 
@@ -174,6 +174,9 @@ Recent decisions affecting current work:
 - [Phase 09-itinerary]: Inline style backdropFilter used on ActivityCard/HotelCard rather than Tailwind backdrop-blur — ensures glassmorphism on semi-transparent backgrounds
 - [Phase 10-rich-itinerary-ai-response]: All new Zod fields use .nullable() not .optional() — OpenAI Structured Outputs requires all fields in required[]; .nullable() maps to anyOf: [null, ...] (consistent with existing project pattern)
 - [Phase 10-rich-itinerary-ai-response]: gitignore exception added for supabase/migrations/*.sql — *.sql rule was blocking migration files; same pattern as existing schema.sql exception
+- [Phase 10-02]: Hotel star_rating inferred from travel_style/budget: luxury→5, mid→4, budget→3, unknown→4 default
+- [Phase 10-02]: Clock-time-only mandate added to AI system prompt: no morning/afternoon/evening/All day values allowed
+- [Phase 10-02]: flights and daily_food persisted to itinerary extra_data; fresh-insert pattern safe without read-merge
 
 ### Pending Todos
 
@@ -192,6 +195,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T01:21:24.165Z
-Stopped at: Completed 10-rich-itinerary-ai-response-01-PLAN.md
+Last session: 2026-03-12T01:26:44.646Z
+Stopped at: Completed 10-rich-itinerary-ai-response-02-PLAN.md
 Resume file: None
