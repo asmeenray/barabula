@@ -161,13 +161,11 @@ Plans:
 
 ### Phase 9: Itinerary page with map integration and hotel details
 
-**Goal:** Redesign the itinerary detail page into a premium Teravue-inspired experience with sticky interactive map on the right, scrollable day-by-day timeline on the left, hotel details surfaced per day, and a full visual overhaul using the Barabula brand palette (navy/coral/umber/sky/sand)
+**Goal:** Premium itinerary detail page: map lazy-loaded behind a "Show Map" coral toggle, glassmorphism UI system matching the landing hero, full-bleed cover image hero, day-by-day timeline with hotel cards, and bidirectional map-to-card interaction — all using the Barabula brand palette
 **Requirements**: HOTEL-01, BLUE-01, MAP-01, MAP-02, ITIN-01, ITIN-02, HERO-01
 **Depends on:** Phase 8
-**Plans:** 4/4 plans complete
+**Plans:** 2 plans
 
 Plans:
-- [ ] 09-01-PLAN.md — Extend AI schema with hotel fields; persist activity_type and extra_data in message route
-- [ ] 09-02-PLAN.md — Blue violation cleanup across itinerary detail, new itinerary, ActivityForm, ActivityRow
-- [ ] 09-03-PLAN.md — Map infrastructure: install react-map-gl + maplibre-gl, geocoding helper, ItineraryMap component, test scaffolds
-- [ ] 09-04-PLAN.md — Full itinerary page redesign: ItineraryHero, DayPillNav, ActivityCard, HotelCard, DaySection redesign, split layout wiring
+- [ ] 09-01-PLAN.md — Map lazy-load toggle: "Show Map" coral button in hero, showMap state, conditional ItineraryMap mount, geocoding deferred until opt-in
+- [ ] 09-02-PLAN.md — Glassmorphism upgrade: full cover image hero expansion, ActivityCard/HotelCard/DayPillNav/DaySection glassmorphism polish using frontend-design skill
