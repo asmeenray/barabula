@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: planning
-stopped_at: Completed 08-10-PLAN.md
-last_updated: "2026-03-12T12:24:07.796Z"
+stopped_at: Completed 08-11-PLAN.md
+last_updated: "2026-03-12T12:27:43.846Z"
 last_activity: 2026-03-09 — Roadmap created, phases derived from requirements
 progress:
   total_phases: 12
-  completed_phases: 8
+  completed_phases: 9
   total_plans: 47
-  completed_plans: 43
+  completed_plans: 44
   percent: 0
 ---
 
@@ -96,6 +96,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation P09 | 2min | 1 tasks | 1 files |
 | Phase 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation P12 | 2min | 2 tasks | 2 files |
 | Phase 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation P10 | 3min | 2 tasks | 2 files |
+| Phase 08-ai-chat-functionality-with-openai-behavior-trip-state-itinerary-generation P11 | 5min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -212,6 +213,8 @@ Recent decisions affecting current work:
 - [Phase 08-ai-chat]: router.push('/chat') with no query params preserves existing session — chat page only resets when initialPrompt is present
 - [Phase 08-ai-chat]: openai.chat.completions.create() with json_object response_format used for flight lookup (not .parse()) — simpler response shape does not need a Zod schema
 - [Phase 08-ai-chat]: Flight lookup button disabled when both airline and flight_number are empty — prevents low-quality API calls
+- [Phase 08-ai-chat]: await createClient() without args used for hotels/lookup route — matches all other API routes in project
+- [Phase 08-ai-chat]: HotelSaveData exported interface replaces plain string in HotelsTabPanel onSave prop — enables typed specific hotel fields upstream
 
 ### Pending Todos
 
@@ -230,6 +233,6 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-03-12T12:24:07.790Z
-Stopped at: Completed 08-10-PLAN.md
+Last session: 2026-03-12T12:27:43.838Z
+Stopped at: Completed 08-11-PLAN.md
 Resume file: None
