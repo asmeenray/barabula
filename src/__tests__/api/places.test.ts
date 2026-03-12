@@ -26,7 +26,8 @@ describe('fetchPlacesData', () => {
     expect(url).toContain('api.foursquare.com/v3/places/search')
     expect(url).toContain('limit=1')
     expect(url).toContain('fields=rating')
-    expect(url).toContain('fields=rating,price')
+    // URLSearchParams encodes the comma in 'fields=rating,price' as %2C
+    expect(url).toMatch(/fields=rating(%2C|,)price/)
     // Authorization header uses raw key without Bearer prefix
     const headers = options.headers as Record<string, string>
     expect(headers['Authorization']).toBe('test-fsq-key')

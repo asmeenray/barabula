@@ -4,11 +4,13 @@ import { fetchCityImage, fetchActivityImage } from '@/lib/unsplash'
 describe('fetchCityImage', () => {
   beforeEach(() => {
     vi.stubGlobal('fetch', vi.fn())
+    process.env.UNSPLASH_ACCESS_KEY = 'test-key'
   })
 
   afterEach(() => {
     vi.unstubAllGlobals()
     vi.resetAllMocks()
+    delete process.env.UNSPLASH_ACCESS_KEY
   })
 
   it('calls api.unsplash.com (not source.unsplash.com) with correct query', async () => {
