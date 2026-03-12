@@ -173,4 +173,17 @@ describe('ItineraryDetailPage', () => {
     render(<ItineraryDetailPage />)
     expect(screen.getByRole('button', { name: /^itinerary$/i })).toBeInTheDocument()
   })
+
+  it('renders "Chat again" FAB with md:hidden class (mobile only)', () => {
+    ;(useSWR as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: mockData,
+      error: null,
+      isLoading: false,
+      mutate: vi.fn(),
+    })
+    render(<ItineraryDetailPage />)
+    const fab = screen.getByRole('button', { name: /chat again/i })
+    expect(fab).toBeInTheDocument()
+    expect(fab.className).toContain('md:hidden')
+  })
 })
