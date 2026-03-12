@@ -14,6 +14,8 @@ interface ItineraryHeroProps {
   titleDraft: string
   onTitleDraftChange: (v: string) => void
   onTitleSave: () => void
+  onToggleMap: () => void
+  showMap: boolean
 }
 
 type DestinationPhoto = { url: string; photographer?: string; photographerUrl?: string } | null
@@ -22,6 +24,7 @@ export function ItineraryHero({
   title, coverImageUrl, destination, dateRange,
   onBack, onDelete, onEditTitle,
   editingTitle, titleDraft, onTitleDraftChange, onTitleSave,
+  onToggleMap, showMap,
 }: ItineraryHeroProps) {
   const [photo, setPhoto] = useState<DestinationPhoto>(null)
   const [loaded, setLoaded] = useState(false)
@@ -111,6 +114,27 @@ export function ItineraryHero({
             </p>
           )}
         </div>
+
+        {/* Show Map toggle button */}
+        <button
+          onClick={onToggleMap}
+          aria-label={showMap ? 'Hide Map' : 'Show Map'}
+          className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-semibold transition-all duration-200"
+          style={{
+            background: showMap ? 'rgba(214,121,64,0.9)' : 'rgba(214,121,64,0.85)',
+            color: 'white',
+            backdropFilter: 'blur(8px)',
+            border: '1px solid rgba(214,121,64,0.5)',
+            boxShadow: showMap ? '0 2px 12px rgba(214,121,64,0.35)' : '0 2px 8px rgba(214,121,64,0.2)',
+          }}
+        >
+          {/* Map pin SVG icon */}
+          <svg width="11" height="13" viewBox="0 0 11 13" fill="none">
+            <path d="M5.5 0C3.015 0 1 2.015 1 4.5C1 7.628 5.5 13 5.5 13C5.5 13 10 7.628 10 4.5C10 2.015 7.985 0 5.5 0Z" fill="white"/>
+            <circle cx="5.5" cy="4.5" r="1.8" fill="rgba(214,121,64,0.9)"/>
+          </svg>
+          {showMap ? 'Hide Map' : 'Show Map'}
+        </button>
 
         {/* Delete */}
         <button

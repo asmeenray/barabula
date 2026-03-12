@@ -56,6 +56,7 @@ export default function ItineraryDetailPage() {
     fetcher
   )
 
+  const [showMap, setShowMap] = useState(false)
   const [editingTitle, setEditingTitle] = useState(false)
   const [titleDraft, setTitleDraft] = useState('')
   const [activityFormOpen, setActivityFormOpen] = useState(false)
@@ -102,9 +103,23 @@ export default function ItineraryDetailPage() {
     document.body.style.userSelect = 'none'
   }
 
-  // Sequential geocoding — avoids Nominatim rate limits
+  function handleToggleMap() {
+    setShowMap(prev => {
+      const next = !prev
+      if (!next) {
+        setMapPins([])
+        setGeocodingProgress(0)
+        setMobileTab('list')
+      } else {
+        setMobileTab('map')
+      }
+      return next
+    })
+  }
+
+  // Sequential geocoding — avoids Nominatim rate limits (lazy: only runs when showMap is true)
   useEffect(() => {
-    if (!data?.activities) return
+    if (!showMap || !data?.activities) return
     const activities = data.activities.filter(a => a.location)
     if (activities.length === 0) return
 
@@ -142,7 +157,7 @@ export default function ItineraryDetailPage() {
 
     resolveSequentially()
     return () => { cancelled = true }
-  }, [data?.activities, data?.destination]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [showMap, data?.activities, data?.destination]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function startEditTitle() {
     setTitleDraft(data?.title ?? '')
@@ -250,49 +265,125 @@ export default function ItineraryDetailPage() {
         titleDraft={titleDraft}
         onTitleDraftChange={setTitleDraft}
         onTitleSave={saveTitle}
+        showMap={showMap}
+        onToggleMap={handleToggleMap}
       />
 
-      {/* Mobile tab toggle */}
-      <div className="md:hidden flex border-b border-sky/40 bg-white/90 backdrop-blur-sm shrink-0">
-        {(['list', 'map'] as const).map(tab => (
-          <button
-            key={tab}
-            onClick={() => setMobileTab(tab)}
-            className="relative flex-1 py-2.5 text-xs font-semibold text-umber capitalize tracking-wide"
+      {/* Mobile tab toggle — only shown when map is visible */}
+      {showMap && (
+        <div className="md:hidden flex border-b border-sky/40 bg-white/90 backdrop-blur-sm shrink-0">
+          {(['list', 'map'] as const).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setMobileTab(tab)}
+              className="relative flex-1 py-2.5 text-xs font-semibold text-umber capitalize tracking-wide"
+            >
+              {mobileTab === tab && (
+                <motion.div layoutId="mobile-tab-indicator" className="absolute bottom-0 left-4 right-4 h-0.5 bg-coral rounded-full" />
+              )}
+              {tab === 'list' ? 'Itinerary' : 'Map'}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* Conditional layout: full-width list (default) or split with map */}
+      {showMap ? (
+        /* Split layout — map visible */
+        <div ref={containerRef} className="flex flex-1 overflow-hidden">
+
+          {/* Left: scrollable activity list */}
+          <div
+            className={`${mobileTab === 'map' ? 'hidden' : 'flex flex-col'} md:flex md:flex-col overflow-hidden`}
+            style={{ width: `${leftPct}%` }}
           >
-            {mobileTab === tab && (
-              <motion.div layoutId="mobile-tab-indicator" className="absolute bottom-0 left-4 right-4 h-0.5 bg-coral rounded-full" />
+            {/* Sticky day pill strip */}
+            <div className="shrink-0 px-3 md:px-4 py-2 bg-white/80 backdrop-blur-md border-b border-sky/20">
+              <DayPillNav days={sortedDays} activeDay={activeDay} onDayChange={handleDayChange} />
+              {geocodingProgress > 0 && geocodingProgress < 100 && (
+                <div className="mt-1.5 h-px bg-sky/30 rounded-full overflow-hidden">
+                  <motion.div
+                    className="h-full bg-coral rounded-full"
+                    initial={{ width: 0 }}
+                    animate={{ width: `${geocodingProgress}%` }}
+                    transition={{ duration: 0.4 }}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Scrollable content */}
+            <div className="flex-1 overflow-y-auto px-2 md:px-3 py-3">
+              <AnimatePresence mode="popLayout">
+                {displayedDays.map(dayNumber => (
+                  <motion.div
+                    key={dayNumber}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -6 }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <DaySection
+                      dayNumber={dayNumber}
+                      activities={dayMap.get(dayNumber) ?? []}
+                      activeActivityId={activeActivityId}
+                      onActivityClick={handlePinClick}
+                      onAddActivity={openAddActivity}
+                      onEditActivity={openEditActivity}
+                      onDeleteActivity={handleDeleteActivity}
+                    />
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </div>
+          </div>
+
+          {/* Drag handle */}
+          <div
+            className="hidden md:flex relative shrink-0 w-[5px] cursor-col-resize items-center justify-center group"
+            onMouseDown={startDrag}
+            style={{ background: 'rgba(204,217,226,0.3)' }}
+          >
+            <div
+              className="absolute inset-y-0 w-px transition-colors duration-150"
+              style={{ background: 'rgba(204,217,226,0.6)', left: '2px' }}
+            />
+            {/* Grab pill */}
+            <div
+              className="relative z-10 flex flex-col gap-[3px] items-center opacity-0 group-hover:opacity-100 transition-opacity duration-150 px-1 py-2 rounded-full"
+              style={{ background: 'rgba(214,121,64,0.12)' }}
+            >
+              {[0,1,2,3].map(i => (
+                <div key={i} className="w-[3px] h-[3px] rounded-full" style={{ background: '#D67940', opacity: 0.7 }} />
+              ))}
+            </div>
+          </div>
+
+          {/* Right: map — only mounted when showMap === true */}
+          <div
+            className={`${mobileTab === 'list' ? 'hidden' : 'flex-1'} md:flex md:flex-col relative`}
+            style={{ width: `${100 - leftPct}%` }}
+          >
+            {showMap && (
+              <ItineraryMap
+                pins={mapPins}
+                activeDay={activeDay}
+                activeActivityId={activeActivityId}
+                onPinClick={handlePinClick}
+                hasLocations={hasLocations}
+              />
             )}
-            {tab === 'list' ? 'Itinerary' : 'Map'}
-          </button>
-        ))}
-      </div>
-
-      {/* Resizable split layout */}
-      <div ref={containerRef} className="flex flex-1 overflow-hidden">
-
-        {/* Left: scrollable activity list */}
-        <div
-          className={`${mobileTab === 'map' ? 'hidden' : 'flex flex-col'} md:flex md:flex-col overflow-hidden`}
-          style={{ width: `${leftPct}%` }}
-        >
+          </div>
+        </div>
+      ) : (
+        /* Full-width layout — map hidden (default) */
+        <div className="flex flex-col flex-1 overflow-hidden">
           {/* Sticky day pill strip */}
           <div className="shrink-0 px-3 md:px-4 py-2 bg-white/80 backdrop-blur-md border-b border-sky/20">
             <DayPillNav days={sortedDays} activeDay={activeDay} onDayChange={handleDayChange} />
-            {geocodingProgress > 0 && geocodingProgress < 100 && (
-              <div className="mt-1.5 h-px bg-sky/30 rounded-full overflow-hidden">
-                <motion.div
-                  className="h-full bg-coral rounded-full"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${geocodingProgress}%` }}
-                  transition={{ duration: 0.4 }}
-                />
-              </div>
-            )}
           </div>
-
-          {/* Scrollable content */}
-          <div className="flex-1 overflow-y-auto px-2 md:px-3 py-3">
+          {/* Full-width scrollable content */}
+          <div className="flex-1 overflow-y-auto px-3 md:px-6 py-4 max-w-3xl mx-auto w-full">
             <AnimatePresence mode="popLayout">
               {displayedDays.map(dayNumber => (
                 <motion.div
@@ -316,42 +407,7 @@ export default function ItineraryDetailPage() {
             </AnimatePresence>
           </div>
         </div>
-
-        {/* Drag handle */}
-        <div
-          className="hidden md:flex relative shrink-0 w-[5px] cursor-col-resize items-center justify-center group"
-          onMouseDown={startDrag}
-          style={{ background: 'rgba(204,217,226,0.3)' }}
-        >
-          <div
-            className="absolute inset-y-0 w-px transition-colors duration-150"
-            style={{ background: 'rgba(204,217,226,0.6)', left: '2px' }}
-          />
-          {/* Grab pill */}
-          <div
-            className="relative z-10 flex flex-col gap-[3px] items-center opacity-0 group-hover:opacity-100 transition-opacity duration-150 px-1 py-2 rounded-full"
-            style={{ background: 'rgba(214,121,64,0.12)' }}
-          >
-            {[0,1,2,3].map(i => (
-              <div key={i} className="w-[3px] h-[3px] rounded-full" style={{ background: '#D67940', opacity: 0.7 }} />
-            ))}
-          </div>
-        </div>
-
-        {/* Right: map */}
-        <div
-          className={`${mobileTab === 'list' ? 'hidden' : 'flex-1'} md:flex md:flex-col relative`}
-          style={{ width: `${100 - leftPct}%` }}
-        >
-          <ItineraryMap
-            pins={mapPins}
-            activeDay={activeDay}
-            activeActivityId={activeActivityId}
-            onPinClick={handlePinClick}
-            hasLocations={hasLocations}
-          />
-        </div>
-      </div>
+      )}
 
       {/* Activity form modal */}
       <AnimatePresence>
