@@ -212,7 +212,7 @@ Plans:
 **Goal:** Premium mobile experience: full-screen single-column chat on mobile (< 768px) with ContextPanel hidden, polished "Building your itinerary..." overlay with coral spinner on generation complete, auto-navigation to itinerary page, and a coral "Chat again" FAB on the itinerary page — all with iOS safe area support
 **Requirements**: MOB-01, MOB-02, MOB-03
 **Depends on:** Phase 11
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 
 Plans:
 - [ ] 12-01-PLAN.md — Wave 0: fix stale SplitLayout tests, add mobile overlay + FAB test scaffolds
