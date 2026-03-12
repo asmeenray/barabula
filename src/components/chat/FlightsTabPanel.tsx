@@ -82,7 +82,7 @@ export function FlightsTabPanel({ tripState, initialData, onSave, onClose }: Fli
         </button>
       </div>
 
-      <div className="space-y-4 max-h-72 overflow-y-auto pr-1">
+      <div className="space-y-4 max-h-[40vh] overflow-y-auto pr-1">
         {/* Origin city */}
         <div>
           <label className={labelClass}>Origin city</label>

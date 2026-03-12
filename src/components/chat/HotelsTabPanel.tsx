@@ -44,34 +44,37 @@ export function HotelsTabPanel({ tripState, hotelPreference, onSave, onClose }: 
         </button>
       </div>
 
-      {/* Inferred star rating */}
-      <p className="text-xs text-umber/70 mb-3">
-        Based on your travel style, we&apos;ll suggest a{' '}
-        <span className="font-semibold text-navy">{stars}-star</span> hotel.
-      </p>
+      {/* Scrollable body — capped at 40vh so chat input stays visible on small phones */}
+      <div className="max-h-[40vh] overflow-y-auto">
+        {/* Inferred star rating */}
+        <p className="text-xs text-umber/70 mb-3">
+          Based on your travel style, we&apos;ll suggest a{' '}
+          <span className="font-semibold text-navy">{stars}-star</span> hotel.
+        </p>
 
-      {/* Hotel preference input */}
-      <div className="mb-4">
-        <label className="block text-xs font-medium text-umber mb-1">
-          Hotel preference (optional)
-        </label>
-        <input
-          type="text"
-          className="w-full border border-sky/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coral bg-white text-navy placeholder-umber/40"
-          placeholder="e.g. Boutique hotel in Shinjuku"
-          value={preference}
-          onChange={e => setPreference(e.target.value)}
-        />
+        {/* Hotel preference input */}
+        <div className="mb-4">
+          <label className="block text-xs font-medium text-umber mb-1">
+            Hotel preference (optional)
+          </label>
+          <input
+            type="text"
+            className="w-full border border-sky/40 rounded-xl px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-coral bg-white text-navy placeholder-umber/40"
+            placeholder="e.g. Boutique hotel in Shinjuku"
+            value={preference}
+            onChange={e => setPreference(e.target.value)}
+          />
+        </div>
+
+        {/* Save button */}
+        <button
+          type="button"
+          onClick={handleSave}
+          className="w-full bg-coral text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-coral/90 transition-colors"
+        >
+          Save preference
+        </button>
       </div>
-
-      {/* Save button */}
-      <button
-        type="button"
-        onClick={handleSave}
-        className="w-full bg-coral text-white rounded-xl py-2.5 text-sm font-semibold hover:bg-coral/90 transition-colors"
-      >
-        Save preference
-      </button>
     </div>
   )
 }
