@@ -218,3 +218,16 @@ Plans:
 - [ ] 12-01-PLAN.md — Wave 0: fix stale SplitLayout tests, add mobile overlay + FAB test scaffolds
 - [ ] 12-02-PLAN.md — SplitLayout responsive (hidden md:flex wrapper), viewport-fit=cover, mobile overlay + auto-nav in chat page
 - [ ] 12-03-PLAN.md — "Chat again" FAB on itinerary page with iOS safe area + share-mode position override, tab panel mobile overflow cap
+
+### Phase 13: Bug fixes: hotel persistence, flight details, date year defaulting, multi-day itinerary display, transport options, and activity image loading
+
+**Goal:** Six confirmed bugs fixed and transport context enriched: AI date year inference corrected, multi-day itinerary truncation eliminated, flight times reliably non-null, hotel tab state fully restored on reopen, destination-image route uses Unsplash→Pexels fallback, and a "Getting around" intake chip adds transport mode context to AI planning
+**Requirements**: TBD
+**Depends on:** Phase 12
+**Plans:** 4 plans
+
+Plans:
+- [ ] 13-01-PLAN.md — AI prompt fixes: date year rule, multi-day completeness rule, flight times rule, transport bridge expansion; transport_mode in TripStateSchema; server-side days validation
+- [ ] 13-02-PLAN.md — destination-image route: replace Pexels-only inline fetch with fetchCityImage() (Unsplash→Pexels fallback)
+- [ ] 13-03-PLAN.md — Hotel tab state persistence: HotelsTabPanel initialMode/initialFoundHotel props, foundHotelData in parent; Google Flights link in FlightsTabPanel
+- [ ] 13-04-PLAN.md — Getting around chip: TransportChipPanel component, gathering_details chip entry, sentinel handling, transportMode wired to API
