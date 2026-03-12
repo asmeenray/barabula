@@ -34,6 +34,7 @@ export const TripStateSchema = z.object({
   pace: z.string().nullable(),
   constraints: z.array(z.string()),
   notes: z.string().nullable(),
+  transport_mode: z.string().nullable(),
 })
 
 export const ConversationPhaseSchema = z.enum([

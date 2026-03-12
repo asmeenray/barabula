@@ -13,7 +13,7 @@ function buildUserProvidedContext(
     const hasOutbound = flightInputData.outbound_airline || flightInputData.outbound_flight_number || flightInputData.outbound_from
     const hasReturn = flightInputData.return_airline || flightInputData.return_flight_number || flightInputData.return_from
     if (hasOutbound || hasReturn) {
-      const lines = ['## User-Provided Flight Details', 'The user has already entered their actual flight details. Use these exactly in the itinerary flights array and set is_suggested: false for each.']
+      const lines = ['## User-Provided Flight Details', 'The user has already entered their actual flight details. Use these exactly in the itinerary flights array and set is_suggested: false for each. CRITICAL: These are user-confirmed values — use them verbatim, do NOT substitute your own suggestions.']
       if (hasOutbound) {
         const parts = [
           flightInputData.outbound_airline && `Airline: ${flightInputData.outbound_airline}`,
@@ -47,7 +47,7 @@ function buildUserProvidedContext(
       hotelSaveData.specific_hotel_city && `, ${hotelSaveData.specific_hotel_city}`,
       hotelSaveData.specific_hotel_stars && `(${hotelSaveData.specific_hotel_stars}-star)`,
     ].filter(Boolean).join(' ')
-    sections.push(`## User-Specified Hotel\nThe user has chosen their hotel: ${parts}. Use this hotel for ALL hotel activities in the itinerary (same hotel for all days unless check-out/in times differ).`)
+    sections.push(`## User-Specified Hotel\nThe user has chosen their hotel: ${parts}. Use this hotel for ALL hotel activities in the itinerary (same hotel for all days unless check-out/in times differ). CRITICAL: These are user-confirmed values — use them verbatim, do NOT substitute your own suggestions.`)
   } else if (hotelSaveData?.mode === 'preference' && hotelSaveData.preference) {
     sections.push(`## User Hotel Preference\nThe user prefers: "${hotelSaveData.preference}". Try to reflect this in your hotel suggestions.`)
   }
@@ -67,7 +67,8 @@ export function buildSystemPrompt(
   flightInputData?: FlightInputData | null,
   hotelSaveData?: HotelSaveData | null,
 ): string {
+  const currentDate = new Date().toISOString().split('T')[0]
   const base = buildTripPlannerPrompt(JSON.stringify(tripState, null, 2), phase)
   const userContext = buildUserProvidedContext(flightInputData, hotelSaveData)
-  return base + userContext
+  return `Today's date: ${currentDate}\n\n` + base + userContext
 }

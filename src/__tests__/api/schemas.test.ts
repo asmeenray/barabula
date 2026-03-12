@@ -18,6 +18,7 @@ const baseResponse = {
     pace: 'moderate',
     constraints: [],
     notes: null,
+    transport_mode: null,
   },
   conversation_phase: 'itinerary_complete',
   itinerary: null,
