@@ -18,10 +18,11 @@ export async function POST(req: NextRequest) {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
   const body = await req.json()
-  const { content, flightInputData, hotelSaveData } = body as {
+  const { content, flightInputData, hotelSaveData, transportMode } = body as {
     content: string
     flightInputData?: FlightInputData | null
     hotelSaveData?: HotelSaveData | null
+    transportMode?: string | null
   }
   if (!content?.trim()) return Response.json({ error: 'Message content is required' }, { status: 400 })
 
@@ -35,6 +36,12 @@ export async function POST(req: NextRequest) {
   const currentTripState: Partial<TripState> = sessionRow?.trip_state ?? {}
   const currentPhase: ConversationPhase | string = sessionRow?.conversation_phase ?? 'gathering_destination'
 
+  // Merge client-provided transportMode into trip state for this request
+  const mergedTripState: Partial<TripState> = {
+    ...currentTripState,
+    ...(transportMode != null ? { transport_mode: transportMode } : {}),
+  }
+
   // Fetch last 20 messages for conversation context
   const { data: history } = await supabase
     .from('chat_history')
@@ -43,7 +50,7 @@ export async function POST(req: NextRequest) {
     .order('created_at', { ascending: true })
     .limit(20)
 
-  const systemPrompt = buildSystemPrompt(currentTripState, currentPhase, flightInputData, hotelSaveData)
+  const systemPrompt = buildSystemPrompt(mergedTripState, currentPhase, flightInputData, hotelSaveData)
 
   const completion = await openai.chat.completions.parse({
     model: 'gpt-4o',

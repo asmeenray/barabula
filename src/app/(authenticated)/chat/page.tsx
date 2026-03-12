@@ -12,6 +12,7 @@ import { QuickActionChips } from '@/components/chat/QuickActionChips'
 import { BottomTabBar } from '@/components/chat/BottomTabBar'
 import { FlightsTabPanel } from '@/components/chat/FlightsTabPanel'
 import { HotelsTabPanel } from '@/components/chat/HotelsTabPanel'
+import { TransportChipPanel } from '@/components/chat/TransportChipPanel'
 import Link from 'next/link'
 import { getPrompt, clearPrompt } from '@/lib/landing/prompt-store'
 import type { ChatMessage, ConversationPhase, TripState } from '@/lib/types'
@@ -70,7 +71,8 @@ function ChatPageInner() {
   const [userName, setUserName] = useState<string | null>(null)
   const [conversationPhase, setConversationPhase] = useState<ConversationPhase>('gathering_destination')
   const [tripState, setTripState] = useState<Partial<TripState>>({})
-  const [activeTab, setActiveTab] = useState<'flights' | 'hotels' | null>(null)
+  const [activeTab, setActiveTab] = useState<'flights' | 'hotels' | 'transport' | null>(null)
+  const [transportMode, setTransportMode] = useState<string | null>(null)
   const [flightInputData, setFlightInputData] = useState<FlightInputData | null>(null)
   const [hotelSaveData, setHotelSaveData] = useState<HotelSaveData | null>(null)
   const [foundHotelData, setFoundHotelData] = useState<{
@@ -157,7 +159,7 @@ function ChatPageInner() {
       const res = await fetch('/api/chat/message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, flightInputData, hotelSaveData }),
+        body: JSON.stringify({ content, flightInputData, hotelSaveData, transportMode }),
       })
       const data = await res.json()
 
@@ -219,6 +221,12 @@ function ChatPageInner() {
   function sendMessage(overrideContent?: string) {
     const content = overrideContent ?? input
     if (!content.trim() || sending) return
+
+    // Sentinel: "Getting around" chip — open transport panel, do NOT send to AI
+    if (content === '__show_transport_panel__') {
+      setActiveTab('transport')
+      return
+    }
 
     // Sentinel: "Plan a new trip" chip — confirm, reset session, and reload
     if (content === '__reset_session__') {
@@ -335,6 +343,22 @@ function ChatPageInner() {
                   setFoundHotelData(data._found_hotel_card ?? null)
                 }
               }}
+              onClose={() => setActiveTab(null)}
+            />
+          </motion.div>
+        )}
+        {activeTab === 'transport' && (
+          <motion.div
+            key="transport-panel"
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 8 }}
+            transition={{ duration: 0.18 }}
+            className="shrink-0"
+          >
+            <TransportChipPanel
+              currentMode={transportMode}
+              onSelect={(mode) => { setTransportMode(mode); setActiveTab(null) }}
               onClose={() => setActiveTab(null)}
             />
           </motion.div>

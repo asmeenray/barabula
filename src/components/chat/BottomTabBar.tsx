@@ -4,8 +4,8 @@ import type { ConversationPhase } from '@/lib/types'
 
 interface BottomTabBarProps {
   conversationPhase: ConversationPhase
-  activeTab: 'flights' | 'hotels' | null
-  onTabChange: (tab: 'flights' | 'hotels' | null) => void
+  activeTab: 'flights' | 'hotels' | 'transport' | null
+  onTabChange: (tab: 'flights' | 'hotels' | 'transport' | null) => void
 }
 
 const PHASE_SHOWS_TABS: ConversationPhase[] = ['gathering_details', 'ready_for_summary']
