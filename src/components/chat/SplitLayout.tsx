@@ -46,35 +46,37 @@ export function SplitLayout({ left, right }: SplitLayoutProps) {
       className="flex h-full overflow-hidden"
       data-testid="split-layout"
     >
-      {/* Left panel — chat */}
+      {/* Left panel — chat — flex-1 fills full width on mobile; md:flex-none defers to inline style on desktop */}
       <div
-        className="flex flex-col h-full overflow-hidden"
+        className="flex-1 md:flex-none flex flex-col h-full overflow-hidden"
         style={{ width: `${leftPct}%` }}
       >
         {left}
       </div>
 
-      {/* Drag handle */}
+      {/* Right section — hidden on mobile (md:hidden breakpoint), split view on desktop */}
       <div
-        className="group relative shrink-0 w-1.5 h-full cursor-col-resize flex items-center justify-center hover:w-2 transition-all duration-150"
-        onMouseDown={startDrag}
-      >
-        {/* Track line */}
-        <div className="absolute inset-y-0 w-px bg-sand-dark/50 group-hover:bg-coral/30 transition-colors" />
-        {/* Grab dots */}
-        <div className="relative z-10 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-          {[0, 1, 2, 3, 4].map(i => (
-            <div key={i} className="w-1 h-1 rounded-full bg-coral/50" />
-          ))}
-        </div>
-      </div>
-
-      {/* Right panel — context/itinerary */}
-      <div
-        className="relative h-full overflow-hidden bg-gray-950"
+        className="hidden md:flex h-full"
         style={{ width: `${100 - leftPct - 0.375}%` }}
       >
-        {right}
+        {/* Drag handle */}
+        <div
+          className="group relative shrink-0 w-1.5 h-full cursor-col-resize flex items-center justify-center hover:w-2 transition-all duration-150"
+          onMouseDown={startDrag}
+        >
+          {/* Track line */}
+          <div className="absolute inset-y-0 w-px bg-sand-dark/50 group-hover:bg-coral/30 transition-colors" />
+          {/* Grab dots */}
+          <div className="relative z-10 flex flex-col gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            {[0, 1, 2, 3, 4].map(i => (
+              <div key={i} className="w-1 h-1 rounded-full bg-coral/50" />
+            ))}
+          </div>
+        </div>
+        {/* Right panel */}
+        <div className="relative flex-1 h-full overflow-hidden bg-gray-950">
+          {right}
+        </div>
       </div>
     </div>
   )
