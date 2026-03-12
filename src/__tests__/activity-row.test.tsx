@@ -12,6 +12,9 @@ const testActivity: Activity = {
   description: 'Ancient Buddhist temple',
   location: 'Asakusa, Tokyo',
   activity_type: null,
+  extra_data: null,
+  duration: null,
+  tips: null,
 }
 
 describe('ActivityRow', () => {

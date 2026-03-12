@@ -8,6 +8,27 @@ export interface Activity {
   location: string | null
   activity_type: string | null
   extra_data: Record<string, unknown> | null
+  duration: string | null
+  tips: string | null
+}
+
+export interface Flight {
+  direction: 'outbound' | 'return'
+  airline: string | null
+  flight_number: string | null
+  from_airport: string | null
+  to_airport: string | null
+  departure_time: string | null
+  arrival_time: string | null
+  is_suggested: boolean
+}
+
+export interface DailyFood {
+  day_number: number
+  dinner_restaurant: string | null
+  dinner_area: string | null
+  dinner_cuisine: string | null
+  local_tip: string | null
 }
 
 export interface Itinerary {
@@ -48,11 +69,16 @@ export interface GeneratedItinerary {
       star_rating?: number | null
       check_in?: string | null
       check_out?: string | null
+      duration?: string | null
+      tips?: string | null
     }>
   }>
+  flights?: Flight[]
+  daily_food?: DailyFood[]
 }
 
 export type { TripState, ConversationPhase, AIResponse } from './ai/schemas'
+// Flight and DailyFood defined above; also re-exported from schemas for schema consumers
 
 export interface ChipConfig {
   label: string

@@ -1,6 +1,25 @@
 import { z } from 'zod'
 import { zodResponseFormat } from 'openai/helpers/zod'
 
+export const FlightSchema = z.object({
+  direction: z.enum(['outbound', 'return']),
+  airline: z.string().nullable(),
+  flight_number: z.string().nullable(),
+  from_airport: z.string().nullable(),
+  to_airport: z.string().nullable(),
+  departure_time: z.string().nullable(),
+  arrival_time: z.string().nullable(),
+  is_suggested: z.boolean(),
+})
+
+export const DailyFoodSchema = z.object({
+  day_number: z.number(),
+  dinner_restaurant: z.string().nullable(),
+  dinner_area: z.string().nullable(),
+  dinner_cuisine: z.string().nullable(),
+  local_tip: z.string().nullable(),
+})
+
 export const TripStateSchema = z.object({
   destination: z.string().nullable(),
   origin: z.string().nullable(),
@@ -50,8 +69,12 @@ export const AIResponseSchema = z.object({
         star_rating: z.number().nullable(),
         check_in: z.string().nullable(),
         check_out: z.string().nullable(),
+        duration: z.string().nullable(),
+        tips: z.string().nullable(),
       })),
     })),
+    flights: z.array(FlightSchema),
+    daily_food: z.array(DailyFoodSchema),
   }).nullable(),
 })
 
@@ -59,3 +82,5 @@ export { zodResponseFormat }
 export type AIResponse = z.infer<typeof AIResponseSchema>
 export type TripState = z.infer<typeof TripStateSchema>
 export type ConversationPhase = z.infer<typeof ConversationPhaseSchema>
+export type Flight = z.infer<typeof FlightSchema>
+export type DailyFood = z.infer<typeof DailyFoodSchema>
