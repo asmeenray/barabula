@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Inter, DM_Serif_Display, Abril_Fatface } from 'next/font/google'
 import './globals.css'
 
@@ -26,6 +26,12 @@ const abrilFatface = Abril_Fatface({
 export const metadata: Metadata = {
   title: 'Barabula',
   description: 'AI-powered group trip planning',
+}
+
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  viewportFit: 'cover',
 }
 
 export default function RootLayout({

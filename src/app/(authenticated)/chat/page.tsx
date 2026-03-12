@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef, Suspense } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { AnimatePresence, motion } from 'motion/react'
 import { createClient } from '@/lib/supabase/client'
 import { MessageBubble } from '@/components/chat/MessageBubble'
@@ -72,6 +72,8 @@ function ChatPageInner() {
   const [activeTab, setActiveTab] = useState<'flights' | 'hotels' | null>(null)
   const [flightInputData, setFlightInputData] = useState<FlightInputData | null>(null)
   const [hotelPreference, setHotelPreference] = useState<string | null>(null)
+  const [showMobileOverlay, setShowMobileOverlay] = useState(false)
+  const router = useRouter()
   const bottomRef = useRef<HTMLDivElement>(null)
   const autoSentRef = useRef(false)
 
@@ -186,7 +188,14 @@ function ChatPageInner() {
         }
         setMessages(prev => [...prev, aiMsg])
         setSending(false)
-        // Auto-navigation removed — user accepts via "Accept & View Full Itinerary" button in right panel
+
+        // Mobile: show overlay then auto-navigate. Desktop: ContextPanel Accept button drives nav.
+        if (typeof window !== 'undefined' && window.innerWidth < 768) {
+          setShowMobileOverlay(true)
+          setTimeout(() => {
+            router.push(`/itinerary/${data.itineraryId}`)
+          }, 1200)
+        }
       } else {
         setMessages(prev => [...prev, aiMsg])
         setSending(false)
@@ -337,7 +346,39 @@ function ChatPageInner() {
     </div>
   )
 
-  return <SplitLayout left={leftPanel} right={<ContextPanel itineraryData={latestItineraryData ?? null} isGenerating={sending} conversationPhase={conversationPhase} tripState={tripState} fullItinerary={fullItinerary} itineraryId={itineraryId} />} />
+  return (
+    <>
+      <SplitLayout left={leftPanel} right={<ContextPanel itineraryData={latestItineraryData ?? null} isGenerating={sending} conversationPhase={conversationPhase} tripState={tripState} fullItinerary={fullItinerary} itineraryId={itineraryId} />} />
+
+      {/* Mobile itinerary-building overlay — shown briefly before auto-navigation */}
+      <AnimatePresence>
+        {showMobileOverlay && (
+          <motion.div
+            key="mobile-nav-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.25, ease: 'easeInOut' }}
+            className="fixed inset-0 z-50 flex flex-col items-center justify-center bg-sand"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              transition={{ duration: 0.3, delay: 0.1, ease: [0.22, 1, 0.36, 1] as [number, number, number, number] }}
+              className="flex flex-col items-center gap-4"
+            >
+              {/* Coral spinner */}
+              <div className="w-10 h-10 rounded-full border-2 border-coral/20 border-t-coral animate-spin" />
+              <div className="text-center">
+                <p className="font-serif text-xl text-navy mb-1">Building your itinerary...</p>
+                <p className="text-sm text-umber/60">Crafting every detail</p>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
+  )
 }
 
 export default function ChatPage() {

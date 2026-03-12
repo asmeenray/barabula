@@ -58,6 +58,10 @@ it('shows empty state when no messages', async () => {
 })
 
 it('calls router.push after receiving itineraryId', async () => {
+  // Simulate mobile viewport so the mobile auto-nav branch fires
+  const originalInnerWidth = window.innerWidth
+  Object.defineProperty(window, 'innerWidth', { value: 375, writable: true, configurable: true })
+
   ;(global.fetch as ReturnType<typeof vi.fn>)
     .mockResolvedValueOnce({ json: () => Promise.resolve([]) })  // history
     .mockResolvedValueOnce({  // session GET
@@ -77,6 +81,9 @@ it('calls router.push after receiving itineraryId', async () => {
   await waitFor(() => {
     expect(mockPush).toHaveBeenCalledWith('/itinerary/abc-123')
   }, { timeout: 5000 })
+
+  // Restore original innerWidth
+  Object.defineProperty(window, 'innerWidth', { value: originalInnerWidth, writable: true, configurable: true })
 })
 
 it('passes conversationPhase to QuickActionChips after API response', async () => {
