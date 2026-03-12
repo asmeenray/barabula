@@ -151,13 +151,24 @@ Plans:
 
 ### Phase 8: AI Chat Functionality with OpenAI - behavior, trip state, itinerary generation
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** Full AI travel planner chat pipeline: structured trip state extraction, stateful multi-turn conversation, itinerary generation, expert-quality activity descriptions, flight and hotel lookup, and seamless navigation back to chat from the itinerary page
+**Requirements**: AI-CHAT-01, AI-CHAT-02, AI-CHAT-03, AI-PROMPT-01, FLIGHTS-LOOKUP-01, HOTELS-LOOKUP-01, ITIN-CONTINUE-01
 **Depends on:** Phase 7
-**Plans:** 8/8 plans complete
+**Plans:** 12 plans (08-01 through 08-08 complete, 08-09 through 08-12 planned)
 
 Plans:
-- [x] TBD (run /gsd:plan-phase 8 to break down) (completed 2026-03-11)
+- [x] 08-01-PLAN.md — Zod schemas, system prompt builder, TripState types, trip_sessions SQL (completed 2026-03-11)
+- [x] 08-02-PLAN.md — POST /api/chat/message route: OpenAI structured output, trip state upsert, server guard
+- [x] 08-03-PLAN.md — Chat page state wiring: conversationPhase, tripState, chip rendering, typing indicator
+- [x] 08-04-PLAN.md — Itinerary save pipeline: insert itinerary + activities, cover image fetch, Accept button navigation
+- [x] 08-05-PLAN.md — ContextPanel: TripSummaryPanel, FullItineraryPanel, optimistic local edits
+- [x] 08-06-PLAN.md — React-markdown for AI messages, coral bullet markers, chat history persistence
+- [x] 08-07-PLAN.md — AI prompt: all-at-once intake questions, four intake fields
+- [x] 08-08-PLAN.md — All-at-once intake, clear chat_history on session reset, auto-reset on new trip
+- [ ] 08-09-PLAN.md — AI prompt enhancement: expert activity descriptions, food/activity separation, transport bridges, denser schedules
+- [ ] 08-10-PLAN.md — Flight lookup: POST /api/flights/lookup (GPT-4o), "Look up flight" button with loading + field pre-fill in FlightsTabPanel
+- [ ] 08-11-PLAN.md — Hotel specific search: POST /api/hotels/lookup (GPT-4o), mode toggle + "Find hotel" button + result card in HotelsTabPanel
+- [ ] 08-12-PLAN.md — "Continue Planning" button on itinerary page: ItineraryHero prop + router.push('/chat') with session preserved
 
 ### Phase 9: Itinerary page with map integration and hotel details
 
