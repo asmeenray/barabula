@@ -10,6 +10,12 @@ export interface HotelSaveData {
   specific_hotel_area: string | null
   specific_hotel_city: string | null
   specific_hotel_stars: number | null
+  _found_hotel_card?: {
+    full_name: string
+    area: string
+    city: string
+    star_rating: number
+  } | null
 }
 
 interface HotelsTabPanelProps {
@@ -17,6 +23,9 @@ interface HotelsTabPanelProps {
   hotelPreference: string | null
   onSave: (data: HotelSaveData) => void
   onClose: () => void
+  initialMode?: 'specific' | 'preference'
+  initialFoundHotel?: { full_name: string; area: string; city: string; star_rating: number } | null
+  onFoundHotel?: (hotel: { full_name: string; area: string; city: string; star_rating: number } | null) => void
 }
 
 function inferStarRating(tripState: Partial<TripState>): number {
@@ -29,15 +38,23 @@ function inferStarRating(tripState: Partial<TripState>): number {
   return 4
 }
 
-export function HotelsTabPanel({ tripState, hotelPreference, onSave, onClose }: HotelsTabPanelProps) {
-  const [mode, setMode] = useState<'specific' | 'preference'>('preference')
+export function HotelsTabPanel({
+  tripState,
+  hotelPreference,
+  onSave,
+  onClose,
+  initialMode = 'preference',
+  initialFoundHotel = null,
+  onFoundHotel,
+}: HotelsTabPanelProps) {
+  const [mode, setMode] = useState<'specific' | 'preference'>(initialMode)
   const [preference, setPreference] = useState(hotelPreference ?? '')
   const [hotelName, setHotelName] = useState('')
   const [looking, setLooking] = useState(false)
   const [lookupError, setLookupError] = useState<string | null>(null)
   const [foundHotel, setFoundHotel] = useState<{
     full_name: string; area: string; city: string; star_rating: number
-  } | null>(null)
+  } | null>(initialFoundHotel)
 
   const stars = inferStarRating(tripState)
 
@@ -56,7 +73,9 @@ export function HotelsTabPanel({ tripState, hotelPreference, onSave, onClose }: 
       })
       const data = await res.json()
       if (data.found) {
-        setFoundHotel({ full_name: data.full_name, area: data.area, city: data.city, star_rating: data.star_rating })
+        const hotelData = { full_name: data.full_name, area: data.area, city: data.city, star_rating: data.star_rating }
+        setFoundHotel(hotelData)
+        onFoundHotel?.(hotelData)
       } else {
         setLookupError('Could not find a match — try adding the city name or check the spelling.')
       }
@@ -76,6 +95,7 @@ export function HotelsTabPanel({ tripState, hotelPreference, onSave, onClose }: 
         specific_hotel_area: foundHotel.area,
         specific_hotel_city: foundHotel.city,
         specific_hotel_stars: foundHotel.star_rating,
+        _found_hotel_card: foundHotel,
       })
     } else {
       onSave({
@@ -85,6 +105,7 @@ export function HotelsTabPanel({ tripState, hotelPreference, onSave, onClose }: 
         specific_hotel_area: null,
         specific_hotel_city: null,
         specific_hotel_stars: null,
+        _found_hotel_card: null,
       })
     }
     onClose()
