@@ -11,6 +11,13 @@ vi.mock('@/lib/supabase/server', () => ({
   createClient: vi.fn(() => Promise.resolve(mockSupabase)),
 }))
 
+// Service-role client: captures the cost_log row written by the real tracker
+const mockCostInsert = vi.fn()
+const mockServiceFrom = vi.fn(() => ({ insert: mockCostInsert }))
+vi.mock('@/lib/supabase/service', () => ({
+  createServiceClient: () => ({ from: mockServiceFrom }),
+}))
+
 const ITIN_ID = '3f2b8c1e-4d5a-4b6c-8d7e-9f0a1b2c3d4e'
 const USER = { id: 'user-1' }
 
@@ -85,6 +92,7 @@ describe('POST /api/itineraries/[id]/geocode', () => {
     fetchMock.mockReset()
     vi.stubGlobal('fetch', fetchMock)
     mockGetUser.mockResolvedValue({ data: { user: USER }, error: null })
+    mockCostInsert.mockResolvedValue({ error: null })
   })
 
   afterEach(() => {
@@ -240,5 +248,66 @@ describe('POST /api/itineraries/[id]/geocode', () => {
     const res = await callPost()
     expect(await res.json()).toEqual({ pins: [], remaining: 0 })
     expect(fetchMock).not.toHaveBeenCalled()
+  })
+  describe('cost logging', () => {
+    it('writes one cost_log row counting each Nominatim attempt, with model null', async () => {
+      fetchMock
+        .mockResolvedValueOnce(nominatimHit())
+        .mockResolvedValueOnce(nominatimEmpty())
+        .mockResolvedValueOnce(nominatimHit())
+      mockDb({ id: ITIN_ID, destination: 'Tokyo', activities: [act(1), act(2), act(3)] })
+      const res = await callPost()
+      expect(res.status).toBe(200)
+      expect(mockServiceFrom).toHaveBeenCalledWith('cost_log')
+      expect(mockCostInsert).toHaveBeenCalledTimes(1)
+      expect(mockCostInsert.mock.calls[0][0]).toMatchObject({
+        user_id: USER.id,
+        route: '/api/itineraries/[id]/geocode',
+        model: null,
+        input_tokens: null,
+        output_tokens: null,
+        external_calls: { nominatim: 3 },
+        est_cost_usd: null,
+        latency_ms: expect.any(Number),
+      })
+    })
+
+    it('counts a failed Nominatim attempt too', async () => {
+      fetchMock.mockResolvedValueOnce(new Response('', { status: 429 }))
+      mockDb({ id: ITIN_ID, destination: 'Tokyo', activities: [act(1), act(2)] })
+      await callPost()
+      expect(mockCostInsert).toHaveBeenCalledTimes(1)
+      expect(mockCostInsert.mock.calls[0][0].external_calls).toEqual({ nominatim: 1 })
+    })
+
+    it('writes no row when every activity is already cached', async () => {
+      mockDb({
+        id: ITIN_ID,
+        destination: 'Tokyo',
+        activities: [act(1, { lat: 35.7, lng: 139.8, geo_source: 'osm_nominatim' })],
+      })
+      await callPost()
+      expect(fetchMock).not.toHaveBeenCalled()
+      expect(mockCostInsert).not.toHaveBeenCalled()
+    })
+
+    it('writes no row for an unauthenticated call', async () => {
+      mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
+      mockDb({ id: ITIN_ID, destination: 'Tokyo', activities: [act(1)] })
+      await callPost()
+      expect(mockCostInsert).not.toHaveBeenCalled()
+    })
+
+    it('keeps the response unchanged when the cost_log insert fails', async () => {
+      const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+      mockCostInsert.mockResolvedValue({ error: { message: 'relation "cost_log" does not exist' } })
+      fetchMock.mockResolvedValueOnce(nominatimHit('1.5', '2.5'))
+      mockDb({ id: ITIN_ID, destination: null, activities: [act(1)] })
+      const res = await callPost()
+      expect(res.status).toBe(200)
+      expect((await res.json()).pins[0]).toMatchObject({ lat: 1.5, lng: 2.5 })
+      expect(errorSpy).toHaveBeenCalledWith('[cost_log]', '/api/itineraries/[id]/geocode', 'relation "cost_log" does not exist')
+      errorSpy.mockRestore()
+    })
   })
 })

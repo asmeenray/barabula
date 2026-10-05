@@ -1,5 +1,6 @@
 import 'server-only'
 import pkg from '../../package.json'
+import type { CostTracker } from '@/lib/cost-log'
 
 // Nominatim usage policy: identify the app, at most 1 request per second, cache results.
 export const NOMINATIM_USER_AGENT = `Barabula/${pkg.version} (+https://github.com/asmeenray/barabula)`
@@ -28,10 +29,15 @@ export function buildGeocodeQuery(location: string, destination: string | null):
   return destination ? `${location}, ${destination}` : location
 }
 
-export async function geocodeQuery(query: string): Promise<GeocodeResult> {
+export async function geocodeQuery(
+  query: string,
+  tracker?: Pick<CostTracker, 'count'>
+): Promise<GeocodeResult> {
   await waitForSlot()
   const url = `${NOMINATIM_SEARCH_URL}?q=${encodeURIComponent(query)}&format=jsonv2&limit=1`
   try {
+    // Count every real request attempt (D-15), including ones that fail.
+    tracker?.count('nominatim')
     const res = await fetch(url, { headers: { 'User-Agent': NOMINATIM_USER_AGENT } })
     // 429 (rate limited) and 403 (blocked) are errors too: never cache them as not_found.
     if (!res.ok) return { status: 'error' }

@@ -164,3 +164,73 @@ describe('POST /api/flights/lookup cost logging', () => {
     expect(mockInsert).not.toHaveBeenCalled()
   })
 })
+
+describe('POST /api/hotels/lookup cost logging', () => {
+  async function callHotels(body: unknown = { hotel_name: 'Park Hiatt', destination: 'Tokyo' }) {
+    const { POST } = await import('@/app/api/hotels/lookup/route')
+    return POST(jsonRequest('http://localhost/api/hotels/lookup', body))
+  }
+
+  it('records one OpenAI call with gpt-4o usage and writes one cost_log row', async () => {
+    mockCreate.mockResolvedValueOnce(
+      completion(JSON.stringify({ found: true, full_name: 'Park Hyatt Tokyo', area: 'Shinjuku', city: 'Tokyo', star_rating: 5 }))
+    )
+    const res = await callHotels()
+    expect(res.status).toBe(200)
+    expect((await res.json()).full_name).toBe('Park Hyatt Tokyo')
+
+    expect(trackers).toHaveLength(1)
+    const t = trackers[0]
+    expect(t.route).toBe('/api/hotels/lookup')
+    expect(t.userId).toBe('user-1')
+    expect(t.count).toHaveBeenCalledTimes(1)
+    expect(t.count).toHaveBeenCalledWith('openai')
+    expect(t.addUsage).toHaveBeenCalledWith('gpt-4o', USAGE)
+    expect(t.flush).toHaveBeenCalledTimes(1)
+    expect(mockInsert).toHaveBeenCalledTimes(1)
+    expect(mockInsert.mock.calls[0][0]).toMatchObject({
+      route: '/api/hotels/lookup',
+      model: 'gpt-4o',
+      input_tokens: 400,
+      output_tokens: 120,
+      external_calls: { openai: 1 },
+      est_cost_usd: expect.any(Number),
+    })
+  })
+
+  it('flushes once when the model returns unparseable JSON', async () => {
+    mockCreate.mockResolvedValueOnce(completion('not json'))
+    const res = await callHotels()
+    expect(await res.json()).toEqual({ found: false })
+    expect(trackers[0].flush).toHaveBeenCalledTimes(1)
+    expect(mockInsert).toHaveBeenCalledTimes(1)
+  })
+
+  it('still counts the OpenAI call, flushes once and returns Lookup failed when OpenAI throws', async () => {
+    mockCreate.mockRejectedValueOnce(new Error('boom'))
+    const res = await callHotels()
+    expect(res.status).toBe(500)
+    expect(await res.json()).toEqual({ error: 'Lookup failed' })
+    const t = trackers[0]
+    expect(t.count).toHaveBeenCalledWith('openai')
+    expect(t.addUsage).not.toHaveBeenCalled()
+    expect(t.flush).toHaveBeenCalledTimes(1)
+    expect(mockInsert.mock.calls[0][0]).toMatchObject({ external_calls: { openai: 1 }, input_tokens: null })
+  })
+
+  it('writes no row when no OpenAI call is made (missing hotel name)', async () => {
+    const res = await callHotels({ destination: 'Tokyo' })
+    expect(await res.json()).toEqual({ found: false })
+    expect(mockCreate).not.toHaveBeenCalled()
+    expect(trackers[0].flush).toHaveBeenCalledTimes(1)
+    expect(mockInsert).not.toHaveBeenCalled()
+  })
+
+  it('starts no tracker for an unauthenticated call', async () => {
+    mockGetUser.mockResolvedValueOnce({ data: { user: null }, error: null })
+    const res = await callHotels()
+    expect(res.status).toBe(401)
+    expect(trackers).toHaveLength(0)
+    expect(mockInsert).not.toHaveBeenCalled()
+  })
+})

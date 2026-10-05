@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server'
 import { buildGeocodeQuery, geocodeQuery } from '@/lib/geocoding'
 import { OSM_GEO_SOURCE, needsGeocoding, osmCoordsFrom } from '@/lib/geo-cache'
 import { isUuid } from '@/lib/uuid'
+import { startCostLog, type CostTracker } from '@/lib/cost-log'
 
 // Up to 20 Nominatim calls at >= 1.1 s each fit comfortably in 60 s.
 export const maxDuration = 60
@@ -50,13 +51,28 @@ export async function POST(
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const cost = startCostLog('/api/itineraries/[id]/geocode', user.id)
+  try {
+    return await geocodeItinerary(supabase, user.id, id, cost)
+  } finally {
+    await cost.flush()
+  }
+}
+
+async function geocodeItinerary(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  id: string,
+  cost: CostTracker
+) {
   if (!isUuid(id)) return Response.json({ error: 'Invalid id' }, { status: 400 })
 
   const { data: itinerary, error } = await supabase
     .from('itineraries')
     .select('id, destination, activities(id, name, day_number, location, activity_type, extra_data)')
     .eq('id', id)
-    .eq('user_id', user.id)
+    .eq('user_id', userId)
     .maybeSingle()
   if (error) return Response.json({ error: 'Could not load itinerary' }, { status: 500 })
   if (!itinerary) return Response.json({ error: 'Not found' }, { status: 404 })
@@ -74,7 +90,7 @@ export async function POST(
 
   let processed = 0
   for (const act of pending.slice(0, GEOCODE_BATCH_LIMIT)) {
-    const result = await geocodeQuery(buildGeocodeQuery(act.location as string, destination))
+    const result = await geocodeQuery(buildGeocodeQuery(act.location as string, destination), cost)
     // Network error, 429 or 403: write nothing, stop, retry on a later call.
     if (result.status === 'error') break
 
