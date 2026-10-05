@@ -1,10 +1,11 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest } from 'next/server'
+import type { User } from '@supabase/supabase-js'
 import OpenAI from 'openai'
-import { LengthFinishReasonError } from 'openai/core/error'
 import { AIResponseSchema, zodResponseFormat } from '@/lib/ai/schemas'
 import { buildSystemPrompt } from '@/lib/ai/system-prompt'
-import type { TripState, ConversationPhase, Flight } from '@/lib/ai/schemas'
+import type { AIResponse, TripState, ConversationPhase, Flight } from '@/lib/ai/schemas'
+import { startCostLog, type CostTracker } from '@/lib/cost-log'
 import { fetchCityImage, fetchActivityImage } from '@/lib/unsplash'
 import { fetchPlacesData } from '@/lib/places'
 import { isUuid } from '@/lib/uuid'
@@ -18,6 +19,20 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // D-15: one cost_log row per request, written on every path after the auth guard
+  const cost = startCostLog('/api/chat/message', user.id)
+  try {
+    return await handleMessage(req, supabase, user, cost)
+  } finally {
+    await cost.flush()
+  }
+}
+
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>
+
+const TOO_LARGE_ERROR = 'Itinerary too large to generate — try a shorter trip or fewer days.'
+
+async function handleMessage(req: NextRequest, supabase: SupabaseServerClient, user: User, cost: CostTracker) {
   // Lazy-initialize after auth so key is not required for unauthenticated calls
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
@@ -60,16 +75,17 @@ export async function POST(req: NextRequest) {
     ...(transportMode != null ? { transport_mode: transportMode } : {}),
   }
 
-  // Fetch last 20 messages of this chat for conversation context (a new chat has none)
+  // Fetch last 20 messages of this chat for conversation context (a new chat has none).
+  // Query newest first so the limit keeps the latest 20, then put them back in chat order.
   let history: { role: string; content: string }[] | null = null
   if (existingSessionId) {
     const { data } = await supabase
       .from('chat_history')
       .select('role, content')
       .eq('session_id', existingSessionId)
-      .order('created_at', { ascending: true })
+      .order('created_at', { ascending: false })
       .limit(20)
-    history = data
+    history = data ? [...data].reverse() : null
   }
 
   const systemPrompt = buildSystemPrompt(mergedTripState, currentPhase, flightInputData, hotelSaveData)
@@ -82,41 +98,43 @@ export async function POST(req: NextRequest) {
     { role: 'user' as const, content },
   ]
 
-  let completion
-  try {
-    completion = await openai.chat.completions.parse({
+  // create() (not parse()) so a token-limit attempt still reports its usage (D-15, Pitfall 6).
+  // Every attempt is counted before the call and its usage recorded right after.
+  const generate = async (concise: boolean) => {
+    cost.count('openai')
+    const completion = await openai.chat.completions.create({
       model: 'gpt-4.1',
       max_tokens: 32768,
-      messages: buildMessages(),
+      messages: buildMessages(concise),
       response_format: zodResponseFormat(AIResponseSchema, 'ai_response'),
     })
-  } catch (err: unknown) {
-    const isLengthError = err instanceof LengthFinishReasonError || (
-      err instanceof Error &&
-      err.message?.includes('finish_reason') && err.message?.includes('length')
-    )
-    if (isLengthError) {
-      console.warn('[chat/message] Token limit hit — retrying with concise mode')
-      try {
-        completion = await openai.chat.completions.parse({
-          model: 'gpt-4.1',
-          max_tokens: 32768,
-          messages: buildMessages(true),
-          response_format: zodResponseFormat(AIResponseSchema, 'ai_response'),
-        })
-      } catch {
-        return Response.json({ error: 'Itinerary too large to generate — try a shorter trip or fewer days.' }, { status: 500 })
-      }
-    } else {
-      throw err
+    cost.addUsage('gpt-4.1', completion.usage)
+    return completion
+  }
+
+  // A thrown error on the first attempt propagates as before (the caller's finally still flushes)
+  let completion = await generate(false)
+  if (completion.choices[0]?.finish_reason === 'length') {
+    console.warn('[chat/message] Token limit hit — retrying with concise mode')
+    try {
+      completion = await generate(true)
+    } catch {
+      return Response.json({ error: TOO_LARGE_ERROR }, { status: 500 })
+    }
+    if (completion.choices[0]?.finish_reason === 'length') {
+      return Response.json({ error: TOO_LARGE_ERROR }, { status: 500 })
     }
   }
 
-  const parsed = completion.choices[0].message.parsed
-
-  // Guard: if parse fails entirely, return 500
-  if (!parsed) {
-    console.error('[chat/message] OpenAI structured output parse returned null')
+  // Untrusted model output: validate with zod. A refusal, empty content, bad JSON or schema mismatch is a 500.
+  let parsed: AIResponse
+  try {
+    const message = completion.choices[0]?.message
+    if (message?.refusal) throw new Error(`model refused: ${message.refusal}`)
+    if (!message?.content) throw new Error('empty content')
+    parsed = AIResponseSchema.parse(JSON.parse(message.content))
+  } catch (err) {
+    console.error('[chat/message] AI response parse failed:', err instanceof Error ? err.message : err)
     return Response.json({ error: 'AI response parse failed' }, { status: 500 })
   }
 
@@ -208,7 +226,7 @@ export async function POST(req: NextRequest) {
     // Fetch and store cover image for the new itinerary
     const destination = itineraryFields.destination ?? itineraryFields.title
     if (destination) {
-      const coverUrl = await fetchCityImage(destination)
+      const coverUrl = await fetchCityImage(destination, cost)
       if (coverUrl) {
         await supabase
           .from('itineraries')
@@ -247,8 +265,8 @@ export async function POST(req: NextRequest) {
             : null
 
           const [photoUrl, placesData] = await Promise.all([
-            isHotel ? Promise.resolve(null) : fetchActivityImage(act.name, activityDestination),
-            isHotel ? Promise.resolve({ rating: null, priceLevel: null }) : fetchPlacesData(act.name, activityDestination),
+            isHotel ? Promise.resolve(null) : fetchActivityImage(act.name, activityDestination, cost),
+            isHotel ? Promise.resolve({ rating: null, priceLevel: null }) : fetchPlacesData(act.name, activityDestination, cost),
           ])
 
           const baseExtraData = isHotel
