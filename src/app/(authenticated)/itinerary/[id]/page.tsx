@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
+import Link from 'next/link'
 import useSWR from 'swr'
 import { motion, AnimatePresence } from 'motion/react'
 import { DaySection } from '@/components/itinerary/DaySection'
@@ -748,7 +749,7 @@ export default function ItineraryDetailPage() {
                 >
                   Sign up free
                 </a>
-                <a
+                <Link
                   href="/"
                   className="px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-150 hover:opacity-80"
                   style={{
@@ -757,7 +758,7 @@ export default function ItineraryDetailPage() {
                   }}
                 >
                   See how it works
-                </a>
+                </Link>
                 <button
                   onClick={dismissCtaBanner}
                   aria-label="Dismiss"

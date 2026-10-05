@@ -881,7 +881,7 @@ Read CLAUDE.md, docs/HANDOVER.md and docs/PROJECT.md.
 
 | Phase | Status | Last updated | Notes / blockers |
 |---|---|---|---|
-| 14 Reset | Planning | 5 Oct 2026 | Session 1 (5 Oct): docs copied to `docs/`, `CLAUDE.md` created, repo audited. Baseline: 2 of 157 unit tests fail (`hotel-card` star rating, `api/chat` itineraryId). Q1–Q3, Q9–Q12, Q15 answered; P1–P6 agreed (P6 changed to trips-first). Phase 14 discussed: `.planning/phases/14-reset-clean-repo-per-trip-chats-cost-log-claude-md/14-CONTEXT.md` (D-01–D-24; gate = prod deploy after Asmeen's "merge"). Next: `/gsd-plan-phase 14`. Blocker for the migrations plan: Q13 (Supabase paused?) |
+| 14 Reset | In progress | 5 Oct 2026 | Session 1 (5 Oct): docs copied to `docs/`, `CLAUDE.md` created, repo audited. Baseline: 2 of 157 unit tests fail (`hotel-card` star rating, `api/chat` itineraryId). Q1–Q3, Q9–Q12, Q15 answered; P1–P6 agreed (P6 changed to trips-first). Phase 14 discussed: `.planning/phases/14-reset-clean-repo-per-trip-chats-cost-log-claude-md/14-CONTEXT.md` (D-01–D-24; gate = prod deploy after Asmeen's "merge"). Plan 14-03 (5 Oct): baseline green (158 of 158 tests pass); `npm run lint` runs `eslint .` on a flat config; 5 react-hooks errors left for Q16. Blocker for the migrations plan: Q13 (Supabase paused?) |
 | 15 Capture spike | Not started | — | V1, V2, V3 shape this phase |
 | 16 Saves and the map | Not started | — | |
 | 17 Share from the phone | Not started | — | V11, V12 |
@@ -912,6 +912,7 @@ Status values: Not started · Planning · In progress · Blocked · Done (gate p
 | Q13 | The Supabase project has had no commits since 12 March 2026; free projects pause after a week idle. Is it paused, and is a restore OK? | Phase 14 | |
 | Q14 | Section 4.4 drops the sand/coral palette; the current project rule is "sand/coral, no blue". Which wins? | Phase 16 | |
 | Q15 | How much of the current app code survives the revamp? | Phase 14 | **Keep the engine, replace the UI.** Keep auth, Supabase clients, the itinerary generator and itinerary components (reused in phase 18). Each phase deletes the old UI it replaces (landing, chat-as-entry, dashboard go in phase 16). Kept code must pass tests. Chosen by Claude on Asmeen's "pick whichever gives the best quality". (5 Oct 2026) |
+| Q16 | react-hooks lint errors left in UI that phase 16 replaces (D-28): fix earlier or let phase 16 delete them? `npx eslint .` reports 5 errors, all in old UI: `src/app/(authenticated)/itinerary/[id]/page.tsx:108` react-hooks/set-state-in-effect; `src/app/(authenticated)/itinerary/[id]/page.tsx:199` react-hooks/set-state-in-effect; `src/app/(authenticated)/itinerary/[id]/page.tsx:365` react-hooks/preserve-manual-memoization; `src/components/chat/ContextPanel.tsx:57` react-hooks/set-state-in-effect; `src/components/landing/VideoHero.tsx:59` react-hooks/set-state-in-effect | Phase 16 | |
 
 ---
 
