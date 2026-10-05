@@ -109,3 +109,48 @@ describe('fetchPlacesData', () => {
     expect(result).toEqual({ rating: null, priceLevel: null })
   })
 })
+
+describe('fetchPlacesData counts Foursquare calls (D-15)', () => {
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn())
+    process.env.FOURSQUARE_API_KEY = 'test-fsq-key'
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.resetAllMocks()
+    delete process.env.FOURSQUARE_API_KEY
+  })
+
+  it('counts foursquare 1 when the key is set', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ results: [{ rating: 9.2, price: 1 }] }),
+    } as Response)
+    const tracker = { count: vi.fn() }
+
+    const result = await fetchPlacesData('Eiffel Tower', 'Paris', tracker)
+
+    expect(result).toEqual({ rating: 9.2, priceLevel: 1 })
+    expect(tracker.count.mock.calls).toEqual([['foursquare']])
+  })
+
+  it('counts a failed Foursquare request too', async () => {
+    vi.mocked(fetch).mockRejectedValueOnce(new Error('Network error'))
+    const tracker = { count: vi.fn() }
+
+    await fetchPlacesData('Eiffel Tower', 'Paris', tracker)
+
+    expect(tracker.count.mock.calls).toEqual([['foursquare']])
+  })
+
+  it('counts nothing when FOURSQUARE_API_KEY is missing', async () => {
+    delete process.env.FOURSQUARE_API_KEY
+    const tracker = { count: vi.fn() }
+
+    await fetchPlacesData('Eiffel Tower', 'Paris', tracker)
+
+    expect(fetch).not.toHaveBeenCalled()
+    expect(tracker.count).not.toHaveBeenCalled()
+  })
+})

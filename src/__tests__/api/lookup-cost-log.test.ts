@@ -234,3 +234,85 @@ describe('POST /api/hotels/lookup cost logging', () => {
     expect(mockInsert).not.toHaveBeenCalled()
   })
 })
+
+describe('GET /api/destination-image cost logging', () => {
+  const notOk = { ok: false, status: 404 } as Response
+
+  async function callImage(query = '?destination=Lisbon') {
+    const { GET } = await import('@/app/api/destination-image/route')
+    const { NextRequest } = await import('next/server')
+    return GET(new NextRequest(`http://localhost/api/destination-image${query}`))
+  }
+
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn())
+    process.env.UNSPLASH_ACCESS_KEY = 'test-unsplash-key'
+    process.env.PEXELS_API_KEY = 'test-pexels-key'
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    delete process.env.UNSPLASH_ACCESS_KEY
+    delete process.env.PEXELS_API_KEY
+  })
+
+  it('writes one row with the unsplash and pexels counts and the user id', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(notOk)
+      .mockResolvedValueOnce({
+        ok: true,
+        json: async () => ({ photos: [{ src: { large2x: 'https://images.pexels.com/lisbon.jpg' } }] }),
+      } as Response)
+
+    const res = await callImage()
+    expect(await res.json()).toEqual({ url: 'https://images.pexels.com/lisbon.jpg' })
+
+    expect(trackers).toHaveLength(1)
+    const t = trackers[0]
+    expect(t.route).toBe('/api/destination-image')
+    expect(t.userId).toBe('user-1')
+    expect(t.count.mock.calls).toEqual([['unsplash'], ['pexels']])
+    expect(t.flush).toHaveBeenCalledTimes(1)
+    expect(mockInsert).toHaveBeenCalledTimes(1)
+    expect(mockInsert.mock.calls[0][0]).toMatchObject({
+      user_id: 'user-1',
+      route: '/api/destination-image',
+      model: null,
+      input_tokens: null,
+      output_tokens: null,
+      external_calls: { unsplash: 1, pexels: 1 },
+      est_cost_usd: null,
+      latency_ms: expect.any(Number),
+    })
+  })
+
+  it('logs a null user id when there is no signed-in user (no 401; the proxy guards the route)', async () => {
+    mockGetUser.mockResolvedValueOnce({ data: { user: null }, error: null })
+    vi.mocked(fetch).mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ urls: { regular: 'https://images.unsplash.com/lisbon' } }),
+    } as Response)
+
+    const res = await callImage()
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ url: 'https://images.unsplash.com/lisbon' })
+    expect(trackers[0].userId).toBeNull()
+    expect(mockInsert.mock.calls[0][0]).toMatchObject({ user_id: null, external_calls: { unsplash: 1 } })
+  })
+
+  it('makes no external call and writes no row without a destination', async () => {
+    const res = await callImage('')
+    expect(await res.json()).toEqual({ url: null })
+    expect(fetch).not.toHaveBeenCalled()
+    expect(mockInsert).not.toHaveBeenCalled()
+  })
+
+  it('writes no row when no image key is configured', async () => {
+    delete process.env.UNSPLASH_ACCESS_KEY
+    delete process.env.PEXELS_API_KEY
+    const res = await callImage()
+    expect(await res.json()).toEqual({ url: null })
+    expect(fetch).not.toHaveBeenCalled()
+    expect(mockInsert).not.toHaveBeenCalled()
+  })
+})

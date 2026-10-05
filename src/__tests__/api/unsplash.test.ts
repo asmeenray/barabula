@@ -146,3 +146,115 @@ describe('fetchActivityImage', () => {
     expect(fetch).not.toHaveBeenCalled()
   })
 })
+
+describe('image lookups count external calls (D-15)', () => {
+  const notOk = { ok: false, status: 404 } as Response
+  const unsplashOk = (url: string) =>
+    ({ ok: true, json: async () => ({ urls: { regular: url } }) }) as Response
+  const pexelsOk = (url: string) =>
+    ({ ok: true, json: async () => ({ photos: [{ src: { large2x: url } }] }) }) as Response
+
+  beforeEach(() => {
+    vi.stubGlobal('fetch', vi.fn())
+    process.env.UNSPLASH_ACCESS_KEY = 'test-key'
+    process.env.PEXELS_API_KEY = 'test-pexels-key'
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+    vi.resetAllMocks()
+    delete process.env.UNSPLASH_ACCESS_KEY
+    delete process.env.PEXELS_API_KEY
+  })
+
+  it('fetchCityImage counts unsplash 1 and pexels 1 when Unsplash fails and Pexels answers', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(notOk)
+      .mockResolvedValueOnce(pexelsOk('https://images.pexels.com/paris.jpg'))
+    const tracker = { count: vi.fn() }
+
+    const result = await fetchCityImage('Paris', tracker)
+
+    expect(result).toBe('https://images.pexels.com/paris.jpg')
+    expect(tracker.count).toHaveBeenCalledTimes(2)
+    expect(tracker.count).toHaveBeenNthCalledWith(1, 'unsplash')
+    expect(tracker.count).toHaveBeenNthCalledWith(2, 'pexels')
+  })
+
+  it('counts only unsplash when Unsplash answers', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(unsplashOk('https://images.unsplash.com/paris'))
+    const tracker = { count: vi.fn() }
+
+    await fetchCityImage('Paris', tracker)
+
+    expect(tracker.count).toHaveBeenCalledTimes(1)
+    expect(tracker.count).toHaveBeenCalledWith('unsplash')
+  })
+
+  it('counts a failed (thrown) Unsplash request too', async () => {
+    vi.mocked(fetch)
+      .mockRejectedValueOnce(new Error('Network error'))
+      .mockResolvedValueOnce(notOk)
+    const tracker = { count: vi.fn() }
+
+    const result = await fetchCityImage('Paris', tracker)
+
+    expect(result).toBeNull()
+    expect(tracker.count.mock.calls).toEqual([['unsplash'], ['pexels']])
+  })
+
+  it('records no unsplash count when UNSPLASH_ACCESS_KEY is missing', async () => {
+    delete process.env.UNSPLASH_ACCESS_KEY
+    vi.mocked(fetch).mockResolvedValueOnce(pexelsOk('https://images.pexels.com/paris.jpg'))
+    const tracker = { count: vi.fn() }
+
+    await fetchCityImage('Paris', tracker)
+
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(tracker.count.mock.calls).toEqual([['pexels']])
+  })
+
+  it('records no pexels count when PEXELS_API_KEY is missing', async () => {
+    delete process.env.PEXELS_API_KEY
+    vi.mocked(fetch).mockResolvedValueOnce(notOk)
+    const tracker = { count: vi.fn() }
+
+    const result = await fetchCityImage('Paris', tracker)
+
+    expect(result).toBeNull()
+    expect(fetch).toHaveBeenCalledTimes(1)
+    expect(tracker.count.mock.calls).toEqual([['unsplash']])
+  })
+
+  it('records nothing when both keys are missing', async () => {
+    delete process.env.UNSPLASH_ACCESS_KEY
+    delete process.env.PEXELS_API_KEY
+    const tracker = { count: vi.fn() }
+
+    expect(await fetchCityImage('Paris', tracker)).toBeNull()
+    expect(fetch).not.toHaveBeenCalled()
+    expect(tracker.count).not.toHaveBeenCalled()
+  })
+
+  it('fetchActivityImage counts both queries when the first query fails on both providers', async () => {
+    vi.mocked(fetch)
+      .mockResolvedValueOnce(notOk) // unsplash, primary query
+      .mockResolvedValueOnce(notOk) // pexels, primary query
+      .mockResolvedValueOnce(unsplashOk('https://images.unsplash.com/paris-fallback')) // unsplash, destination query
+    const tracker = { count: vi.fn() }
+
+    const result = await fetchActivityImage('XYZ Activity', 'Paris', tracker)
+
+    expect(result).toBe('https://images.unsplash.com/paris-fallback')
+    expect(tracker.count.mock.calls).toEqual([['unsplash'], ['pexels'], ['unsplash']])
+  })
+
+  it('fetchActivityImage counts only the first query when it succeeds', async () => {
+    vi.mocked(fetch).mockResolvedValueOnce(unsplashOk('https://images.unsplash.com/eiffel'))
+    const tracker = { count: vi.fn() }
+
+    await fetchActivityImage('Eiffel Tower', 'Paris', tracker)
+
+    expect(tracker.count.mock.calls).toEqual([['unsplash']])
+  })
+})

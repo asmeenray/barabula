@@ -1,15 +1,20 @@
+import type { CostTracker } from '@/lib/cost-log'
+
 /**
  * Fetches place data (rating, price level) from the Foursquare Places API v3.
  * rating: 0.0–10.0 on native Foursquare scale (divide by 2 for star equivalence)
  * priceLevel: 1–4 integer ($/$$/$$$/$$$$ equivalence)
  * Returns all nulls on any failure — never throws.
+ * An optional tracker counts the request when it is actually sent (D-15).
  */
 export async function fetchPlacesData(
   activityName: string,
-  destination: string
+  destination: string,
+  tracker?: Pick<CostTracker, 'count'>
 ): Promise<{ rating: number | null; priceLevel: number | null }> {
   const key = process.env.FOURSQUARE_API_KEY
   if (!key) return { rating: null, priceLevel: null }
+  tracker?.count('foursquare')
 
   try {
     const params = new URLSearchParams({
