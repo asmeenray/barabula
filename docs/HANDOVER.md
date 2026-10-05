@@ -227,12 +227,12 @@ The current palette (sand `#F5EDE3` background + coral `#D67940` accent) reads a
 | AI chat | Done | `src/app/api/chat/message/route.ts`, `gpt-4.1`, `max_tokens: 32768`, zod structured output (`src/lib/ai/schemas.ts`), `maxDuration = 60` |
 | Itinerary | Done | Day sections, activity tiles, flights, hotels, eat & drink, inline edit |
 | Map | Done | MapLibre via `react-map-gl` |
-| Geocoding | **Must change** | `src/lib/geocoding.ts`: Mapbox, then Nominatim; caches coordinates in `activities.extra_data` (breaks Mapbox temporary terms) |
+| Geocoding | Done (phase 14) | Server route, Nominatim only, OSM coordinates tagged `geo_source`; the commercial geocoder is removed |
 | Enrichment | Done | Unsplash/Pexels images; Foursquare v3 ratings (`src/lib/places.ts`) |
 | Sharing | Done | `itineraries.is_public` + anon RLS policies |
-| Chat sessions | **Must change** | `trip_sessions` and `chat_history` keyed by `user_id` only: one active chat per user |
+| Chat sessions | Done (phase 14) | Per-trip sessions (`trip_sessions.id`, `chat_history.session_id`) |
 | Collaboration, streaming | Not started | Out of scope (D10) |
-| Legacy code | **Delete** | `frontend/` (CRA), `backend/` (FastAPI), `mcp-server/`, `test_auth.py`, outdated README |
+| Legacy code | Removed (phase 14) | `frontend/` (CRA), `backend/` (FastAPI), `mcp-server/`, `test_auth.py` deleted; README rewritten |
 | PWA | None | No manifest or service worker |
 
 ---
@@ -582,13 +582,13 @@ Each phase ends with its "Done when". Don't start the next phase until it passes
 > v1.1 lines are marked *(v1.1)*. Lines marked *(if P#)* only apply if that proposal is agreed (section 21.4).
 
 ### Phase 14 — Reset (1 weekend)
-- [ ] Branch `rebuild/saves-first`
-- [ ] Delete `frontend/`, `backend/`, `mcp-server/`, `test_auth.py`; rewrite README
-- [ ] Update dependencies; `npm test` green
-- [ ] Per-trip chat: add `itinerary_id` to `trip_sessions` and `chat_history`; update routes
-- [ ] Stop storing Mapbox coordinates; add a `cost_log` (route, model, tokens, external calls)
-- [ ] *(v1.1)* `CLAUDE.md` from Appendix A; `.env.example` with names only (section 6)
-- [ ] *(v1.1)* Migration `20261005000100_events_costs.sql` from Appendix B (`events`, `cost_log`, `bump_usage`)
+- [x] Branch `rebuild/saves-first`
+- [x] Delete `frontend/`, `backend/`, `mcp-server/`, `test_auth.py`; rewrite README
+- [x] Update dependencies; `npm test` green (TypeScript 7 / ESLint 10 tried and reverted, Q22)
+- [x] Per-trip chat: add `itinerary_id` to `trip_sessions` and `chat_history`; update routes (built as Q9 says: `chat_history.session_id` plus `trip_sessions.itinerary_id`)
+- [x] Stop storing Mapbox coordinates; add a `cost_log` (route, model, tokens, external calls)
+- [x] *(v1.1)* `CLAUDE.md` from Appendix A; `.env.example` with names only (section 6)
+- [x] *(v1.1)* Migration `20261005000100_events_costs.sql` from Appendix B (`events`, `cost_log`; `bump_usage` moved to phase 15). File authored and tested locally; not yet applied to the live project
 - [ ] *(v1.1)* Confirm whether `public.users` exists; fix the section 7 references if not
 - **Done when:** app deploys; two trips can be planned side by side; no Mapbox results stored
 
@@ -882,7 +882,7 @@ Read CLAUDE.md, docs/HANDOVER.md and docs/PROJECT.md.
 
 | Phase | Status | Last updated | Notes / blockers |
 |---|---|---|---|
-| 14 Reset | In progress | 5 Oct 2026 | Session 1 (5 Oct): docs copied to `docs/`, `CLAUDE.md` created, repo audited. Baseline: 2 of 157 unit tests fail (`hotel-card` star rating, `api/chat` itineraryId). Q1–Q3, Q9–Q12, Q15 answered; P1–P6 agreed (P6 changed to trips-first). Phase 14 discussed: `.planning/phases/14-reset-clean-repo-per-trip-chats-cost-log-claude-md/14-CONTEXT.md` (D-01–D-24; gate = prod deploy after Asmeen's "merge"). Plan 14-03 (5 Oct): baseline green (158 of 158 tests pass); `npm run lint` runs `eslint .` on a flat config; 5 react-hooks errors left for Q16. Plan 14-06 (5 Oct): the commercial geocoder is gone; geocoding runs on the server through Nominatim (owner only, 1.1 s throttle, OSM coordinates cached in `activities.extra_data`), the map credits OpenStreetMap; `npx eslint .` now shows 4 errors (the old geocoding effect's set-state-in-effect error is gone). Blocker for the migrations plan: Q13 (Supabase paused?) |
+| 14 Reset | In progress | 5 Oct 2026 | Session 1 (5 Oct): docs copied to `docs/`, `CLAUDE.md` created, repo audited; phase 14 discussed in `.planning/phases/14-reset-clean-repo-per-trip-chats-cost-log-claude-md/14-CONTEXT.md` (D-01–D-28; gate = prod deploy after Asmeen's "merge"). Done on `rebuild/saves-first` (plans 14-01 to 14-12): 01 branch, `.planning/` local only; 02 legacy stacks deleted after a backup, README and `.env.example` rewritten (names only); 03 baseline green (the 2 failing tests fixed), `npm run lint` runs `eslint .` on a flat config, react-hooks errors left for Q16; 04 dependencies on newest in-range versions, openai 7, Node 24 engines; 05 @supabase/ssr 0.12, auth proxy moved to `src/proxy.ts` (Next ignores a root `proxy.ts` when the app is in `src/app`), Vitest 5; 06 commercial geocoder removed, server-side Nominatim geocoding with OSM attribution; 07 migrations authored and tested on a local DB only: baseline, per-trip chat, `events` + `cost_log`; 08–09 per-trip chat routes and page, "Plan a new trip" keeps old chats, In progress list, Continue planning; 10–11 `cost_log` row for every request with external calls; 12 TypeScript 7 / ESLint 10 tried and reverted (Q22), docs updated. Tests: 33 files, 300 passed. `npx eslint .`: 4 errors, all Q16. `npm audit`: 45 findings, the direct ones need majors planned for phase 16. Left: Supabase check and backups (Q13, plan 14-13), migration push to the live project, branch push and the merge (deploy gate). |
 | 15 Capture spike | Not started | — | V1, V2, V3 shape this phase |
 | 16 Saves and the map | Not started | — | |
 | 17 Share from the phone | Not started | — | V11, V12 |
@@ -910,12 +910,19 @@ Status values: Not started · Planning · In progress · Blocked · Done (gate p
 | Q10 | Old GSD phases 4 (Collaboration), 5 (AI Streaming) and 6 (Cleanup and Tests) were never run. Close 4 and 5 as dropped (D10) and fold 6 into phase 14? | Phase 14 | **Drop 4 and 5 (D10); fold 6 into phase 14.** (5 Oct 2026) |
 | Q11 | Legacy items not in section 5's delete list: empty `infrastructure/`, `mobile/`, `shared/`; `Inspiration/` (7 PNGs); root `manifest.json` (Pexels image credits, not a PWA manifest); `docs/SETUP.md`. Delete, keep or move? | Phase 14 | **Delete the whole list in phase 14**, after the Q12 backup: `frontend/`, `backend/`, `mcp-server/`, `test_auth.py`, empty `infrastructure/` `mobile/` `shared/`, orphaned root `manifest.json` (lists image files that don't exist), `docs/SETUP.md`. Move `Inspiration/` PNGs to `~/barabula-legacy-backup/`. (5 Oct 2026) |
 | Q12 | `frontend/.env`, `backend/.env` and `backend/barabula_dev.db` exist locally (untracked). Back them up outside the repo before deleting the folders? | Phase 14 | **Back up outside the repo first** (`~/barabula-legacy-backup/`) before deleting the folders. Contents not to be read. (5 Oct 2026) |
-| Q13 | The Supabase project has had no commits since 12 March 2026; free projects pause after a week idle. Is it paused, and is a restore OK? | Phase 14 | |
+| Q13 | The Supabase project has had no commits since 12 March 2026; free projects pause after a week idle. Is it paused, and is a restore OK? | Phase 14 | 2026-10-05: ACTIVE_HEALTHY per `supabase projects list`; Asmeen logged in and linked the CLI (whether it had been paused: not stated) |
 | Q14 | Section 4.4 drops the sand/coral palette; the current project rule is "sand/coral, no blue". Which wins? | Phase 16 | |
 | Q15 | How much of the current app code survives the revamp? | Phase 14 | **Keep the engine, replace the UI.** Keep auth, Supabase clients, the itinerary generator and itinerary components (reused in phase 18). Each phase deletes the old UI it replaces (landing, chat-as-entry, dashboard go in phase 16). Kept code must pass tests. Chosen by Claude on Asmeen's "pick whichever gives the best quality". (5 Oct 2026) |
-| Q16 | react-hooks lint errors left in UI that phase 16 replaces (D-28): fix earlier or let phase 16 delete them? `npx eslint .` reports 5 errors, all in old UI: `src/app/(authenticated)/itinerary/[id]/page.tsx:108` react-hooks/set-state-in-effect; `src/app/(authenticated)/itinerary/[id]/page.tsx:199` react-hooks/set-state-in-effect; `src/app/(authenticated)/itinerary/[id]/page.tsx:365` react-hooks/preserve-manual-memoization; `src/components/chat/ContextPanel.tsx:57` react-hooks/set-state-in-effect; `src/components/landing/VideoHero.tsx:59` react-hooks/set-state-in-effect | Phase 16 | |
+| Q16 | react-hooks lint errors left in UI that phase 16 replaces (D-28): fix earlier or let phase 16 delete them? `npx eslint .` reports 4 errors, all in old UI (was 5; plan 14-06 removed the old geocoding effect): `src/app/(authenticated)/itinerary/[id]/page.tsx:147` react-hooks/set-state-in-effect; `src/app/(authenticated)/itinerary/[id]/page.tsx:405` react-hooks/preserve-manual-memoization; `src/components/chat/ContextPanel.tsx:57` react-hooks/set-state-in-effect; `src/components/landing/VideoHero.tsx:59` react-hooks/set-state-in-effect | Phase 16 | |
 | Q17 | Which contact goes in the Nominatim User-Agent? (The policy requires an identifying User-Agent; the old `contact@barabula.app` may not be monitored.) | Phase 14 | **repo-url (Recommended):** `Barabula/<version from package.json> (+https://github.com/asmeenray/barabula)`. (Asmeen, 5 Oct 2026) |
 | Q18 | Share viewers (`?share=true`) cannot open the map: the hero hides the Show Map button in share mode. The page now shows share viewers only cached OSM pins and never geocodes. Show the map toggle to share viewers? | Phase 16 | |
+| Q19 | Phase 15 migration must use a timestamp after `20261005000100`; also drop the section 7 line that adds `chat_history.itinerary_id`, which contradicts Q9 (chat is keyed by `session_id`) | Phase 15 | |
+| Q20 | Old QUAL-05 and QUAL-06 (Vitest coverage of auth/RLS helpers; Playwright E2E) came with folded phase 6 but no decision covers them: drop, or move to a later phase? | Phase 15 | |
+| Q21 | Shared itinerary links may fail for anonymous viewers because the proxy (`src/proxy.ts`) redirects `/api/*` to /login (only `/itinerary/...?share=true` pages are public). Fix later (touches auth)? | Phase 16 | |
+| Q22 | TypeScript 7 + ESLint 10 (D-18 #4): land them now? | Phase 14 | **Tried and reverted (5 Oct 2026, plan 14-12).** `npm install -D typescript@^7 eslint@^10` (no force flags) installed with 11 "ERESOLVE overriding peer dependency" warnings; `npx vitest run` (300 passed), `npx tsc --noEmit` and `npx next build` were green, but `npx eslint .` crashed: "typescript-eslint does not support TS 7.0" (from `typescript-eslint` 8.71.0, pulled in by `eslint-config-next` 16.3.8; tracking issue github.com/typescript-eslint/typescript-eslint/issues/10940). Each alone also fails lint: TS 7 with ESLint 9 gives the same typescript-eslint error; ESLint 10 with TS 5.9 crashes in `eslint-plugin-react` 7.37.5 ("Error while loading rule 'react/display-name': contextOrFilename.getFilename is not a function"). Restored to typescript 5.9.3 and eslint 9.39.5; all gates green again. Retry when typescript-eslint supports TS 7 and `eslint-config-next` supports ESLint 10. |
+| Q23 | `next build` rewrites the tracked `next-env.d.ts` (dev and build write different imports), so it shows as modified after every build. Add it to `.gitignore` and untrack it (Next's docs say not to edit it)? | Phase 15 | |
+| Q24 | `.gitignore` line `lib/` (Python template) also ignores `src/__tests__/lib/` (only `!src/lib/` is un-ignored), so new test files there need `git add -f`. Add `!src/__tests__/lib/`, or drop the Python block? Also: the local Supabase CLI creates `supabase/.branches/`, which is not ignored. Add `supabase/.branches/` to `.gitignore`? | Phase 15 | |
+| Q25 | The layout chat link and the ProfileDropdown "New Trip" link don't reset a chat that is already open at `/chat?session=X` (the page reads `?session=` once on mount), so the URL shows `/chat` while messages still go to X until reload. Fix now, or leave it to phase 16, which replaces this UI? | Phase 16 | |
 
 ---
 

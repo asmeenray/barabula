@@ -23,11 +23,15 @@ Next.js 16 (App Router) + Supabase (Postgres, PostGIS, RLS, Auth) + Vercel. Test
   three tabs, no pop-ups, tours, upsell modals or rating prompts.
 
 ## Commands (checked against package.json, 5 Oct 2026)
-- npm run dev | npm run lint
+- npm run dev | npm run lint (runs `eslint .` on the flat config in eslint.config.mjs; 4 known react-hooks errors, handover Q16)
 - npm test runs Vitest in watch mode; use `npx vitest run` for a single pass
 - npx playwright test (no Playwright config or tests exist yet)
 - npm run eval:capture  (created in phase 15; run after any extraction or matching change)
-- Migrations live in supabase/migrations/ (base schema is still only in supabase/schema.sql)
+- `next build` rewrites `next-env.d.ts`; restore it before committing (handover Q23)
+- The auth proxy is src/proxy.ts (Next ignores a root proxy.ts when the app is in src/app)
+- Migrations live in supabase/migrations/. The base schema is migration `20260310000000_baseline_schema.sql`
+  (supabase/schema.sql is kept as a reference copy). New migrations need a later timestamp.
+  Apply them with the Supabase CLI only after Asmeen's OK.
 
 ## Definition of done (every task)
 - Tests pass; new logic has unit tests; capture changes re-run the eval.
