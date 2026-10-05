@@ -14,6 +14,7 @@ import { FlightCard } from '@/components/itinerary/FlightCard'
 import { EatDrinkTab } from '@/components/itinerary/EatDrinkTab'
 import { SkeletonText } from '@/components/ui/Skeleton'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
+import { osmCoordsFrom } from '@/lib/geo-cache'
 import type { Activity, Itinerary, Flight, DailyFood } from '@/lib/types'
 import type { MapPin } from '@/components/itinerary/ItineraryMap'
 
@@ -37,6 +38,31 @@ function withSequence(pins: GeocodePin[], activities: Activity[]): MapPin[] {
     if (pin) ordered.push({ ...pin, sequenceNumber: i + 1 })
   })
   return ordered
+}
+
+// Server pins win over cached ones with the same id.
+function mergePins(base: GeocodePin[], incoming: GeocodePin[]): GeocodePin[] {
+  const byId = new Map(base.map(p => [p.id, p]))
+  for (const pin of incoming) byId.set(pin.id, pin)
+  return [...byId.values()]
+}
+
+// Pins from coordinates already cached as OSM results (no network).
+function cachedOsmPins(activities: Activity[]): GeocodePin[] {
+  const pins: GeocodePin[] = []
+  for (const act of activities) {
+    const coords = osmCoordsFrom(act.extra_data)
+    if (!coords) continue
+    pins.push({
+      id: act.id,
+      name: act.name,
+      day: act.day_number,
+      lat: coords.lat,
+      lng: coords.lng,
+      type: act.activity_type === 'hotel' ? 'hotel' : 'activity',
+    })
+  }
+  return pins
 }
 
 const fetcher = (url: string) => fetch(url).then(r => {
@@ -98,7 +124,7 @@ export default function ItineraryDetailPage() {
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null)
   const [formDay, setFormDay] = useState<number>(1)
   const [geocodedPins, setGeocodedPins] = useState<GeocodePin[]>([])
-  const [geocodingProgress, setGeocodingProgress] = useState(0)
+  const [isGeocoding, setIsGeocoding] = useState(false)
   const [activeActivityId, setActiveActivityId] = useState<string | null>(null)
   const [activeDay, setActiveDay] = useState<number | null>(null)
   const [mobileTab, setMobileTab] = useState<'list' | 'map'>('list')
@@ -189,40 +215,47 @@ export default function ItineraryDetailPage() {
   }
 
   const handleToggleMap = useCallback(() => {
-    setShowMap(prev => {
-      const next = !prev
-      if (!next) {
-        setGeocodedPins([])
-        setGeocodingProgress(0)
-        setMobileTab('list')
-      } else {
-        setMobileTab('map')
-      }
-      return next
-    })
-  }, [])
+    const next = !showMap
+    setShowMap(next)
+    setGeocodedPins([])
+    // Share viewers never geocode, so there is nothing to wait for.
+    setIsGeocoding(next && !isShareMode)
+    setMobileTab(next ? 'map' : 'list')
+  }, [showMap, isShareMode])
 
   // Geocoding runs on the server (owner only, throttled, cached as OSM coordinates).
-  // Share viewers never call it.
+  // Keep asking for the next batch while some activities remain. Share viewers never call it.
   useEffect(() => {
     if (!showMap || isShareMode) return
     let cancelled = false
     async function loadPins() {
+      let lastRemaining = Infinity
       try {
-        const res = await fetch(`/api/itineraries/${id}/geocode`, { method: 'POST' })
-        if (!res.ok || cancelled) return
-        const body = (await res.json()) as { pins: GeocodePin[]; remaining: number }
-        if (!cancelled) setGeocodedPins(body.pins ?? [])
-      } catch { /* map stays without pins; next open retries */ }
+        while (!cancelled) {
+          const res = await fetch(`/api/itineraries/${id}/geocode`, { method: 'POST' })
+          if (!res.ok || cancelled) break
+          const body = (await res.json()) as { pins?: GeocodePin[]; remaining?: number }
+          if (cancelled) break
+          setGeocodedPins(prev => mergePins(prev, body.pins ?? []))
+          const remaining = body.remaining ?? 0
+          // Stop when done, or when a batch made no progress (e.g. Nominatim is
+          // rate limiting); the next map open retries.
+          if (remaining <= 0 || remaining >= lastRemaining) break
+          lastRemaining = remaining
+        }
+      } catch { /* network error: keep the pins we have; next open retries */ }
+      if (!cancelled) setIsGeocoding(false)
     }
     loadPins()
     return () => { cancelled = true }
   }, [showMap, isShareMode, id])
 
-  const mapPins = useMemo(
-    () => withSequence(geocodedPins, data?.activities ?? []),
-    [geocodedPins, data?.activities]
-  )
+  const mapPins = useMemo(() => {
+    const activities = data?.activities ?? []
+    const cached = cachedOsmPins(activities)
+    const pins = isShareMode ? cached : mergePins(cached, geocodedPins)
+    return withSequence(pins, activities)
+  }, [geocodedPins, data?.activities, isShareMode])
 
   const startEditTitle = useCallback(() => {
     setTitleDraft(data?.title ?? '')
@@ -447,15 +480,10 @@ export default function ItineraryDetailPage() {
             {mainTab === 'itinerary' && (
               <div className="shrink-0 px-3 md:px-4 py-2 bg-white/80 backdrop-blur-md border-b border-sky/20">
                 <DayPillNav days={sortedDays} activeDay={activeDay} onDayChange={handleDayChange} />
-                {geocodingProgress > 0 && geocodingProgress < 100 && (
-                  <div className="mt-1.5 h-px bg-sky/30 rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full bg-coral rounded-full"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${geocodingProgress}%` }}
-                      transition={{ duration: 0.4 }}
-                    />
-                  </div>
+                {isGeocoding && (
+                  <p role="status" className="mt-1.5 text-xs text-umber/70">
+                    Finding places on the map…
+                  </p>
                 )}
               </div>
             )}
@@ -537,7 +565,7 @@ export default function ItineraryDetailPage() {
                 activeDay={activeDay}
                 activeActivityId={activeActivityId}
                 onPinClick={handlePinClick}
-                hasLocations={hasLocations}
+                hasLocations={hasLocations && (isGeocoding || mapPins.length > 0)}
               />
             )}
           </div>
