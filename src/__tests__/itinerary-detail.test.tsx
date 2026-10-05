@@ -31,9 +31,10 @@ vi.mock('swr', () => ({
 }))
 
 let shareParam: string | null = null
+const { pushMock } = vi.hoisted(() => ({ pushMock: vi.fn() }))
 vi.mock('next/navigation', () => ({
   useParams: () => ({ id: 'itin-1' }),
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: pushMock }),
   usePathname: () => '/itinerary/itin-1',
   useSearchParams: () => ({ get: (key: string) => (key === 'share' ? shareParam : null) }),
 }))
@@ -300,6 +301,63 @@ describe('ItineraryDetailPage', () => {
     const fab = screen.getByRole('button', { name: /chat again/i })
     expect(fab).toBeInTheDocument()
     expect(fab.className).toContain('md:hidden')
+  })
+})
+
+describe('Continue planning opens this trip\'s chat (D-12, D-27)', () => {
+  const SESSION_ID = '44444444-4444-4444-8444-444444444444'
+  const sessionCalls = () => fetchMock.mock.calls.filter(([url]) => String(url).startsWith('/api/chat/session?'))
+
+  function renderOwner() {
+    ;(useSWR as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: mockData,
+      error: null,
+      isLoading: false,
+      mutate: vi.fn(),
+    })
+    render(<ItineraryDetailPage />)
+  }
+
+  function answerSession(response: Response | Error) {
+    fetchMock.mockImplementation((url: string) => {
+      if (String(url).startsWith('/api/chat/session?')) {
+        return response instanceof Error ? Promise.reject(response) : Promise.resolve(response)
+      }
+      return Promise.resolve(new Response(JSON.stringify({ pins: [], remaining: 0 }), { status: 200 }))
+    })
+  }
+
+  const clickContinue = () => fireEvent.click(screen.getByRole('button', { name: /continue planning/i }))
+  const clickChatAgain = () => fireEvent.click(screen.getByRole('button', { name: /chat again/i }))
+
+  it.each([
+    ['Continue planning', clickContinue],
+    ['Chat again', clickChatAgain],
+  ])('%s fetches the itinerary\'s session and opens /chat?session=<id>', async (_label, click) => {
+    answerSession(new Response(JSON.stringify({ id: SESSION_ID }), { status: 200 }))
+    renderOwner()
+    click()
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith(`/chat?session=${SESSION_ID}`))
+    expect(sessionCalls().map(([url]) => url)).toEqual(['/api/chat/session?itineraryId=itin-1'])
+    expect(pushMock).not.toHaveBeenCalledWith('/chat')
+  })
+
+  it.each([
+    ['Continue planning', clickContinue],
+    ['Chat again', clickChatAgain],
+  ])('%s falls back to /chat when the session request fails', async (_label, click) => {
+    answerSession(new Response(JSON.stringify({ error: 'Itinerary not found' }), { status: 404 }))
+    renderOwner()
+    click()
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/chat'))
+    expect(pushMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('falls back to /chat on a network error', async () => {
+    answerSession(new Error('offline'))
+    renderOwner()
+    clickContinue()
+    await waitFor(() => expect(pushMock).toHaveBeenCalledWith('/chat'))
   })
 })
 

@@ -15,19 +15,21 @@ const SESSION_ID = '11111111-1111-4111-8111-111111111111'
 type Call = [string, unknown[]]
 let chains: Record<string, Call[][]> = {}
 let result: { data: unknown; error: unknown } = { data: null, error: null }
+// Optional per-chain answer (table, chain so far, index of this from(table) call); falls back to `result`
+let resolver: ((table: string, chain: Call[], index: number) => { data: unknown; error: unknown }) | null = null
 
 const eqArgs = (chain: Call[]) => chain.filter(([m]) => m === 'eq').map(([, a]) => a)
 
 // Same pattern as chat.test.ts: each from(table) records its method chain and resolves to `result`
 function builder(table: string) {
   const chain: Call[] = []
-  ;(chains[table] ??= []).push(chain)
+  const index = (chains[table] ??= []).push(chain) - 1
   const b: Record<string, unknown> = {}
   for (const m of ['select', 'eq', 'is', 'order', 'limit', 'insert', 'update', 'upsert', 'delete', 'single', 'maybeSingle']) {
     b[m] = vi.fn((...args: unknown[]) => { chain.push([m, args]); return b })
   }
   b.then = (resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) =>
-    Promise.resolve(result).then(resolve, reject)
+    Promise.resolve(resolver ? resolver(table, chain, index) : result).then(resolve, reject)
   return b
 }
 
@@ -36,6 +38,7 @@ beforeEach(() => {
   vi.resetModules()
   chains = {}
   result = { data: null, error: null }
+  resolver = null
   mockFrom.mockImplementation((table: string) => builder(table))
 })
 
@@ -195,5 +198,110 @@ describe('GET /api/chat/sessions (D-09)', () => {
     const res = await GET()
     expect(res.status).toBe(500)
     expect((await res.json()).error).toBe('boom')
+  })
+})
+
+describe('GET /api/chat/session?itineraryId= (D-12, D-27)', () => {
+  const ITINERARY_ID = '55555555-5555-4555-8555-555555555555'
+  const COLS = 'id, trip_state, conversation_phase, itinerary_id'
+  const linked = { id: SESSION_ID, trip_state: {}, conversation_phase: 'itinerary_complete', itinerary_id: ITINERARY_ID }
+  const url = (q: string) => new Request(`http://localhost/api/chat/session?${q}`) as any
+  const writes = (table: string) =>
+    (chains[table] ?? []).filter(chain => chain.some(([m]) => ['insert', 'update', 'upsert', 'delete'].includes(m)))
+
+  beforeEach(() => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+  })
+
+  it('returns 400 for a non-UUID itineraryId and reads nothing', async () => {
+    const { GET } = await import('@/app/api/chat/session/route')
+    const res = await GET(url('itineraryId=itin-1'))
+    expect(res.status).toBe(400)
+    expect((await res.json()).error).toBe('Invalid itinerary id')
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('returns 401 when not signed in', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null } })
+    const { GET } = await import('@/app/api/chat/session/route')
+    const res = await GET(url(`itineraryId=${ITINERARY_ID}`))
+    expect(res.status).toBe(401)
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('returns 404 for an itinerary the caller does not own, and never links it', async () => {
+    resolver = () => ({ data: null, error: null })
+    const { GET } = await import('@/app/api/chat/session/route')
+    const res = await GET(url(`itineraryId=${ITINERARY_ID}`))
+    expect(res.status).toBe(404)
+    expect((await res.json()).error).toBe('Itinerary not found')
+
+    const [owner] = chains.itineraries
+    expect(eqArgs(owner)).toContainEqual(['id', ITINERARY_ID])
+    expect(eqArgs(owner)).toContainEqual(['user_id', 'user-1'])
+    expect(chains.trip_sessions).toBeUndefined()
+  })
+
+  it('returns the session linked to the itinerary without creating one', async () => {
+    resolver = table => table === 'itineraries'
+      ? { data: { id: ITINERARY_ID }, error: null }
+      : { data: linked, error: null }
+    const { GET } = await import('@/app/api/chat/session/route')
+    const res = await GET(url(`itineraryId=${ITINERARY_ID}`))
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual(linked)
+
+    expect(chains.trip_sessions).toHaveLength(1)
+    const [read] = chains.trip_sessions
+    expect(read.find(([m]) => m === 'select')?.[1]).toEqual([COLS])
+    expect(eqArgs(read)).toContainEqual(['itinerary_id', ITINERARY_ID])
+    expect(eqArgs(read)).toContainEqual(['user_id', 'user-1'])
+    expect(writes('trip_sessions')).toHaveLength(0)
+  })
+
+  it('creates one linked session when none exists (manual itinerary)', async () => {
+    resolver = (table, chain) => {
+      if (table === 'itineraries') return { data: { id: ITINERARY_ID }, error: null }
+      if (chain.some(([m]) => m === 'insert')) return { data: linked, error: null }
+      return { data: null, error: null }
+    }
+    const { GET } = await import('@/app/api/chat/session/route')
+    const res = await GET(url(`itineraryId=${ITINERARY_ID}`))
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual(linked)
+
+    const inserts = writes('trip_sessions')
+    expect(inserts).toHaveLength(1)
+    const [insert] = inserts
+    expect(insert.find(([m]) => m === 'insert')?.[1]).toEqual([{ user_id: 'user-1', itinerary_id: ITINERARY_ID }])
+    expect(insert.find(([m]) => m === 'select')?.[1]).toEqual([COLS])
+    expect(insert.some(([m]) => m === 'single')).toBe(true)
+  })
+
+  it('re-reads the existing row when the insert loses a race on the unique link (23505)', async () => {
+    resolver = (table, chain, index) => {
+      if (table === 'itineraries') return { data: { id: ITINERARY_ID }, error: null }
+      if (chain.some(([m]) => m === 'insert')) return { data: null, error: { code: '23505', message: 'duplicate key' } }
+      return index === 0 ? { data: null, error: null } : { data: linked, error: null }
+    }
+    const { GET } = await import('@/app/api/chat/session/route')
+    const res = await GET(url(`itineraryId=${ITINERARY_ID}`))
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual(linked)
+    expect(chains.trip_sessions).toHaveLength(3)  // read, insert, re-read
+    expect(eqArgs(chains.trip_sessions[2])).toContainEqual(['itinerary_id', ITINERARY_ID])
+  })
+
+  it('returns 500 when the insert fails for another reason', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    resolver = (table, chain) => {
+      if (table === 'itineraries') return { data: { id: ITINERARY_ID }, error: null }
+      if (chain.some(([m]) => m === 'insert')) return { data: null, error: { code: '42501', message: 'rls' } }
+      return { data: null, error: null }
+    }
+    const { GET } = await import('@/app/api/chat/session/route')
+    const res = await GET(url(`itineraryId=${ITINERARY_ID}`))
+    expect(res.status).toBe(500)
+    errorSpy.mockRestore()
   })
 })

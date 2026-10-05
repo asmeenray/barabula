@@ -15,6 +15,7 @@ import { EatDrinkTab } from '@/components/itinerary/EatDrinkTab'
 import { SkeletonText } from '@/components/ui/Skeleton'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
 import { osmCoordsFrom } from '@/lib/geo-cache'
+import { isUuid } from '@/lib/uuid'
 import type { Activity, Itinerary, Flight, DailyFood } from '@/lib/types'
 import type { MapPin } from '@/components/itinerary/ItineraryMap'
 
@@ -329,9 +330,23 @@ export default function ItineraryDetailPage() {
 
   const handleBack = useCallback(() => router.push('/dashboard'), [router])
 
-  const handleContinuePlanning = useCallback(() => {
+  // D-12, D-27: reopen this itinerary's own chat (the session linked to it, created on first use).
+  // Any failure falls back to a fresh chat.
+  const handleContinuePlanning = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/chat/session?itineraryId=${encodeURIComponent(id)}`)
+      if (res.ok) {
+        const session = await res.json()
+        if (isUuid(session?.id)) {
+          router.push(`/chat?session=${session.id}`)
+          return
+        }
+      }
+    } catch {
+      // network error: fall through to a fresh chat
+    }
     router.push('/chat')
-  }, [router])
+  }, [id, router])
 
   const handleSaveFlight = useCallback(async (updated: Flight) => {
     const flights = data?.extra_data?.flights ?? []
@@ -672,9 +687,9 @@ export default function ItineraryDetailPage() {
         )}
       </AnimatePresence>
 
-      {/* "Chat again" FAB — mobile only (md:hidden). Routes user back to chat for trip refinement. */}
+      {/* "Chat again" FAB — mobile only (md:hidden). Reopens this trip's chat, like Continue planning. */}
       <button
-        onClick={() => router.push('/chat')}
+        onClick={handleContinuePlanning}
         className={[
           'fixed z-40 md:hidden',
           'flex items-center gap-2',
