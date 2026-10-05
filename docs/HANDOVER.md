@@ -595,6 +595,7 @@ Each phase ends with its "Done when". Don't start the next phase until it passes
 ### Phase 15 — Capture spike (1–2 weekends)
 - [ ] Test set: 50 real links (mix of Instagram, TikTok, Facebook) with the correct places written down in `tests/fixtures/capture.json`
 - [ ] Migration from section 7 (places, sources, capture_candidates, usage)
+- [ ] Add `bump_usage` (moved from Appendix B, D-25); name the migration with a timestamp after `20261005000100`
 - [ ] Load FSQ OS Places for 2–3 test cities
 - [ ] `/api/capture` stages 1–5 (links only)
 - [ ] Script `npm run eval:capture` → precision, recall, p90 time, cost per link
@@ -965,6 +966,8 @@ Stop and ask Asmeen. Add the question to handover section 25.
 ---
 
 ## Appendix B — Extra SQL (`20261005000100_events_costs.sql`)
+
+> **Moved to phase 15 (D-25, decided 2026-10-05):** `bump_usage` needs `public.usage`, which only exists in phase 15's section 7 migration. It moves into that migration next to `public.usage`, together with the clean-up job. Phase 14's `20261005000100_events_costs.sql` holds only `events` and `cost_log`.
 
 ```sql
 -- Product events (section 18). Written by the server only.
