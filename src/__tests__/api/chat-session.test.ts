@@ -23,7 +23,7 @@ function builder(table: string) {
   const chain: Call[] = []
   ;(chains[table] ??= []).push(chain)
   const b: Record<string, unknown> = {}
-  for (const m of ['select', 'eq', 'order', 'limit', 'insert', 'update', 'upsert', 'delete', 'single', 'maybeSingle']) {
+  for (const m of ['select', 'eq', 'is', 'order', 'limit', 'insert', 'update', 'upsert', 'delete', 'single', 'maybeSingle']) {
     b[m] = vi.fn((...args: unknown[]) => { chain.push([m, args]); return b })
   }
   b.then = (resolve: (v: unknown) => unknown, reject: (e: unknown) => unknown) =>
@@ -148,5 +148,52 @@ describe('GET /api/chat/session', () => {
   it('has no DELETE handler (D-10)', async () => {
     const mod = await import('@/app/api/chat/session/route')
     expect('DELETE' in mod).toBe(false)
+  })
+})
+
+describe('GET /api/chat/sessions (D-09)', () => {
+  it('returns 401 when not signed in and reads nothing', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null } })
+    const { GET } = await import('@/app/api/chat/sessions/route')
+    const res = await GET()
+    expect(res.status).toBe(401)
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('returns the caller\'s sessions with no itinerary, newest first', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    const rows = [
+      { id: SESSION_ID, trip_state: { destination: 'Lisbon' }, conversation_phase: 'gathering_details', updated_at: '2026-10-05T10:00:00Z' },
+    ]
+    result = { data: rows, error: null }
+    const { GET } = await import('@/app/api/chat/sessions/route')
+    const res = await GET()
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual(rows)
+
+    const [chain] = chains.trip_sessions
+    expect(chain.find(([m]) => m === 'select')?.[1]).toEqual(['id, trip_state, conversation_phase, updated_at'])
+    expect(eqArgs(chain)).toContainEqual(['user_id', 'user-1'])
+    expect(chain.find(([m]) => m === 'is')?.[1]).toEqual(['itinerary_id', null])
+    expect(chain.find(([m]) => m === 'order')?.[1]).toEqual(['updated_at', { ascending: false }])
+    expect(chain.some(([m]) => ['insert', 'update', 'upsert', 'delete'].includes(m))).toBe(false)
+  })
+
+  it('returns an empty array when there are no rows', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    result = { data: null, error: null }
+    const { GET } = await import('@/app/api/chat/sessions/route')
+    const res = await GET()
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual([])
+  })
+
+  it('returns 500 with the error message when the query fails', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    result = { data: null, error: { message: 'boom' } }
+    const { GET } = await import('@/app/api/chat/sessions/route')
+    const res = await GET()
+    expect(res.status).toBe(500)
+    expect((await res.json()).error).toBe('boom')
   })
 })

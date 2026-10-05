@@ -1,3 +1,5 @@
+import type { TripState, ConversationPhase } from './ai/schemas'
+
 export interface Activity {
   id: string
   itinerary_id: string
@@ -84,4 +86,12 @@ export type { TripState, ConversationPhase, AIResponse } from './ai/schemas'
 export interface ChipConfig {
   label: string
   message: string
+}
+
+/** One row of the dashboard "In progress" list (D-09): a trip chat with no itinerary yet. */
+export interface TripSessionSummary {
+  id: string
+  trip_state: Partial<TripState> | null
+  conversation_phase: ConversationPhase | null
+  updated_at: string
 }

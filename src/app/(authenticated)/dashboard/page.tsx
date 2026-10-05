@@ -5,9 +5,10 @@ import Link from 'next/link'
 import useSWR from 'swr'
 import { ItineraryCard } from '@/components/dashboard/ItineraryCard'
 import { EmptyState } from '@/components/dashboard/EmptyState'
+import { InProgressList } from '@/components/dashboard/InProgressList'
 import { SkeletonGrid } from '@/components/ui/Skeleton'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
-import type { Itinerary } from '@/lib/types'
+import type { Itinerary, TripSessionSummary } from '@/lib/types'
 
 const fetcher = (url: string) => fetch(url).then(r => {
   if (!r.ok) throw new Error('Failed to load')
@@ -19,6 +20,8 @@ export default function DashboardPage() {
     '/api/itineraries',
     fetcher
   )
+  // D-09: unfinished trip chats. Loading and error states are ignored so the grid never breaks.
+  const { data: sessions } = useSWR<TripSessionSummary[]>('/api/chat/sessions', fetcher)
   const [deletingIds, setDeletingIds] = useState<Set<string>>(new Set())
 
   async function handleDelete(id: string) {
@@ -50,6 +53,10 @@ export default function DashboardPage() {
           + New Trip
         </Link>
       </div>
+
+      {Array.isArray(sessions) && sessions.length > 0 && (
+        <InProgressList sessions={sessions} />
+      )}
 
       {/* Content states */}
       {isLoading && <SkeletonGrid />}
