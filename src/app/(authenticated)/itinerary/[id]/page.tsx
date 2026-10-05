@@ -14,7 +14,6 @@ import { FlightCard } from '@/components/itinerary/FlightCard'
 import { EatDrinkTab } from '@/components/itinerary/EatDrinkTab'
 import { SkeletonText } from '@/components/ui/Skeleton'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
-import { resolveActivityCoordinates } from '@/lib/geocoding'
 import type { Activity, Itinerary, Flight, DailyFood } from '@/lib/types'
 import type { MapPin } from '@/components/itinerary/ItineraryMap'
 
@@ -25,6 +24,19 @@ type ItineraryWithActivities = Itinerary & {
   cover_image_url?: string | null
   extra_data?: { flights?: Flight[]; daily_food?: DailyFood[] } | null
   is_public?: boolean
+}
+
+type GeocodePin = Omit<MapPin, 'sequenceNumber'>
+
+// Orders pins by activity order and numbers them 1..n among located activities.
+function withSequence(pins: GeocodePin[], activities: Activity[]): MapPin[] {
+  const byId = new Map(pins.map(p => [p.id, p]))
+  const ordered: MapPin[] = []
+  activities.filter(a => a.location).forEach((act, i) => {
+    const pin = byId.get(act.id)
+    if (pin) ordered.push({ ...pin, sequenceNumber: i + 1 })
+  })
+  return ordered
 }
 
 const fetcher = (url: string) => fetch(url).then(r => {
@@ -85,7 +97,7 @@ export default function ItineraryDetailPage() {
   const [activityFormOpen, setActivityFormOpen] = useState(false)
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null)
   const [formDay, setFormDay] = useState<number>(1)
-  const [mapPins, setMapPins] = useState<MapPin[]>([])
+  const [geocodedPins, setGeocodedPins] = useState<GeocodePin[]>([])
   const [geocodingProgress, setGeocodingProgress] = useState(0)
   const [activeActivityId, setActiveActivityId] = useState<string | null>(null)
   const [activeDay, setActiveDay] = useState<number | null>(null)
@@ -180,7 +192,7 @@ export default function ItineraryDetailPage() {
     setShowMap(prev => {
       const next = !prev
       if (!next) {
-        setMapPins([])
+        setGeocodedPins([])
         setGeocodingProgress(0)
         setMobileTab('list')
       } else {
@@ -190,47 +202,27 @@ export default function ItineraryDetailPage() {
     })
   }, [])
 
-  // Sequential geocoding — avoids Nominatim rate limits (lazy: only runs when showMap is true)
+  // Geocoding runs on the server (owner only, throttled, cached as OSM coordinates).
+  // Share viewers never call it.
   useEffect(() => {
-    if (!showMap || !data?.activities) return
-    const activities = data.activities.filter(a => a.location)
-    if (activities.length === 0) return
-
-    setMapPins([])
-    setGeocodingProgress(1) // signal that geocoding has started
-
+    if (!showMap || isShareMode) return
     let cancelled = false
-
-    async function resolveSequentially() {
-      const results: MapPin[] = []
-      for (let i = 0; i < activities.length; i++) {
-        if (cancelled) return
-        const act = activities[i]
-        const coords = await resolveActivityCoordinates(act, data!.destination ?? null)
-        if (coords) {
-          const pin: MapPin = {
-            id: act.id,
-            name: act.name,
-            day: act.day_number,
-            lng: coords.lng,
-            lat: coords.lat,
-            type: (act.activity_type === 'hotel' ? 'hotel' : 'activity') as 'activity' | 'hotel',
-            sequenceNumber: i + 1,
-          }
-          results.push(pin)
-          if (!cancelled) setMapPins([...results]) // update incrementally
-        }
-        setGeocodingProgress(Math.round(((i + 1) / activities.length) * 100))
-        // Small delay between requests to respect Nominatim rate limit (1 req/sec)
-        if (i < activities.length - 1 && !process.env.NEXT_PUBLIC_MAPBOX_TOKEN) {
-          await new Promise(r => setTimeout(r, 250))
-        }
-      }
+    async function loadPins() {
+      try {
+        const res = await fetch(`/api/itineraries/${id}/geocode`, { method: 'POST' })
+        if (!res.ok || cancelled) return
+        const body = (await res.json()) as { pins: GeocodePin[]; remaining: number }
+        if (!cancelled) setGeocodedPins(body.pins ?? [])
+      } catch { /* map stays without pins; next open retries */ }
     }
-
-    resolveSequentially()
+    loadPins()
     return () => { cancelled = true }
-  }, [showMap, data?.activities, data?.destination]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [showMap, isShareMode, id])
+
+  const mapPins = useMemo(
+    () => withSequence(geocodedPins, data?.activities ?? []),
+    [geocodedPins, data?.activities]
+  )
 
   const startEditTitle = useCallback(() => {
     setTitleDraft(data?.title ?? '')

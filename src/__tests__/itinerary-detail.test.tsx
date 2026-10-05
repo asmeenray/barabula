@@ -1,5 +1,5 @@
-import { render, screen, fireEvent } from '@testing-library/react'
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
 vi.mock('next/image', () => ({
   default: ({ alt }: { alt: string }) => <img alt={alt} />,
@@ -19,10 +19,6 @@ vi.mock('motion/react', () => ({
     ),
   },
   AnimatePresence: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}))
-
-vi.mock('@/lib/geocoding', () => ({
-  resolveActivityCoordinates: vi.fn().mockResolvedValue(null),
 }))
 
 vi.mock('swr', () => ({
@@ -76,8 +72,19 @@ const mockData = {
   ],
 }
 
+const fetchMock = vi.fn()
+
 beforeEach(() => {
   vi.clearAllMocks()
+  fetchMock.mockReset()
+  fetchMock.mockResolvedValue(
+    new Response(JSON.stringify({ pins: [], remaining: 0 }), { status: 200 })
+  )
+  vi.stubGlobal('fetch', fetchMock)
+})
+
+afterEach(() => {
+  vi.unstubAllGlobals()
 })
 
 describe('ItineraryDetailPage', () => {
@@ -150,6 +157,26 @@ describe('ItineraryDetailPage', () => {
     expect(screen.getByTestId('map-container')).toBeInTheDocument()
     // Button label should now read "Hide Map"
     expect(screen.getByRole('button', { name: /hide map/i })).toBeInTheDocument()
+  })
+
+  it('clicking Show Map POSTs to the server geocode route (no browser geocoding)', async () => {
+    ;(useSWR as ReturnType<typeof vi.fn>).mockReturnValue({
+      data: mockData,
+      error: null,
+      isLoading: false,
+      mutate: vi.fn(),
+    })
+    render(<ItineraryDetailPage />)
+    const geocodeCalls = () => fetchMock.mock.calls.filter(([url]) => String(url).endsWith('/geocode'))
+    expect(geocodeCalls()).toHaveLength(0)
+    fireEvent.click(screen.getByRole('button', { name: /show map/i }))
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith('/api/itineraries/itin-1/geocode', { method: 'POST' })
+    )
+    // Only our own API is called; never Nominatim from the browser
+    for (const [url] of fetchMock.mock.calls) {
+      expect(String(url)).toMatch(/^\/api\//)
+    }
   })
 
   it('renders "Eat & Drink" tab button', () => {
