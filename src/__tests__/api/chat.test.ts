@@ -156,6 +156,64 @@ describe('POST /api/chat/message', () => {
           parsed: {
             reply: 'Your itinerary is ready!',
             trip_state: {
+              destination: 'Tokyo', origin: 'NYC', dates_start: '2026-04-01', dates_end: '2026-04-01',
+              duration_days: 1, travelers_count: 2, travelers_type: 'couple',
+              budget: '$3000', interests: ['food', 'culture'], travel_style: 'balanced', pace: 'moderate',
+              constraints: [], notes: null,
+            },
+            conversation_phase: 'itinerary_complete',
+            itinerary: {
+              title: 'Tokyo Adventure',
+              destination: 'Tokyo',
+              start_date: '2026-04-01',
+              end_date: '2026-04-01',
+              description: 'A wonderful trip to Tokyo',
+              days: [
+                {
+                  day_number: 1,
+                  activities: [
+                    { name: 'Arrive', time: '10:00', description: 'Land at Narita', location: 'Narita Airport' },
+                  ],
+                },
+              ],
+            },
+          }
+        }
+      }]
+    })
+
+    const { POST } = await import('@/app/api/chat/message/route')
+    const req = new Request('http://localhost/api/chat/message', {
+      method: 'POST',
+      body: JSON.stringify({ content: 'Generate the itinerary!' }),
+    })
+    const res = await POST(req as any)
+    expect(res.status).toBe(200)
+    const body = await res.json()
+    expect(body.itineraryId).toBe('itin-1')
+    expect(body.conversationPhase).toBe('itinerary_complete')
+  })
+
+  it('rejects a partial itinerary (9 days requested, 1 returned) without saving it', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: { id: 'user-1' } } })
+    const itinerariesInsert = vi.fn().mockReturnThis()
+    const baseFrom = mockFrom.getMockImplementation()!
+    mockFrom.mockImplementation((table: string) => {
+      if (table === 'itineraries') {
+        return {
+          insert: itinerariesInsert,
+          select: vi.fn().mockReturnThis(),
+          single: vi.fn().mockResolvedValue({ data: { id: 'itin-1' }, error: null }),
+        }
+      }
+      return baseFrom(table)
+    })
+    mockParse.mockResolvedValueOnce({
+      choices: [{
+        message: {
+          parsed: {
+            reply: 'Your itinerary is ready!',
+            trip_state: {
               destination: 'Tokyo', origin: 'NYC', dates_start: '2026-04-01', dates_end: '2026-04-10',
               duration_days: 9, travelers_count: 2, travelers_type: 'couple',
               budget: '$3000', interests: ['food', 'culture'], travel_style: 'balanced', pace: 'moderate',
@@ -190,8 +248,9 @@ describe('POST /api/chat/message', () => {
     const res = await POST(req as any)
     expect(res.status).toBe(200)
     const body = await res.json()
-    expect(body.itineraryId).toBe('itin-1')
-    expect(body.conversationPhase).toBe('itinerary_complete')
+    expect(body.itineraryId).toBeUndefined()
+    expect(body.conversationPhase).toBe('ready_for_summary')
+    expect(itinerariesInsert).not.toHaveBeenCalled()
   })
 
   it('overrides itinerary_complete to ready_for_summary when itinerary is null', async () => {
