@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import OpenAI from 'openai'
+import { startCostLog, type CostTracker } from '@/lib/cost-log'
 
 const SYSTEM_PROMPT = `You are a helpful hotel information assistant for a travel planning app. Given a hotel name (possibly with spelling mistakes or incomplete) and optionally a destination city, find the best matching real hotel and return its details.
 
@@ -29,54 +30,66 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const body = await request.json()
-    const { hotel_name, destination } = body as { hotel_name: string; destination?: string }
-
-    if (!hotel_name || typeof hotel_name !== 'string') {
-      return NextResponse.json({ found: false })
-    }
-
-    const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
-
-    const userMessage = `Find hotel: ${hotel_name}${destination ? ` in ${destination}` : ''}`
-
-    const completion = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      response_format: { type: 'json_object' },
-      messages: [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: userMessage },
-      ],
-    })
-
-    const rawContent = completion.choices[0]?.message?.content ?? ''
-
-    let parsed: {
-      found: boolean
-      full_name?: string
-      area?: string
-      city?: string
-      star_rating?: number
-    }
-
+    const cost = startCostLog('/api/hotels/lookup', user.id)
     try {
-      parsed = JSON.parse(rawContent)
-    } catch {
-      return NextResponse.json({ found: false })
+      return await lookupHotel(request, cost)
+    } finally {
+      await cost.flush()
     }
-
-    if (!parsed.found) {
-      return NextResponse.json({ found: false })
-    }
-
-    return NextResponse.json({
-      found: true,
-      full_name: parsed.full_name ?? hotel_name,
-      area: parsed.area ?? '',
-      city: parsed.city ?? destination ?? '',
-      star_rating: parsed.star_rating ?? 4,
-    })
   } catch {
     return NextResponse.json({ error: 'Lookup failed' }, { status: 500 })
   }
+}
+
+async function lookupHotel(request: Request, cost: CostTracker) {
+  const body = await request.json()
+  const { hotel_name, destination } = body as { hotel_name: string; destination?: string }
+
+  if (!hotel_name || typeof hotel_name !== 'string') {
+    return NextResponse.json({ found: false })
+  }
+
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
+
+  const userMessage = `Find hotel: ${hotel_name}${destination ? ` in ${destination}` : ''}`
+
+  cost.count('openai')
+  const completion = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    response_format: { type: 'json_object' },
+    messages: [
+      { role: 'system', content: SYSTEM_PROMPT },
+      { role: 'user', content: userMessage },
+    ],
+  })
+
+  cost.addUsage('gpt-4o', completion.usage)
+
+  const rawContent = completion.choices[0]?.message?.content ?? ''
+
+  let parsed: {
+    found: boolean
+    full_name?: string
+    area?: string
+    city?: string
+    star_rating?: number
+  }
+
+  try {
+    parsed = JSON.parse(rawContent)
+  } catch {
+    return NextResponse.json({ found: false })
+  }
+
+  if (!parsed.found) {
+    return NextResponse.json({ found: false })
+  }
+
+  return NextResponse.json({
+    found: true,
+    full_name: parsed.full_name ?? hotel_name,
+    area: parsed.area ?? '',
+    city: parsed.city ?? destination ?? '',
+    star_rating: parsed.star_rating ?? 4,
+  })
 }

@@ -21,6 +21,6 @@ describe('HotelCard (HOTEL-01)', () => {
   })
   it('renders star rating', () => {
     render(<HotelCard activity={mockHotelActivity as any} />)
-    expect(screen.getByText(/5/)).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: '5-star hotel' })).toBeInTheDocument()
   })
 })

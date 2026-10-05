@@ -36,12 +36,6 @@
     ".next/dev/types/**/*.ts"
   ],
   "exclude": [
-    "node_modules",
-    "frontend",
-    "backend",
-    "mcp-server",
-    "mobile",
-    "shared",
-    "infrastructure"
+    "node_modules"
   ]
 }

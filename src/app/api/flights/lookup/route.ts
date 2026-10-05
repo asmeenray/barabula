@@ -1,12 +1,22 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import OpenAI from 'openai'
+import { startCostLog, type CostTracker } from '@/lib/cost-log'
 
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
+  const cost = startCostLog('/api/flights/lookup', user.id)
+  try {
+    return await lookupFlight(req, cost)
+  } finally {
+    await cost.flush()
+  }
+}
+
+async function lookupFlight(req: NextRequest, cost: CostTracker) {
   // Lazy-initialize after auth so key is not required for unauthenticated calls
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
@@ -34,6 +44,7 @@ export async function POST(req: NextRequest) {
   const userMessage = parts.length > 0 ? parts.join('\n') : 'No details provided'
 
   try {
+    cost.count('openai')
     const completion = await openai.chat.completions.create({
       model: 'gpt-4o',
       response_format: { type: 'json_object' },
@@ -66,6 +77,8 @@ Important rules:
         },
       ],
     })
+
+    cost.addUsage('gpt-4o', completion.usage)
 
     const raw = completion.choices[0]?.message?.content ?? ''
 

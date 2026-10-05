@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import dynamic from 'next/dynamic'
+import Link from 'next/link'
 import useSWR from 'swr'
 import { motion, AnimatePresence } from 'motion/react'
 import { DaySection } from '@/components/itinerary/DaySection'
@@ -13,7 +14,8 @@ import { FlightCard } from '@/components/itinerary/FlightCard'
 import { EatDrinkTab } from '@/components/itinerary/EatDrinkTab'
 import { SkeletonText } from '@/components/ui/Skeleton'
 import { ErrorMessage } from '@/components/ui/ErrorMessage'
-import { resolveActivityCoordinates } from '@/lib/geocoding'
+import { osmCoordsFrom } from '@/lib/geo-cache'
+import { isUuid } from '@/lib/uuid'
 import type { Activity, Itinerary, Flight, DailyFood } from '@/lib/types'
 import type { MapPin } from '@/components/itinerary/ItineraryMap'
 
@@ -24,6 +26,44 @@ type ItineraryWithActivities = Itinerary & {
   cover_image_url?: string | null
   extra_data?: { flights?: Flight[]; daily_food?: DailyFood[] } | null
   is_public?: boolean
+}
+
+type GeocodePin = Omit<MapPin, 'sequenceNumber'>
+
+// Orders pins by activity order and numbers them 1..n among located activities.
+function withSequence(pins: GeocodePin[], activities: Activity[]): MapPin[] {
+  const byId = new Map(pins.map(p => [p.id, p]))
+  const ordered: MapPin[] = []
+  activities.filter(a => a.location).forEach((act, i) => {
+    const pin = byId.get(act.id)
+    if (pin) ordered.push({ ...pin, sequenceNumber: i + 1 })
+  })
+  return ordered
+}
+
+// Server pins win over cached ones with the same id.
+function mergePins(base: GeocodePin[], incoming: GeocodePin[]): GeocodePin[] {
+  const byId = new Map(base.map(p => [p.id, p]))
+  for (const pin of incoming) byId.set(pin.id, pin)
+  return [...byId.values()]
+}
+
+// Pins from coordinates already cached as OSM results (no network).
+function cachedOsmPins(activities: Activity[]): GeocodePin[] {
+  const pins: GeocodePin[] = []
+  for (const act of activities) {
+    const coords = osmCoordsFrom(act.extra_data)
+    if (!coords) continue
+    pins.push({
+      id: act.id,
+      name: act.name,
+      day: act.day_number,
+      lat: coords.lat,
+      lng: coords.lng,
+      type: act.activity_type === 'hotel' ? 'hotel' : 'activity',
+    })
+  }
+  return pins
 }
 
 const fetcher = (url: string) => fetch(url).then(r => {
@@ -84,8 +124,8 @@ export default function ItineraryDetailPage() {
   const [activityFormOpen, setActivityFormOpen] = useState(false)
   const [editingActivity, setEditingActivity] = useState<Activity | null>(null)
   const [formDay, setFormDay] = useState<number>(1)
-  const [mapPins, setMapPins] = useState<MapPin[]>([])
-  const [geocodingProgress, setGeocodingProgress] = useState(0)
+  const [geocodedPins, setGeocodedPins] = useState<GeocodePin[]>([])
+  const [isGeocoding, setIsGeocoding] = useState(false)
   const [activeActivityId, setActiveActivityId] = useState<string | null>(null)
   const [activeDay, setActiveDay] = useState<number | null>(null)
   const [mobileTab, setMobileTab] = useState<'list' | 'map'>('list')
@@ -176,60 +216,47 @@ export default function ItineraryDetailPage() {
   }
 
   const handleToggleMap = useCallback(() => {
-    setShowMap(prev => {
-      const next = !prev
-      if (!next) {
-        setMapPins([])
-        setGeocodingProgress(0)
-        setMobileTab('list')
-      } else {
-        setMobileTab('map')
-      }
-      return next
-    })
-  }, [])
+    const next = !showMap
+    setShowMap(next)
+    setGeocodedPins([])
+    // Share viewers never geocode, so there is nothing to wait for.
+    setIsGeocoding(next && !isShareMode)
+    setMobileTab(next ? 'map' : 'list')
+  }, [showMap, isShareMode])
 
-  // Sequential geocoding — avoids Nominatim rate limits (lazy: only runs when showMap is true)
+  // Geocoding runs on the server (owner only, throttled, cached as OSM coordinates).
+  // Keep asking for the next batch while some activities remain. Share viewers never call it.
   useEffect(() => {
-    if (!showMap || !data?.activities) return
-    const activities = data.activities.filter(a => a.location)
-    if (activities.length === 0) return
-
-    setMapPins([])
-    setGeocodingProgress(1) // signal that geocoding has started
-
+    if (!showMap || isShareMode) return
     let cancelled = false
-
-    async function resolveSequentially() {
-      const results: MapPin[] = []
-      for (let i = 0; i < activities.length; i++) {
-        if (cancelled) return
-        const act = activities[i]
-        const coords = await resolveActivityCoordinates(act, data!.destination ?? null)
-        if (coords) {
-          const pin: MapPin = {
-            id: act.id,
-            name: act.name,
-            day: act.day_number,
-            lng: coords.lng,
-            lat: coords.lat,
-            type: (act.activity_type === 'hotel' ? 'hotel' : 'activity') as 'activity' | 'hotel',
-            sequenceNumber: i + 1,
-          }
-          results.push(pin)
-          if (!cancelled) setMapPins([...results]) // update incrementally
+    async function loadPins() {
+      let lastRemaining = Infinity
+      try {
+        while (!cancelled) {
+          const res = await fetch(`/api/itineraries/${id}/geocode`, { method: 'POST' })
+          if (!res.ok || cancelled) break
+          const body = (await res.json()) as { pins?: GeocodePin[]; remaining?: number }
+          if (cancelled) break
+          setGeocodedPins(prev => mergePins(prev, body.pins ?? []))
+          const remaining = body.remaining ?? 0
+          // Stop when done, or when a batch made no progress (e.g. Nominatim is
+          // rate limiting); the next map open retries.
+          if (remaining <= 0 || remaining >= lastRemaining) break
+          lastRemaining = remaining
         }
-        setGeocodingProgress(Math.round(((i + 1) / activities.length) * 100))
-        // Small delay between requests to respect Nominatim rate limit (1 req/sec)
-        if (i < activities.length - 1 && !process.env.NEXT_PUBLIC_MAPBOX_TOKEN) {
-          await new Promise(r => setTimeout(r, 250))
-        }
-      }
+      } catch { /* network error: keep the pins we have; next open retries */ }
+      if (!cancelled) setIsGeocoding(false)
     }
-
-    resolveSequentially()
+    loadPins()
     return () => { cancelled = true }
-  }, [showMap, data?.activities, data?.destination]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [showMap, isShareMode, id])
+
+  const mapPins = useMemo(() => {
+    const activities = data?.activities ?? []
+    const cached = cachedOsmPins(activities)
+    const pins = isShareMode ? cached : mergePins(cached, geocodedPins)
+    return withSequence(pins, activities)
+  }, [geocodedPins, data?.activities, isShareMode])
 
   const startEditTitle = useCallback(() => {
     setTitleDraft(data?.title ?? '')
@@ -303,9 +330,23 @@ export default function ItineraryDetailPage() {
 
   const handleBack = useCallback(() => router.push('/dashboard'), [router])
 
-  const handleContinuePlanning = useCallback(() => {
+  // D-12, D-27: reopen this itinerary's own chat (the session linked to it, created on first use).
+  // Any failure falls back to a fresh chat.
+  const handleContinuePlanning = useCallback(async () => {
+    try {
+      const res = await fetch(`/api/chat/session?itineraryId=${encodeURIComponent(id)}`)
+      if (res.ok) {
+        const session = await res.json()
+        if (isUuid(session?.id)) {
+          router.push(`/chat?session=${session.id}`)
+          return
+        }
+      }
+    } catch {
+      // network error: fall through to a fresh chat
+    }
     router.push('/chat')
-  }, [router])
+  }, [id, router])
 
   const handleSaveFlight = useCallback(async (updated: Flight) => {
     const flights = data?.extra_data?.flights ?? []
@@ -454,15 +495,10 @@ export default function ItineraryDetailPage() {
             {mainTab === 'itinerary' && (
               <div className="shrink-0 px-3 md:px-4 py-2 bg-white/80 backdrop-blur-md border-b border-sky/20">
                 <DayPillNav days={sortedDays} activeDay={activeDay} onDayChange={handleDayChange} />
-                {geocodingProgress > 0 && geocodingProgress < 100 && (
-                  <div className="mt-1.5 h-px bg-sky/30 rounded-full overflow-hidden">
-                    <motion.div
-                      className="h-full bg-coral rounded-full"
-                      initial={{ width: 0 }}
-                      animate={{ width: `${geocodingProgress}%` }}
-                      transition={{ duration: 0.4 }}
-                    />
-                  </div>
+                {isGeocoding && (
+                  <p role="status" className="mt-1.5 text-xs text-umber/70">
+                    Finding places on the map…
+                  </p>
                 )}
               </div>
             )}
@@ -544,7 +580,7 @@ export default function ItineraryDetailPage() {
                 activeDay={activeDay}
                 activeActivityId={activeActivityId}
                 onPinClick={handlePinClick}
-                hasLocations={hasLocations}
+                hasLocations={hasLocations && (isGeocoding || mapPins.length > 0)}
               />
             )}
           </div>
@@ -651,9 +687,9 @@ export default function ItineraryDetailPage() {
         )}
       </AnimatePresence>
 
-      {/* "Chat again" FAB — mobile only (md:hidden). Routes user back to chat for trip refinement. */}
+      {/* "Chat again" FAB — mobile only (md:hidden). Reopens this trip's chat, like Continue planning. */}
       <button
-        onClick={() => router.push('/chat')}
+        onClick={handleContinuePlanning}
         className={[
           'fixed z-40 md:hidden',
           'flex items-center gap-2',
@@ -748,7 +784,7 @@ export default function ItineraryDetailPage() {
                 >
                   Sign up free
                 </a>
-                <a
+                <Link
                   href="/"
                   className="px-3 py-2 rounded-xl text-xs font-semibold transition-all duration-150 hover:opacity-80"
                   style={{
@@ -757,7 +793,7 @@ export default function ItineraryDetailPage() {
                   }}
                 >
                   See how it works
-                </a>
+                </Link>
                 <button
                   onClick={dismissCtaBanner}
                   aria-label="Dismiss"

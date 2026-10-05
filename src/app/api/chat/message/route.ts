@@ -1,11 +1,14 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest } from 'next/server'
+import type { User } from '@supabase/supabase-js'
 import OpenAI from 'openai'
 import { AIResponseSchema, zodResponseFormat } from '@/lib/ai/schemas'
 import { buildSystemPrompt } from '@/lib/ai/system-prompt'
-import type { TripState, ConversationPhase, Flight } from '@/lib/ai/schemas'
+import type { AIResponse, TripState, ConversationPhase, Flight } from '@/lib/ai/schemas'
+import { startCostLog, type CostTracker } from '@/lib/cost-log'
 import { fetchCityImage, fetchActivityImage } from '@/lib/unsplash'
 import { fetchPlacesData } from '@/lib/places'
+import { isUuid } from '@/lib/uuid'
 import type { FlightInputData } from '@/components/chat/FlightsTabPanel'
 import type { HotelSaveData } from '@/components/chat/HotelsTabPanel'
 
@@ -16,24 +19,52 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
+  // D-15: one cost_log row per request, written on every path after the auth guard
+  const cost = startCostLog('/api/chat/message', user.id)
+  try {
+    return await handleMessage(req, supabase, user, cost)
+  } finally {
+    await cost.flush()
+  }
+}
+
+type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>
+
+const TOO_LARGE_ERROR = 'Itinerary too large to generate — try a shorter trip or fewer days.'
+
+async function handleMessage(req: NextRequest, supabase: SupabaseServerClient, user: User, cost: CostTracker) {
   // Lazy-initialize after auth so key is not required for unauthenticated calls
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
   const body = await req.json()
-  const { content, flightInputData, hotelSaveData, transportMode } = body as {
+  const { content, flightInputData, hotelSaveData, transportMode, sessionId: requestedSessionId } = body as {
     content: string
     flightInputData?: FlightInputData | null
     hotelSaveData?: HotelSaveData | null
     transportMode?: string | null
+    sessionId?: string | null
   }
   if (!content?.trim()) return Response.json({ error: 'Message content is required' }, { status: 400 })
 
-  // Load current trip session (if any)
-  const { data: sessionRow } = await supabase
-    .from('trip_sessions')
-    .select('trip_state, conversation_phase')
-    .eq('user_id', user.id)
-    .maybeSingle()
+  // D-07: one chat per trip. No sessionId = a new chat, created only after the AI reply succeeds.
+  if (requestedSessionId != null && !isUuid(requestedSessionId)) {
+    return Response.json({ error: 'Invalid session id' }, { status: 400 })
+  }
+  const existingSessionId: string | null = requestedSessionId ?? null
+
+  let sessionRow: { id: string; trip_state: Partial<TripState> | null; conversation_phase: string | null } | null = null
+  if (existingSessionId) {
+    const { data } = await supabase
+      .from('trip_sessions')
+      .select('id, trip_state, conversation_phase')
+      .eq('id', existingSessionId)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (!data) return Response.json({ error: 'Chat not found' }, { status: 404 })
+    sessionRow = data
+  }
+  // Present on every response once the session exists
+  const existingSessionField = existingSessionId ? { sessionId: existingSessionId } : {}
 
   const currentTripState: Partial<TripState> = sessionRow?.trip_state ?? {}
   const currentPhase: ConversationPhase | string = sessionRow?.conversation_phase ?? 'gathering_destination'
@@ -44,13 +75,18 @@ export async function POST(req: NextRequest) {
     ...(transportMode != null ? { transport_mode: transportMode } : {}),
   }
 
-  // Fetch last 20 messages for conversation context
-  const { data: history } = await supabase
-    .from('chat_history')
-    .select('role, content')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: true })
-    .limit(20)
+  // Fetch last 20 messages of this chat for conversation context (a new chat has none).
+  // Query newest first so the limit keeps the latest 20, then put them back in chat order.
+  let history: { role: string; content: string }[] | null = null
+  if (existingSessionId) {
+    const { data } = await supabase
+      .from('chat_history')
+      .select('role, content')
+      .eq('session_id', existingSessionId)
+      .order('created_at', { ascending: false })
+      .limit(20)
+    history = data ? [...data].reverse() : null
+  }
 
   const systemPrompt = buildSystemPrompt(mergedTripState, currentPhase, flightInputData, hotelSaveData)
 
@@ -62,41 +98,43 @@ export async function POST(req: NextRequest) {
     { role: 'user' as const, content },
   ]
 
-  let completion
-  try {
-    completion = await openai.chat.completions.parse({
+  // create() (not parse()) so a token-limit attempt still reports its usage (D-15, Pitfall 6).
+  // Every attempt is counted before the call and its usage recorded right after.
+  const generate = async (concise: boolean) => {
+    cost.count('openai')
+    const completion = await openai.chat.completions.create({
       model: 'gpt-4.1',
       max_tokens: 32768,
-      messages: buildMessages(),
+      messages: buildMessages(concise),
       response_format: zodResponseFormat(AIResponseSchema, 'ai_response'),
     })
-  } catch (err: unknown) {
-    const isLengthError = err instanceof Error && (
-      err.constructor.name === 'LengthFinishReasonError' ||
-      err.message?.includes('finish_reason') && err.message?.includes('length')
-    )
-    if (isLengthError) {
-      console.warn('[chat/message] Token limit hit — retrying with concise mode')
-      try {
-        completion = await openai.chat.completions.parse({
-          model: 'gpt-4.1',
-          max_tokens: 32768,
-          messages: buildMessages(true),
-          response_format: zodResponseFormat(AIResponseSchema, 'ai_response'),
-        })
-      } catch {
-        return Response.json({ error: 'Itinerary too large to generate — try a shorter trip or fewer days.' }, { status: 500 })
-      }
-    } else {
-      throw err
+    cost.addUsage('gpt-4.1', completion.usage)
+    return completion
+  }
+
+  // A thrown error on the first attempt propagates as before (the caller's finally still flushes)
+  let completion = await generate(false)
+  if (completion.choices[0]?.finish_reason === 'length') {
+    console.warn('[chat/message] Token limit hit — retrying with concise mode')
+    try {
+      completion = await generate(true)
+    } catch {
+      return Response.json({ error: TOO_LARGE_ERROR }, { status: 500 })
+    }
+    if (completion.choices[0]?.finish_reason === 'length') {
+      return Response.json({ error: TOO_LARGE_ERROR }, { status: 500 })
     }
   }
 
-  const parsed = completion.choices[0].message.parsed
-
-  // Guard: if parse fails entirely, return 500
-  if (!parsed) {
-    console.error('[chat/message] OpenAI structured output parse returned null')
+  // Untrusted model output: validate with zod. A refusal, empty content, bad JSON or schema mismatch is a 500.
+  let parsed: AIResponse
+  try {
+    const message = completion.choices[0]?.message
+    if (message?.refusal) throw new Error(`model refused: ${message.refusal}`)
+    if (!message?.content) throw new Error('empty content')
+    parsed = AIResponseSchema.parse(JSON.parse(message.content))
+  } catch (err) {
+    console.error('[chat/message] AI response parse failed:', err instanceof Error ? err.message : err)
     return Response.json({ error: 'AI response parse failed' }, { status: 500 })
   }
 
@@ -110,6 +148,7 @@ export async function POST(req: NextRequest) {
         content: `I wasn't able to fit all ${expectedDays} days into one response. Please send "try again" and I'll regenerate with shorter descriptions.`,
         conversationPhase: 'ready_for_summary',
         tripState: parsed.trip_state,
+        ...existingSessionField,
       })
     }
   }
@@ -121,21 +160,36 @@ export async function POST(req: NextRequest) {
     safePhase = 'ready_for_summary'
   }
 
-  // Persist both messages to chat_history
-  await supabase.from('chat_history').insert([
-    { user_id: user.id, role: 'user', content },
-    { user_id: user.id, role: 'assistant', content: parsed.reply },
-  ])
+  // Save trip state on this chat's session: update it, or create it for a new chat (D-07)
+  const now = new Date().toISOString()
+  let sessionId: string
+  if (existingSessionId) {
+    const { error: sessionUpdateError } = await supabase
+      .from('trip_sessions')
+      .update({ trip_state: parsed.trip_state, conversation_phase: safePhase, updated_at: now })
+      .eq('id', existingSessionId)
+      .eq('user_id', user.id)
+    if (sessionUpdateError) console.error('[chat/message] Failed to update trip session:', sessionUpdateError)
+    sessionId = existingSessionId
+  } else {
+    const { data: newSession, error: sessionInsertError } = await supabase
+      .from('trip_sessions')
+      .insert({ user_id: user.id, trip_state: parsed.trip_state, conversation_phase: safePhase, updated_at: now })
+      .select('id')
+      .single()
+    if (sessionInsertError || !newSession) {
+      console.error('[chat/message] Failed to create trip session:', sessionInsertError)
+      return Response.json({ error: 'Failed to save chat' }, { status: 500 })
+    }
+    sessionId = newSession.id
+  }
 
-  // Upsert trip session with latest state
-  await supabase.from('trip_sessions').upsert(
-    {
-      user_id: user.id,
-      trip_state: parsed.trip_state,
-      conversation_phase: safePhase,
-    },
-    { onConflict: 'user_id' }
-  )
+  // Persist both messages to this chat
+  const { error: historyInsertError } = await supabase.from('chat_history').insert([
+    { user_id: user.id, session_id: sessionId, role: 'user', content },
+    { user_id: user.id, session_id: sessionId, role: 'assistant', content: parsed.reply },
+  ])
+  if (historyInsertError) console.error('[chat/message] Failed to save chat messages:', historyInsertError)
 
   // If itinerary complete and itinerary data present, persist itinerary + activities
   if (safePhase === 'itinerary_complete' && parsed.itinerary) {
@@ -158,13 +212,21 @@ export async function POST(req: NextRequest) {
 
     if (insertError) {
       console.error('[chat/message] Failed to insert itinerary:', insertError)
-      return Response.json({ error: 'Failed to save itinerary' }, { status: 500 })
+      return Response.json({ error: 'Failed to save itinerary', sessionId }, { status: 500 })
     }
+
+    // D-27: link this chat to its newest itinerary (a later itinerary re-points the link)
+    const { error: linkError } = await supabase
+      .from('trip_sessions')
+      .update({ itinerary_id: newItinerary.id, updated_at: new Date().toISOString() })
+      .eq('id', sessionId)
+      .eq('user_id', user.id)
+    if (linkError) console.error('[chat/message] Failed to link itinerary to session:', linkError)
 
     // Fetch and store cover image for the new itinerary
     const destination = itineraryFields.destination ?? itineraryFields.title
     if (destination) {
-      const coverUrl = await fetchCityImage(destination)
+      const coverUrl = await fetchCityImage(destination, cost)
       if (coverUrl) {
         await supabase
           .from('itineraries')
@@ -203,8 +265,8 @@ export async function POST(req: NextRequest) {
             : null
 
           const [photoUrl, placesData] = await Promise.all([
-            isHotel ? Promise.resolve(null) : fetchActivityImage(act.name, activityDestination),
-            isHotel ? Promise.resolve({ rating: null, priceLevel: null }) : fetchPlacesData(act.name, activityDestination),
+            isHotel ? Promise.resolve(null) : fetchActivityImage(act.name, activityDestination, cost),
+            isHotel ? Promise.resolve({ rating: null, priceLevel: null }) : fetchPlacesData(act.name, activityDestination, cost),
           ])
 
           const baseExtraData = isHotel
@@ -250,6 +312,7 @@ export async function POST(req: NextRequest) {
       itineraryId: newItinerary.id,
       conversationPhase: safePhase,
       tripState: parsed.trip_state,
+      sessionId,
     })
   }
 
@@ -257,6 +320,7 @@ export async function POST(req: NextRequest) {
     content: parsed.reply,
     conversationPhase: safePhase,
     tripState: parsed.trip_state,
+    sessionId,
   })
 }
 

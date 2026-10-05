@@ -1,6 +1,6 @@
 'use client'
 import { useEffect, useRef, useState } from 'react'
-import Map, { Marker, NavigationControl, Popup } from 'react-map-gl/maplibre'
+import Map, { AttributionControl, Marker, NavigationControl, Popup } from 'react-map-gl/maplibre'
 import type { MapRef } from 'react-map-gl/maplibre'
 import 'maplibre-gl/dist/maplibre-gl.css'
 
@@ -139,6 +139,12 @@ export default function ItineraryMap({
         attributionControl={false}
       >
         <NavigationControl position="bottom-right" showCompass={false} />
+        {/* OSM credit (ODbL, Nominatim geocoding) always visible, next to the CARTO style credits */}
+        <AttributionControl
+          position="bottom-left"
+          compact={false}
+          customAttribution="© OpenStreetMap contributors"
+        />
 
         {visiblePins.map(pin => (
           <Marker
@@ -198,12 +204,12 @@ export default function ItineraryMap({
         </div>
       )}
 
-      {/* Geocoding in progress — show when activities have locations but pins not yet resolved */}
+      {/* Geocoding in progress: activities are being placed but no pins yet */}
       {hasLocations && pins.length === 0 && (
         <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
           <div className="bg-white/90 backdrop-blur-sm rounded-2xl px-5 py-4 text-center shadow-sm border border-sky/30">
             <div className="text-2xl mb-1">📍</div>
-            <p className="text-sm font-medium text-navy">Locating places on map…</p>
+            <p className="text-sm font-medium text-navy">Finding places on the map…</p>
             <p className="text-xs text-umber/60 mt-0.5">This takes a moment</p>
           </div>
         </div>

@@ -1,40 +1,60 @@
-import type { Activity } from '@/lib/types'
+import 'server-only'
+import pkg from '../../package.json'
+import type { CostTracker } from '@/lib/cost-log'
 
-export async function resolveActivityCoordinates(
-  activity: Activity & { extra_data?: Record<string, unknown> | null },
-  contextDestination: string | null
-): Promise<{ lat: number; lng: number } | null> {
-  const cached = activity.extra_data as Record<string, unknown> | null
-  if (cached?.lat && cached?.lng) {
-    return { lat: cached.lat as number, lng: cached.lng as number }
-  }
-  if (!activity.location) return null
-  const query = contextDestination
-    ? `${activity.location}, ${contextDestination}`
-    : activity.location
-  // Primary: Mapbox if token available
-  const mapboxToken = process.env.NEXT_PUBLIC_MAPBOX_TOKEN
-  if (mapboxToken) {
-    try {
-      const url = `https://api.mapbox.com/search/geocode/v6/forward?q=${encodeURIComponent(query)}&limit=1&access_token=${mapboxToken}`
-      const res = await fetch(url)
-      const data = await res.json()
-      const coords = data.features?.[0]?.geometry?.coordinates
-      if (coords) return { lng: coords[0], lat: coords[1] }
-    } catch { /* fall through to Nominatim */ }
-  }
+// Nominatim usage policy: identify the app, at most 1 request per second, cache results.
+export const NOMINATIM_USER_AGENT = `Barabula/${pkg.version} (+https://github.com/asmeenray/barabula)`
+export const NOMINATIM_MIN_INTERVAL_MS = 1100
 
-  // Fallback: Nominatim (OpenStreetMap) — free, no API key required
+const NOMINATIM_SEARCH_URL = 'https://nominatim.openstreetmap.org/search'
+
+export type GeocodeResult =
+  | { status: 'hit'; lat: number; lng: number }
+  | { status: 'not_found' }
+  | { status: 'error' }
+
+// Module-level throttle: each call reserves the next free slot, so calls start
+// at least NOMINATIM_MIN_INTERVAL_MS apart within one server instance.
+let nextSlot = 0
+
+async function waitForSlot(): Promise<void> {
+  const now = Date.now()
+  const start = Math.max(now, nextSlot)
+  nextSlot = start + NOMINATIM_MIN_INTERVAL_MS
+  const wait = start - now
+  if (wait > 0) await new Promise(resolve => setTimeout(resolve, wait))
+}
+
+export function buildGeocodeQuery(location: string, destination: string | null): string {
+  return destination ? `${location}, ${destination}` : location
+}
+
+export async function geocodeQuery(
+  query: string,
+  tracker?: Pick<CostTracker, 'count'>
+): Promise<GeocodeResult> {
+  await waitForSlot()
+  const url = `${NOMINATIM_SEARCH_URL}?q=${encodeURIComponent(query)}&format=jsonv2&limit=1`
   try {
-    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`
-    const res = await fetch(url, {
-      headers: { 'User-Agent': 'Barabula Trip Planner (contact@barabula.app)' },
-    })
-    const data = await res.json()
-    if (data?.[0]) {
-      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) }
-    }
-  } catch { /* geocoding failed */ }
+    // Count every real request attempt (D-15), including ones that fail.
+    tracker?.count('nominatim')
+    const res = await fetch(url, { headers: { 'User-Agent': NOMINATIM_USER_AGENT } })
+    // 429 (rate limited) and 403 (blocked) are errors too: never cache them as not_found.
+    if (!res.ok) return { status: 'error' }
+    const data: unknown = await res.json()
+    if (!Array.isArray(data)) return { status: 'error' }
+    const first = data[0] as { lat?: unknown; lon?: unknown } | undefined
+    if (!first) return { status: 'not_found' }
+    const lat = parseFloat(String(first.lat))
+    const lng = parseFloat(String(first.lon))
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return { status: 'not_found' }
+    return { status: 'hit', lat, lng }
+  } catch {
+    return { status: 'error' }
+  }
+}
 
-  return null
+/** Test helper: reset the throttle between tests. */
+export function __resetGeocodeThrottle(): void {
+  nextSlot = 0
 }

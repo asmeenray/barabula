@@ -7,6 +7,9 @@ vi.mock('react-map-gl/maplibre', () => ({
   ),
   Marker: ({ children }: { children?: React.ReactNode }) => <>{children}</>,
   NavigationControl: () => null,
+  AttributionControl: ({ customAttribution }: { customAttribution?: string | string[] }) => (
+    <div data-testid="attribution">{customAttribution}</div>
+  ),
 }))
 vi.mock('maplibre-gl/dist/maplibre-gl.css', () => ({}))
 
@@ -16,5 +19,10 @@ describe('ItineraryMap (MAP-01)', () => {
   it('renders a map container', () => {
     render(<ItineraryMap pins={[]} activeDay={null} activeActivityId={null} onPinClick={() => {}} />)
     expect(screen.getByTestId('map-container')).toBeInTheDocument()
+  })
+
+  it('credits OpenStreetMap on the map (ODbL attribution, D-14)', () => {
+    render(<ItineraryMap pins={[]} activeDay={null} activeActivityId={null} onPinClick={() => {}} />)
+    expect(screen.getByText('© OpenStreetMap contributors')).toBeInTheDocument()
   })
 })
