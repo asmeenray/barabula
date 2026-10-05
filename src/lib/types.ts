@@ -46,6 +46,7 @@ export interface Itinerary {
 export interface ChatMessage {
   id: string
   user_id: string
+  session_id?: string | null
   role: 'user' | 'assistant'
   content: string
   created_at: string

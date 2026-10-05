@@ -7,6 +7,7 @@ import { buildSystemPrompt } from '@/lib/ai/system-prompt'
 import type { TripState, ConversationPhase, Flight } from '@/lib/ai/schemas'
 import { fetchCityImage, fetchActivityImage } from '@/lib/unsplash'
 import { fetchPlacesData } from '@/lib/places'
+import { isUuid } from '@/lib/uuid'
 import type { FlightInputData } from '@/components/chat/FlightsTabPanel'
 import type { HotelSaveData } from '@/components/chat/HotelsTabPanel'
 
@@ -21,20 +22,34 @@ export async function POST(req: NextRequest) {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY })
 
   const body = await req.json()
-  const { content, flightInputData, hotelSaveData, transportMode } = body as {
+  const { content, flightInputData, hotelSaveData, transportMode, sessionId: requestedSessionId } = body as {
     content: string
     flightInputData?: FlightInputData | null
     hotelSaveData?: HotelSaveData | null
     transportMode?: string | null
+    sessionId?: string | null
   }
   if (!content?.trim()) return Response.json({ error: 'Message content is required' }, { status: 400 })
 
-  // Load current trip session (if any)
-  const { data: sessionRow } = await supabase
-    .from('trip_sessions')
-    .select('trip_state, conversation_phase')
-    .eq('user_id', user.id)
-    .maybeSingle()
+  // D-07: one chat per trip. No sessionId = a new chat, created only after the AI reply succeeds.
+  if (requestedSessionId != null && !isUuid(requestedSessionId)) {
+    return Response.json({ error: 'Invalid session id' }, { status: 400 })
+  }
+  const existingSessionId: string | null = requestedSessionId ?? null
+
+  let sessionRow: { id: string; trip_state: Partial<TripState> | null; conversation_phase: string | null } | null = null
+  if (existingSessionId) {
+    const { data } = await supabase
+      .from('trip_sessions')
+      .select('id, trip_state, conversation_phase')
+      .eq('id', existingSessionId)
+      .eq('user_id', user.id)
+      .maybeSingle()
+    if (!data) return Response.json({ error: 'Chat not found' }, { status: 404 })
+    sessionRow = data
+  }
+  // Present on every response once the session exists
+  const existingSessionField = existingSessionId ? { sessionId: existingSessionId } : {}
 
   const currentTripState: Partial<TripState> = sessionRow?.trip_state ?? {}
   const currentPhase: ConversationPhase | string = sessionRow?.conversation_phase ?? 'gathering_destination'
@@ -45,13 +60,17 @@ export async function POST(req: NextRequest) {
     ...(transportMode != null ? { transport_mode: transportMode } : {}),
   }
 
-  // Fetch last 20 messages for conversation context
-  const { data: history } = await supabase
-    .from('chat_history')
-    .select('role, content')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: true })
-    .limit(20)
+  // Fetch last 20 messages of this chat for conversation context (a new chat has none)
+  let history: { role: string; content: string }[] | null = null
+  if (existingSessionId) {
+    const { data } = await supabase
+      .from('chat_history')
+      .select('role, content')
+      .eq('session_id', existingSessionId)
+      .order('created_at', { ascending: true })
+      .limit(20)
+    history = data
+  }
 
   const systemPrompt = buildSystemPrompt(mergedTripState, currentPhase, flightInputData, hotelSaveData)
 
@@ -111,6 +130,7 @@ export async function POST(req: NextRequest) {
         content: `I wasn't able to fit all ${expectedDays} days into one response. Please send "try again" and I'll regenerate with shorter descriptions.`,
         conversationPhase: 'ready_for_summary',
         tripState: parsed.trip_state,
+        ...existingSessionField,
       })
     }
   }
@@ -122,21 +142,36 @@ export async function POST(req: NextRequest) {
     safePhase = 'ready_for_summary'
   }
 
-  // Persist both messages to chat_history
-  await supabase.from('chat_history').insert([
-    { user_id: user.id, role: 'user', content },
-    { user_id: user.id, role: 'assistant', content: parsed.reply },
-  ])
+  // Save trip state on this chat's session: update it, or create it for a new chat (D-07)
+  const now = new Date().toISOString()
+  let sessionId: string
+  if (existingSessionId) {
+    const { error: sessionUpdateError } = await supabase
+      .from('trip_sessions')
+      .update({ trip_state: parsed.trip_state, conversation_phase: safePhase, updated_at: now })
+      .eq('id', existingSessionId)
+      .eq('user_id', user.id)
+    if (sessionUpdateError) console.error('[chat/message] Failed to update trip session:', sessionUpdateError)
+    sessionId = existingSessionId
+  } else {
+    const { data: newSession, error: sessionInsertError } = await supabase
+      .from('trip_sessions')
+      .insert({ user_id: user.id, trip_state: parsed.trip_state, conversation_phase: safePhase, updated_at: now })
+      .select('id')
+      .single()
+    if (sessionInsertError || !newSession) {
+      console.error('[chat/message] Failed to create trip session:', sessionInsertError)
+      return Response.json({ error: 'Failed to save chat' }, { status: 500 })
+    }
+    sessionId = newSession.id
+  }
 
-  // Upsert trip session with latest state
-  await supabase.from('trip_sessions').upsert(
-    {
-      user_id: user.id,
-      trip_state: parsed.trip_state,
-      conversation_phase: safePhase,
-    },
-    { onConflict: 'user_id' }
-  )
+  // Persist both messages to this chat
+  const { error: historyInsertError } = await supabase.from('chat_history').insert([
+    { user_id: user.id, session_id: sessionId, role: 'user', content },
+    { user_id: user.id, session_id: sessionId, role: 'assistant', content: parsed.reply },
+  ])
+  if (historyInsertError) console.error('[chat/message] Failed to save chat messages:', historyInsertError)
 
   // If itinerary complete and itinerary data present, persist itinerary + activities
   if (safePhase === 'itinerary_complete' && parsed.itinerary) {
@@ -159,8 +194,16 @@ export async function POST(req: NextRequest) {
 
     if (insertError) {
       console.error('[chat/message] Failed to insert itinerary:', insertError)
-      return Response.json({ error: 'Failed to save itinerary' }, { status: 500 })
+      return Response.json({ error: 'Failed to save itinerary', sessionId }, { status: 500 })
     }
+
+    // D-27: link this chat to its newest itinerary (a later itinerary re-points the link)
+    const { error: linkError } = await supabase
+      .from('trip_sessions')
+      .update({ itinerary_id: newItinerary.id, updated_at: new Date().toISOString() })
+      .eq('id', sessionId)
+      .eq('user_id', user.id)
+    if (linkError) console.error('[chat/message] Failed to link itinerary to session:', linkError)
 
     // Fetch and store cover image for the new itinerary
     const destination = itineraryFields.destination ?? itineraryFields.title
@@ -251,6 +294,7 @@ export async function POST(req: NextRequest) {
       itineraryId: newItinerary.id,
       conversationPhase: safePhase,
       tripState: parsed.trip_state,
+      sessionId,
     })
   }
 
@@ -258,6 +302,7 @@ export async function POST(req: NextRequest) {
     content: parsed.reply,
     conversationPhase: safePhase,
     tripState: parsed.trip_state,
+    sessionId,
   })
 }
 

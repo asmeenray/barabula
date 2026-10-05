@@ -52,9 +52,13 @@ type FullItineraryData = {
 // Stable ID for the initial prompt message so history merge can identify it
 const INITIAL_MSG_ID = '__initial_prompt__'
 
+const CHAT_NOT_FOUND_MESSAGE = 'This chat could not be found. Start a new trip from the dashboard.'
+
 function ChatPageInner() {
   const searchParams = useSearchParams()
   const initialPrompt = useRef(searchParams.get('q') ?? getPrompt() ?? '').current
+  // D-07: the chat this page shows. Null = a new chat; the server creates it on the first reply.
+  const sessionIdRef = useRef<string | null>(searchParams.get('session'))
 
   // Pre-populate user message immediately — never lost, even if history replaces state later
   const [messages, setMessages] = useState<LocalMessage[]>(() =>
@@ -100,42 +104,40 @@ function ChatPageInner() {
     if (initialPrompt) clearPrompt()
   }, [initialPrompt])
 
-  // Load history and session state — auto-reset first when starting a new trip
+  // Load this chat's history and trip state. A new chat (no ?session=) has nothing to load.
   useEffect(() => {
-    async function initSession() {
-      if (initialPrompt) {
-        // New trip intent — wipe previous session + history for a clean slate
-        await fetch('/api/chat/session', { method: 'DELETE' })
-      }
-
-      // Load history (will be empty after reset)
-      fetch('/api/chat/history')
-        .then(r => r.json())
-        .then((data: ChatMessage[]) => {
-          const history = data.map(msg => ({
-            id: msg.id,
-            role: msg.role,
-            content: msg.content,
-          }))
-          setMessages(prev => {
-            // Keep everything after history (the initial prompt + any responses already added)
-            const nonHistory = prev.filter(m => m.id === INITIAL_MSG_ID)
-            return [...history, ...nonHistory]
-          })
-        })
-        .catch(() => {/* silent — empty history on error */})
-
-      // Load trip session state (will be empty after reset)
-      fetch('/api/chat/session')
-        .then(r => r.ok ? r.json() : null)
-        .then(session => {
-          if (session?.conversation_phase) setConversationPhase(session.conversation_phase)
-          if (session?.trip_state) setTripState(session.trip_state)
-        })
-        .catch(() => {/* silent */})
+    const sessionId = sessionIdRef.current
+    if (!sessionId) {
+      setHistoryLoading(false)
+      return
     }
 
-    initSession().finally(() => setHistoryLoading(false))
+    const historyRequest = fetch(`/api/chat/history?session=${encodeURIComponent(sessionId)}`)
+      .then(r => r.json())
+      .then((data: ChatMessage[]) => {
+        if (!Array.isArray(data)) return
+        const history = data.map(msg => ({
+          id: msg.id,
+          role: msg.role,
+          content: msg.content,
+        }))
+        setMessages(prev => {
+          // Keep everything after history (the initial prompt + any responses already added)
+          const nonHistory = prev.filter(m => m.id === INITIAL_MSG_ID)
+          return [...history, ...nonHistory]
+        })
+      })
+      .catch(() => {/* silent — empty history on error */})
+
+    const sessionRequest = fetch(`/api/chat/session?id=${encodeURIComponent(sessionId)}`)
+      .then(r => r.ok ? r.json() : null)
+      .then(session => {
+        if (session?.conversation_phase) setConversationPhase(session.conversation_phase)
+        if (session?.trip_state) setTripState(session.trip_state)
+      })
+      .catch(() => {/* silent */})
+
+    Promise.all([historyRequest, sessionRequest]).finally(() => setHistoryLoading(false))
   }, [])
 
   // Auto-send: only triggers API — user message already in state from initial useState
@@ -159,9 +161,31 @@ function ChatPageInner() {
       const res = await fetch('/api/chat/message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content, flightInputData, hotelSaveData, transportMode }),
+        body: JSON.stringify({
+          content,
+          flightInputData,
+          hotelSaveData,
+          transportMode,
+          ...(sessionIdRef.current ? { sessionId: sessionIdRef.current } : {}),
+        }),
       })
       const data = await res.json()
+
+      if (res.status === 404) {
+        setMessages(prev => [...prev, {
+          id: crypto.randomUUID(),
+          role: 'assistant',
+          content: CHAT_NOT_FOUND_MESSAGE,
+        }])
+        setSending(false)
+        return
+      }
+
+      // First reply of a new chat: remember its session and put it in the URL (D-07)
+      if (data.sessionId && !sessionIdRef.current) {
+        sessionIdRef.current = data.sessionId
+        router.replace(`/chat?session=${data.sessionId}`, { scroll: false })
+      }
 
       if (data.conversationPhase) {
         setConversationPhase(data.conversationPhase)

@@ -20,27 +20,48 @@ vi.mock('@/lib/landing/prompt-store', () => ({
 // Mock fetch
 global.fetch = vi.fn()
 
-// Mock next/navigation with a spy so we can assert on push calls
+// Mock next/navigation with spies so we can assert on push/replace calls
 const mockPush = vi.fn()
+const mockReplace = vi.fn()
+let mockParams: Record<string, string> = {}
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush }),
+  useRouter: () => ({ push: mockPush, replace: mockReplace }),
   usePathname: () => '/',
-  useSearchParams: () => ({ get: () => null }),
+  useSearchParams: () => ({ get: (key: string) => mockParams[key] ?? null }),
 }))
 
-/** Helper: default fetch mocks — history empty + session gathering_destination */
+const SESSION_A = '11111111-1111-4111-8111-111111111111'
+const NEW_SESSION = '22222222-2222-4222-8222-222222222222'
+
+const fetchMock = () => global.fetch as ReturnType<typeof vi.fn>
+const fetchCalls = () => fetchMock().mock.calls as Array<[string, RequestInit | undefined]>
+const postBodies = () => fetchCalls()
+  .filter(([url, init]) => url === '/api/chat/message' && init?.method === 'POST')
+  .map(([, init]) => JSON.parse(String(init!.body)))
+
+/** Helper: bare /chat is a new chat, so there is nothing to fetch on load */
 function mockDefaultFetches() {
-  ;(global.fetch as ReturnType<typeof vi.fn>)
-    .mockResolvedValueOnce({ json: () => Promise.resolve([]) })  // history
-    .mockResolvedValueOnce({  // session GET
-      ok: true,
-      json: () => Promise.resolve({ trip_state: {}, conversation_phase: 'gathering_destination' }),
-    })
+  // no history or session fetch without ?session=
+}
+
+/** Helper: /chat?session=<id> loads that chat's history then its session state */
+function mockSessionFetches(history: unknown[] = [], session: Record<string, unknown> = { trip_state: {}, conversation_phase: 'gathering_destination' }) {
+  fetchMock()
+    .mockResolvedValueOnce({ json: () => Promise.resolve(history) })  // history
+    .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(session) })  // session GET
+}
+
+function send(text: string) {
+  const textarea = screen.getByPlaceholderText(/dream trip/i)
+  fireEvent.change(textarea, { target: { value: text } })
+  fireEvent.keyDown(textarea, { key: 'Enter', shiftKey: false })
 }
 
 beforeEach(() => {
   vi.resetAllMocks()
   mockPush.mockReset()
+  mockReplace.mockReset()
+  mockParams = {}
 })
 
 it('renders the chat container', async () => {
@@ -63,11 +84,6 @@ it('calls router.push after receiving itineraryId', async () => {
   Object.defineProperty(window, 'innerWidth', { value: 375, writable: true, configurable: true })
 
   ;(global.fetch as ReturnType<typeof vi.fn>)
-    .mockResolvedValueOnce({ json: () => Promise.resolve([]) })  // history
-    .mockResolvedValueOnce({  // session GET
-      ok: true,
-      json: () => Promise.resolve({ trip_state: {}, conversation_phase: 'gathering_destination' }),
-    })
     .mockResolvedValueOnce({ json: () => Promise.resolve({ content: "Your itinerary is ready!", itineraryId: 'abc-123', conversationPhase: 'itinerary_complete', tripState: {} }) })  // message
     .mockResolvedValueOnce({ json: () => Promise.resolve({ title: 'Test', destination: 'Paris', start_date: '2024-01-01', end_date: '2024-01-07', activities: [] }) })  // itinerary fetch
 
@@ -88,11 +104,6 @@ it('calls router.push after receiving itineraryId', async () => {
 
 it('passes conversationPhase to QuickActionChips after API response', async () => {
   ;(global.fetch as ReturnType<typeof vi.fn>)
-    .mockResolvedValueOnce({ json: () => Promise.resolve([]) })  // history
-    .mockResolvedValueOnce({  // session GET
-      ok: true,
-      json: () => Promise.resolve({ trip_state: {}, conversation_phase: 'gathering_destination' }),
-    })
     .mockResolvedValueOnce({
       json: () => Promise.resolve({
         content: 'Great! Here is what I have so far...',
@@ -128,6 +139,7 @@ it('shows mobile overlay when showMobileOverlay state is true', async () => {
 
 it('calls DELETE /api/chat/session when __reset_session__ sentinel is triggered', async () => {
   // Pre-set itinerary_complete phase via session
+  mockParams = { session: SESSION_A }
   ;(global.fetch as ReturnType<typeof vi.fn>)
     .mockResolvedValueOnce({ json: () => Promise.resolve([]) })  // history
     .mockResolvedValueOnce({  // session GET — returns itinerary_complete so "Plan a new trip" chip renders
@@ -164,4 +176,75 @@ it('calls DELETE /api/chat/session when __reset_session__ sentinel is triggered'
     const deleteCall = calls.find(c => c[0] === '/api/chat/session' && c[1]?.method === 'DELETE')
     expect(deleteCall).toBeTruthy()
   })
+})
+
+it('bare /chat: no history or session fetch on load', async () => {
+  mockDefaultFetches()
+  render(<ChatPage />)
+  await waitFor(() => screen.getByText(/Where are we going today\?/i))
+  expect(fetchMock()).not.toHaveBeenCalled()
+})
+
+it('first reply with sessionId puts the chat in the URL and the next send carries that sessionId (D-07)', async () => {
+  fetchMock()
+    .mockResolvedValueOnce({ json: () => Promise.resolve({ content: 'Lisbon, lovely. When?', conversationPhase: 'gathering_details', tripState: { destination: 'Lisbon' }, sessionId: NEW_SESSION }) })
+    .mockResolvedValueOnce({ json: () => Promise.resolve({ content: 'Got it.', conversationPhase: 'gathering_details', tripState: { destination: 'Lisbon' }, sessionId: NEW_SESSION }) })
+
+  render(<ChatPage />)
+  await waitFor(() => screen.getByPlaceholderText(/dream trip/i))
+
+  send('Lisbon please')
+  await waitFor(() => screen.getByText('Lisbon, lovely. When?'))
+  expect(mockReplace).toHaveBeenCalledTimes(1)
+  expect(mockReplace).toHaveBeenCalledWith(`/chat?session=${NEW_SESSION}`, { scroll: false })
+  expect(postBodies()[0].sessionId).toBeUndefined()
+
+  send('In May')
+  await waitFor(() => screen.getByText('Got it.'))
+  expect(postBodies()[1].sessionId).toBe(NEW_SESSION)
+  // Already known: no second URL replace
+  expect(mockReplace).toHaveBeenCalledTimes(1)
+})
+
+it('/chat?session=<id>: loads that chat by id and sends its sessionId', async () => {
+  mockParams = { session: SESSION_A }
+  mockSessionFetches(
+    [{ id: 'm1', role: 'user', content: 'Plan Lisbon' }, { id: 'm2', role: 'assistant', content: 'Lisbon it is.' }],
+    { id: SESSION_A, trip_state: { destination: 'Lisbon' }, conversation_phase: 'gathering_details', itinerary_id: null },
+  )
+  fetchMock().mockResolvedValueOnce({ json: () => Promise.resolve({ content: 'Noted.', conversationPhase: 'gathering_details', tripState: {}, sessionId: SESSION_A }) })
+
+  render(<ChatPage />)
+  await waitFor(() => screen.getByText('Lisbon it is.'))
+  const urls = fetchCalls().map(([url]) => url)
+  expect(urls).toContain(`/api/chat/history?session=${SESSION_A}`)
+  expect(urls).toContain(`/api/chat/session?id=${SESSION_A}`)
+
+  await waitFor(() => expect(screen.getByPlaceholderText(/dream trip/i)).not.toBeDisabled())
+  send('Four days')
+  await waitFor(() => screen.getByText('Noted.'))
+  expect(postBodies()[0].sessionId).toBe(SESSION_A)
+  expect(mockReplace).not.toHaveBeenCalled()
+})
+
+it('?q= starts a new chat without any DELETE request', async () => {
+  mockParams = { q: 'Weekend in Porto' }
+  fetchMock().mockResolvedValueOnce({ json: () => Promise.resolve({ content: 'Porto, great.', conversationPhase: 'gathering_details', tripState: {}, sessionId: NEW_SESSION }) })
+
+  render(<ChatPage />)
+  await waitFor(() => screen.getByText('Porto, great.'))
+  expect(fetchCalls().some(([, init]) => init?.method === 'DELETE')).toBe(false)
+  expect(postBodies()[0].content).toBe('Weekend in Porto')
+  expect(mockReplace).toHaveBeenCalledWith(`/chat?session=${NEW_SESSION}`, { scroll: false })
+})
+
+it('shows a calm message when the chat is not found (404)', async () => {
+  mockParams = { session: SESSION_A }
+  mockSessionFetches()
+  fetchMock().mockResolvedValueOnce({ status: 404, json: () => Promise.resolve({ error: 'Chat not found' }) })
+
+  render(<ChatPage />)
+  await waitFor(() => expect(screen.getByPlaceholderText(/dream trip/i)).not.toBeDisabled())
+  send('Hello?')
+  await waitFor(() => screen.getByText('This chat could not be found. Start a new trip from the dashboard.'))
 })
