@@ -54,11 +54,17 @@ const INITIAL_MSG_ID = '__initial_prompt__'
 
 const CHAT_NOT_FOUND_MESSAGE = 'This chat could not be found. Start a new trip from the dashboard.'
 
-function ChatPageInner() {
+type ChatPageInnerProps = {
+  /** True after "Plan a new trip": ignore the URL, which may still show the previous chat until router.push lands */
+  fresh: boolean
+  onNewTrip: () => void
+}
+
+function ChatPageInner({ fresh, onNewTrip }: ChatPageInnerProps) {
   const searchParams = useSearchParams()
-  const initialPrompt = useRef(searchParams.get('q') ?? getPrompt() ?? '').current
+  const initialPrompt = useRef(fresh ? '' : (searchParams.get('q') ?? getPrompt() ?? '')).current
   // D-07: the chat this page shows. Null = a new chat; the server creates it on the first reply.
-  const sessionIdRef = useRef<string | null>(searchParams.get('session'))
+  const sessionIdRef = useRef<string | null>(fresh ? null : searchParams.get('session'))
 
   // Pre-populate user message immediately — never lost, even if history replaces state later
   const [messages, setMessages] = useState<LocalMessage[]>(() =>
@@ -252,13 +258,10 @@ function ChatPageInner() {
       return
     }
 
-    // Sentinel: "Plan a new trip" chip — confirm, reset session, and reload
+    // Sentinel: "Plan a new trip" chip — open a fresh chat. The old chat stays saved (D-10).
     if (content === '__reset_session__') {
-      const destination = tripState.destination ? `your current ${tripState.destination} planning` : 'your current planning'
-      const confirmed = window.confirm(`This will clear ${destination} — continue?`)
-      if (!confirmed) return
-      fetch('/api/chat/session', { method: 'DELETE' })
-        .finally(() => window.location.reload())
+      router.push('/chat')
+      onNewTrip()
       return
     }
 
@@ -443,9 +446,15 @@ function ChatPageInner() {
 }
 
 export default function ChatPage() {
+  // Bumped by "Plan a new trip" to remount the chat with clean state
+  const [newTripCount, setNewTripCount] = useState(0)
   return (
     <Suspense fallback={<div className="flex items-center justify-center h-screen text-umber/40 bg-sand/40">Loading...</div>}>
-      <ChatPageInner />
+      <ChatPageInner
+        key={newTripCount}
+        fresh={newTripCount > 0}
+        onNewTrip={() => setNewTripCount(n => n + 1)}
+      />
     </Suspense>
   )
 }

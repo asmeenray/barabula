@@ -137,45 +137,51 @@ it('shows mobile overlay when showMobileOverlay state is true', async () => {
   expect(screen.queryByText('Building your itinerary...')).not.toBeInTheDocument()
 })
 
-it('calls DELETE /api/chat/session when __reset_session__ sentinel is triggered', async () => {
-  // Pre-set itinerary_complete phase via session
+it("'Plan a new trip' opens a fresh chat: router.push('/chat'), no DELETE, no confirm (D-10)", async () => {
+  // Start on a finished chat so the "Plan a new trip" chip renders
   mockParams = { session: SESSION_A }
-  ;(global.fetch as ReturnType<typeof vi.fn>)
-    .mockResolvedValueOnce({ json: () => Promise.resolve([]) })  // history
-    .mockResolvedValueOnce({  // session GET — returns itinerary_complete so "Plan a new trip" chip renders
-      ok: true,
-      json: () => Promise.resolve({ trip_state: { destination: 'Tokyo' }, conversation_phase: 'itinerary_complete' }),
-    })
-    .mockResolvedValueOnce({ json: () => Promise.resolve({ ok: true }) })  // DELETE session
-
-  // Mock window.confirm to return true
-  vi.spyOn(window, 'confirm').mockReturnValue(true)
-
-  // Mock window.location.reload
-  const reloadMock = vi.fn()
-  Object.defineProperty(window, 'location', {
-    value: { reload: reloadMock },
-    writable: true,
-  })
+  mockSessionFetches(
+    [{ id: 'm1', role: 'user', content: 'Plan Tokyo' }, { id: 'm2', role: 'assistant', content: 'Your Tokyo trip is ready.' }],
+    { id: SESSION_A, trip_state: { destination: 'Tokyo' }, conversation_phase: 'itinerary_complete', itinerary_id: null },
+  )
+  const confirmSpy = vi.spyOn(window, 'confirm')
 
   render(<ChatPage />)
-
-  // Wait for "Plan a new trip" chip to appear (itinerary_complete phase)
   await waitFor(() => {
     expect(screen.getByText('Plan a new trip')).toBeTruthy()
+    expect(screen.getByText('Your Tokyo trip is ready.')).toBeTruthy()
   })
 
-  // Click the "Plan a new trip" chip
+  // The browser still shows ?session=A until the push lands; the fresh chat must not reload it
+  const callsBefore = fetchCalls().length
   fireEvent.click(screen.getByText('Plan a new trip'))
 
   await waitFor(() => {
-    // confirm dialog shown
-    expect(window.confirm).toHaveBeenCalled()
-    // DELETE called on /api/chat/session
-    const calls = (global.fetch as ReturnType<typeof vi.fn>).mock.calls
-    const deleteCall = calls.find(c => c[0] === '/api/chat/session' && c[1]?.method === 'DELETE')
-    expect(deleteCall).toBeTruthy()
+    expect(mockPush).toHaveBeenCalledWith('/chat')
+    expect(screen.getByText(/Where are we going today\?/i)).toBeInTheDocument()
   })
+  expect(screen.queryByText('Your Tokyo trip is ready.')).not.toBeInTheDocument()
+  expect(screen.queryByText('Plan a new trip')).not.toBeInTheDocument()
+  expect(confirmSpy).not.toHaveBeenCalled()
+  expect(fetchCalls().some(([, init]) => init?.method === 'DELETE')).toBe(false)
+  expect(fetchCalls().length).toBe(callsBefore)
+  confirmSpy.mockRestore()
+})
+
+it('after a new trip, the first message starts a new session (no old sessionId sent)', async () => {
+  mockParams = { session: SESSION_A }
+  mockSessionFetches([], { id: SESSION_A, trip_state: {}, conversation_phase: 'itinerary_complete', itinerary_id: null })
+  fetchMock().mockResolvedValueOnce({ json: () => Promise.resolve({ content: 'Where to next?', conversationPhase: 'gathering_destination', tripState: {}, sessionId: NEW_SESSION }) })
+
+  render(<ChatPage />)
+  await waitFor(() => screen.getByText('Plan a new trip'))
+  fireEvent.click(screen.getByText('Plan a new trip'))
+  await waitFor(() => screen.getByText(/Where are we going today\?/i))
+
+  send('Somewhere warm')
+  await waitFor(() => screen.getByText('Where to next?'))
+  expect(postBodies()[0].sessionId).toBeUndefined()
+  expect(mockReplace).toHaveBeenCalledWith(`/chat?session=${NEW_SESSION}`, { scroll: false })
 })
 
 it('bare /chat: no history or session fetch on load', async () => {

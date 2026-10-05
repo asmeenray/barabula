@@ -3,6 +3,7 @@ import { NextRequest } from 'next/server'
 import { isUuid } from '@/lib/uuid'
 
 // D-07: one chat per trip. Reads a single session by its id.
+// D-10: there is deliberately no DELETE. Starting a new trip keeps every old chat.
 export async function GET(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -20,22 +21,4 @@ export async function GET(req: NextRequest) {
   if (!data) return Response.json({ error: 'Chat not found' }, { status: 404 })
 
   return Response.json(data)
-}
-
-export async function DELETE(req: NextRequest) {
-  const supabase = await createClient()
-  const { data: { user } } = await supabase.auth.getUser()
-  if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
-
-  // Delete both trip session AND chat history for a clean slate
-  const [sessionResult, historyResult] = await Promise.all([
-    supabase.from('trip_sessions').delete().eq('user_id', user.id),
-    supabase.from('chat_history').delete().eq('user_id', user.id),
-  ])
-
-  if (sessionResult.error || historyResult.error) {
-    return Response.json({ error: 'Failed to reset session' }, { status: 500 })
-  }
-
-  return Response.json({ ok: true })
 }
