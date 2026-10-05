@@ -83,9 +83,9 @@ export function HotelCard({ activity, isActive = false, onCardClick }: HotelCard
 
             {/* Star rating */}
             {starRating !== undefined && starRating !== null && (
-              <div className="flex items-center gap-1 mt-1">
+              <div className="flex items-center gap-1 mt-1" role="img" aria-label={`${starRating}-star hotel`}>
                 {Array.from({ length: Math.min(starRating, 5) }).map((_, i) => (
-                  <svg key={i} width="10" height="10" viewBox="0 0 10 10" fill="#D67940">
+                  <svg key={i} width="10" height="10" viewBox="0 0 10 10" fill="#D67940" aria-hidden="true">
                     <path d="M5 0.5L6.18 3.55L9.51 3.64L6.97 5.68L7.88 8.81L5 7.05L2.12 8.81L3.03 5.68L0.49 3.64L3.82 3.55L5 0.5Z"/>
                   </svg>
                 ))}
