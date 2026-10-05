@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest } from 'next/server'
 import OpenAI from 'openai'
+import { LengthFinishReasonError } from 'openai/core/error'
 import { AIResponseSchema, zodResponseFormat } from '@/lib/ai/schemas'
 import { buildSystemPrompt } from '@/lib/ai/system-prompt'
 import type { TripState, ConversationPhase, Flight } from '@/lib/ai/schemas'
@@ -71,8 +72,8 @@ export async function POST(req: NextRequest) {
       response_format: zodResponseFormat(AIResponseSchema, 'ai_response'),
     })
   } catch (err: unknown) {
-    const isLengthError = err instanceof Error && (
-      err.constructor.name === 'LengthFinishReasonError' ||
+    const isLengthError = err instanceof LengthFinishReasonError || (
+      err instanceof Error &&
       err.message?.includes('finish_reason') && err.message?.includes('length')
     )
     if (isLengthError) {
