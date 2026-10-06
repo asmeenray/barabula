@@ -40,7 +40,7 @@ const MAP_BUTTON =
 
 export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: CityPhoto | null }) {
   const { trip } = plan
-  const { activities, updateActivity, moveActivity, unsaved, error } = usePlan(plan)
+  const { activities, updateActivity, moveActivity, moveUp, moveDown, unsaved, error } = usePlan(plan)
   const canEdit = useCanEdit()
   const mapReady = useAfterMark(MAP_READY_MARK, PHOTO_HOLD_MAX_MS)
   const city = trip.destination || trip.title
@@ -71,9 +71,12 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cit
   }, [])
 
   // The row "⋯" menu (16-09): every move is reachable without drag (D-22).
-  const actionsFor = (a: PlanActivity): RowActions => ({
+  // Move up / Move down are left out (shown disabled) at the ends of a bucket.
+  const actionsFor = (a: PlanActivity, index: number, rows: PlanActivity[]): RowActions => ({
     dayCount: days.length,
     move: (toDay) => moveActivity(a.id, toDay),
+    moveUp: index > 0 ? () => moveUp(a.id) : undefined,
+    moveDown: index < rows.length - 1 ? () => moveDown(a.id) : undefined,
   })
 
   const tabs = (props: { idPrefix?: string; controls?: (key: DayKey) => string; className?: string }) => (

@@ -214,6 +214,22 @@ export function usePlan(initial: TripPlan) {
     [activities, applyChanges, undo, announce]
   )
 
+  /** One step up / down inside the place's own bucket; no-op at the ends. */
+  const moveBy = useCallback(
+    (id: string, step: -1 | 1) => {
+      const a = activities.find((x) => x.id === id)
+      if (!a) return
+      const bucket = bucketOf(activities, a.day_number)
+      const index = bucket.findIndex((x) => x.id === id)
+      const to = index + step
+      if (index < 0 || to < 0 || to >= bucket.length) return
+      moveActivity(id, a.day_number, to)
+    },
+    [activities, moveActivity]
+  )
+  const moveUp = useCallback((id: string) => moveBy(id, -1), [moveBy])
+  const moveDown = useCallback((id: string) => moveBy(id, 1), [moveBy])
+
   const retry = useCallback(async () => {
     const entries = [...pending.current.entries()]
     // Retrying an entry merges it with itself; pass an empty update.
@@ -226,5 +242,5 @@ export function usePlan(initial: TripPlan) {
     [failed, retry]
   )
 
-  return { activities, updateActivity, moveActivity, unsaved, error }
+  return { activities, updateActivity, moveActivity, moveUp, moveDown, unsaved, error }
 }
