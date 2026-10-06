@@ -92,7 +92,30 @@ describe('proxy', () => {
 
   it('keeps the matcher that skips static assets', () => {
     expect(config.matcher).toEqual([
-      '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
+      '/((?!_next/static|_next/image|favicon.ico|maplibre/|images/|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|mjs)$).*)',
     ])
+  })
+
+  // D-38: static files (AVIF photos, the MapLibre worker) skip the proxy so
+  // logged-out visitors can load them; every page and API route still runs it.
+  describe('matcher', () => {
+    const matcher = new RegExp(`^${config.matcher[0]}$`)
+
+    it.each([
+      '/images/cities/lisbon-l.avif',
+      '/maplibre/maplibre-gl-worker.mjs',
+      '/maplibre/maplibre-gl-shared.mjs',
+    ])('skips the static file %s', (path) => {
+      expect(matcher.test(path)).toBe(false)
+    })
+
+    it.each([
+      '/places',
+      '/you',
+      '/itinerary/0b6c6a59-6d6a-4b8a-9a8e-1f2d3c4b5a69',
+      '/api/activities',
+    ])('still runs the proxy for %s', (path) => {
+      expect(matcher.test(path)).toBe(true)
+    })
   })
 })

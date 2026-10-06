@@ -221,3 +221,6 @@ api_keys.txt
 
 # GSD planning files: local only (D-02)
 .planning/
+
+# MapLibre worker, copied from node_modules by scripts/copy-maplibre-worker.mjs
+public/maplibre/

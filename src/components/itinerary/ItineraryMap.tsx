@@ -132,14 +132,16 @@ export default function ItineraryMap({
     <div className="relative w-full h-full">
       <Map
         ref={mapRef}
-        // Carto Positron — clean monochrome, elegant, premium
-        mapStyle="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"
+        // OpenFreeMap Positron — clean monochrome, no API key
+        mapStyle="https://tiles.openfreemap.org/styles/positron"
+        // MapLibre 6 worker, copied into public/maplibre/ by scripts/copy-maplibre-worker.mjs
+        workerUrl="/maplibre/maplibre-gl-worker.mjs"
         initialViewState={{ longitude: 0, latitude: 20, zoom: 2 }}
         style={{ width: '100%', height: '100%' }}
         attributionControl={false}
       >
         <NavigationControl position="bottom-right" showCompass={false} />
-        {/* OSM credit (ODbL, Nominatim geocoding) always visible, next to the CARTO style credits */}
+        {/* OSM credit (ODbL, Nominatim geocoding) always visible, next to the OpenFreeMap style credits */}
         <AttributionControl
           position="bottom-left"
           compact={false}
