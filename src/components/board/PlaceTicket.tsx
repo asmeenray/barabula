@@ -9,6 +9,7 @@ import { googleMapsUrl } from '@/lib/plan/maps-link'
 import type { PlanActivity } from '@/lib/plan/types'
 import type { ActivityUpdate } from '@/lib/plan/use-plan'
 import type { WalkCell } from '@/lib/plan/walk'
+import { RowMenu, type RowActions } from './RowMenu'
 
 // A place's ticket, opened inline under its board row (UI-SPEC §7 item 7).
 // Renders only from data already on the page: no fetch on open (≤ 300 ms).
@@ -51,9 +52,11 @@ interface PlaceTicketProps {
   stop: number | null
   walk: WalkCell
   onUpdate: (id: string, update: ActivityUpdate) => void
+  /** The "⋯" menu (16-09): the keyboard / screen-reader path for moves. */
+  actions: RowActions
 }
 
-export function PlaceTicket({ activity: a, stop, walk, onUpdate }: PlaceTicketProps) {
+export function PlaceTicket({ activity: a, stop, walk, onUpdate, actions }: PlaceTicketProps) {
   const announce = useAnnounce()
   const canEdit = useCanEdit()
 
@@ -164,6 +167,7 @@ export function PlaceTicket({ activity: a, stop, walk, onUpdate }: PlaceTicketPr
         >
           Open in Google Maps
         </a>
+        <RowMenu placeName={a.name} day={a.day_number} {...actions} className="ml-auto bg-surface-2" />
       </div>
     </div>
   )

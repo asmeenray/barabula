@@ -6,9 +6,15 @@
 // whose Retry resends every unsaved patch (UI-SPEC Interaction States, D-33).
 // Saves for the same place go out in order, so a quick double toggle can't
 // land out of order on the server.
+// Moves (16-09, D-22) are one PATCH { day_number, position } with the position
+// halfway between the new neighbours, and one Undo toast; the toast is the
+// announcement (Pitfall 11), so only Undo writes to the live region.
 
 import { useCallback, useMemo, useRef, useState } from 'react'
+import { useAnnounce } from '@/components/a11y/LiveRegion'
+import { useUndo } from '@/components/undo/UndoProvider'
 import { sortActivities } from './days'
+import { needsRenumber, positionBetween, renumberDay } from './ordering'
 import type { PlanActivity, TripPlan } from './types'
 
 /** What the client may change on an activity (mirrors ActivityPatchSchema). */
@@ -45,6 +51,46 @@ function applyUpdate(activity: PlanActivity, update: ActivityUpdate): PlanActivi
   return next
 }
 
+/** One local + server change; a move may carry several (a renumbered bucket). */
+interface Change {
+  id: string
+  update: ActivityUpdate
+}
+
+/** Rows of one bucket (a day, or Maybe when day is null) in plan order. */
+function bucketOf(activities: readonly PlanActivity[], day: number | null, exceptId?: string): PlanActivity[] {
+  return sortActivities(activities.filter((a) => a.day_number === day && a.id !== exceptId))
+}
+
+/**
+ * Where a row lands at index `at` of `bucket` (which does not contain it).
+ * When the gap is too small, or a neighbour has no position, the bucket is
+ * renumbered 1…n first; those changes go out before the move.
+ */
+function placeAt(bucket: readonly PlanActivity[], at: number): { position: number; renumber: Change[] } {
+  const i = Math.max(0, Math.min(at, bucket.length))
+  const prev = bucket[i - 1]
+  const next = bucket[i]
+  const broken =
+    (prev !== undefined && prev.position === null) ||
+    (next !== undefined && next.position === null) ||
+    (prev?.position != null && next?.position != null && needsRenumber(prev.position, next.position))
+  if (!broken) return { position: positionBetween(prev?.position ?? null, next?.position ?? null), renumber: [] }
+
+  const numbered = renumberDay(bucket.map((a) => a.id))
+  const renumber = numbered
+    .filter((n, k) => bucket[k].position !== n.position)
+    .map((n) => ({ id: n.id, update: { position: n.position } }))
+  return {
+    position: positionBetween(numbered[i - 1]?.position ?? null, numbered[i]?.position ?? null),
+    renumber,
+  }
+}
+
+function where(day: number | null): string {
+  return day === null ? 'in Maybe' : `on day ${day}`
+}
+
 async function sendUpdate(id: string, update: ActivityUpdate): Promise<boolean> {
   try {
     const res = await fetch(`/api/activities/${encodeURIComponent(id)}`, {
@@ -59,6 +105,8 @@ async function sendUpdate(id: string, update: ActivityUpdate): Promise<boolean> 
 }
 
 export function usePlan(initial: TripPlan) {
+  const undo = useUndo()
+  const announce = useAnnounce()
   const [activities, setActivities] = useState<PlanActivity[]>(() => sortActivities(initial.activities))
   const [unsaved, setUnsaved] = useState<ReadonlySet<string>>(() => new Set())
   const [failed, setFailed] = useState(false)
@@ -108,6 +156,64 @@ export function usePlan(initial: TripPlan) {
     [save]
   )
 
+  /** Applies several changes locally at once, then saves them one after another. */
+  const applyChanges = useCallback(
+    async (changes: readonly Change[]): Promise<boolean> => {
+      const byId = new Map(changes.map((c) => [c.id, c.update]))
+      setActivities((prev) =>
+        sortActivities(prev.map((a) => (byId.has(a.id) ? applyUpdate(a, byId.get(a.id) as ActivityUpdate) : a)))
+      )
+      let allSaved = true
+      for (const c of changes) {
+        if (!(await save(c.id, c.update))) allSaved = false
+      }
+      if (!allSaved) setFailed(true)
+      else if (pending.current.size === 0) setFailed(false)
+      return allSaved
+    },
+    [save]
+  )
+
+  /**
+   * Moves a place to a day (1…n) or to Maybe (null), at `toIndex` in that
+   * bucket (appended when omitted). One Undo toast puts it back exactly.
+   */
+  const moveActivity = useCallback(
+    (id: string, toDay: number | null, toIndex?: number) => {
+      const a = activities.find((x) => x.id === id)
+      if (!a) return
+      const sameBucket = a.day_number === toDay
+      if (sameBucket && toIndex === undefined) return
+
+      const target = bucketOf(activities, toDay, id)
+      const at = toIndex ?? target.length
+      if (sameBucket && bucketOf(activities, toDay).findIndex((x) => x.id === id) === at) return
+
+      const { position, renumber } = placeAt(target, at)
+      const changes: Change[] = [...renumber, { id, update: { day_number: toDay, position } }]
+      const before = new Map(activities.map((x) => [x.id, { day_number: x.day_number, position: x.position }]))
+      const inverse: Change[] = changes.map((c) => {
+        const b = before.get(c.id) as { day_number: number | null; position: number | null }
+        // A stored null position can't be sent back (positions are finite); the
+        // bucket's last slot keeps it at the end, where null sorts.
+        const position = b.position ?? (bucketOf(activities, b.day_number).at(-1)?.position ?? 0) + 1
+        return { id: c.id, update: c.id === id ? { day_number: b.day_number, position } : { position } }
+      })
+
+      void applyChanges(changes)
+      undo.run({
+        id,
+        label: toDay === null ? `Moved ${a.name} to Maybe` : `Moved ${a.name} to day ${toDay}`,
+        commit: () => {},
+        undo: () => {
+          void applyChanges(inverse)
+          announce(`Undone. ${a.name} is back ${where(a.day_number)}.`)
+        },
+      })
+    },
+    [activities, applyChanges, undo, announce]
+  )
+
   const retry = useCallback(async () => {
     const entries = [...pending.current.entries()]
     // Retrying an entry merges it with itself; pass an empty update.
@@ -120,5 +226,5 @@ export function usePlan(initial: TripPlan) {
     [failed, retry]
   )
 
-  return { activities, updateActivity, unsaved, error }
+  return { activities, updateActivity, moveActivity, unsaved, error }
 }

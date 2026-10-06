@@ -4,6 +4,7 @@ import type { WalkCell } from '@/lib/plan/walk'
 import type { PlanActivity } from '@/lib/plan/types'
 import type { ActivityUpdate } from '@/lib/plan/use-plan'
 import { PlaceTicket, TICKET_CLICK_MARK, ticketId } from './PlaceTicket'
+import { RowMenu, type RowActions } from './RowMenu'
 import { StatusChip } from './StatusChip'
 
 // One departure-board line (UI-SPEC §7 item 6): # · place · walk · status.
@@ -11,7 +12,9 @@ import { StatusChip } from './StatusChip'
 // number is never shown. Maybe rows show "—" for # and walk.
 // The row is a button that opens the place's ticket inline under it (§7 item
 // 7); the parent keeps one ticket open at a time. Escape closes it and puts
-// focus back on the row. (No 'use client' here: BoardHead imports BOARD_GRID
+// focus back on the row. Laptop rows also get a trailing "⋯" menu (16-09),
+// shown on row hover or focus-within; on phone the menu lives in the ticket.
+// (No 'use client' here: BoardHead imports BOARD_GRID
 // and must not get a client reference; every user of BoardRow is a client.)
 
 export const BOARD_GRID = 'grid grid-cols-[32px_minmax(0,1fr)_64px_80px] gap-2 px-4'
@@ -28,6 +31,8 @@ interface BoardRowProps {
   /** The last change to this row failed to save (D-33). */
   unsaved: boolean
   onUpdate: (id: string, update: ActivityUpdate) => void
+  /** Row menu actions (Move to day…, Move up/down, Maybe, Remove). */
+  actions: RowActions
 }
 
 function two(n: number): string {
@@ -40,7 +45,17 @@ function clock(time: string): string {
   return m ? `${m[1].padStart(2, '0')}:${m[2]}` : time.trim()
 }
 
-export function BoardRow({ activity: a, number, walk, chip, open, onToggle, unsaved, onUpdate }: BoardRowProps) {
+export function BoardRow({
+  activity: a,
+  number,
+  walk,
+  chip,
+  open,
+  onToggle,
+  unsaved,
+  onUpdate,
+  actions,
+}: BoardRowProps) {
   const rowRef = useRef<HTMLButtonElement>(null)
   const visited = chip === 'VISITED'
   // D-25: clock times are shown only for fixed anchors (bookings, timed tickets).
@@ -52,14 +67,21 @@ export function BoardRow({ activity: a, number, walk, chip, open, onToggle, unsa
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
-    if (e.key !== 'Escape' || !open) return
+    if (e.key !== 'Escape' || !open || e.defaultPrevented) return
+    // Keys from the row menu bubble here through its portal; the menu handles its own Escape.
+    if (!e.currentTarget.contains(e.target as Node)) return
     e.stopPropagation()
     onToggle(false)
     rowRef.current?.focus()
   }
 
   return (
-    <li data-activity-id={a.id} data-chip={chip} className="border-b border-board-line" onKeyDown={onKeyDown}>
+    <li
+      data-activity-id={a.id}
+      data-chip={chip}
+      className="group relative border-b border-board-line"
+      onKeyDown={onKeyDown}
+    >
       <button
         ref={rowRef}
         type="button"
@@ -67,7 +89,7 @@ export function BoardRow({ activity: a, number, walk, chip, open, onToggle, unsa
         aria-controls={open ? ticketId(a.id) : undefined}
         onClick={toggle}
         className={`${BOARD_GRID} min-h-14 w-full items-start py-3 text-left transition-colors duration-150 ease-out ${
-          open ? 'bg-row-selected' : 'lg:hover:bg-surface-2'
+          open ? 'bg-row-selected' : 'lg:group-hover:bg-surface-2'
         }`}
       >
         <span className="font-mono text-base leading-tight font-semibold text-board-muted tabular-nums">
@@ -112,7 +134,15 @@ export function BoardRow({ activity: a, number, walk, chip, open, onToggle, unsa
         </span>
       </button>
 
-      {open && <PlaceTicket activity={a} stop={number} walk={walk} onUpdate={onUpdate} />}
+      {/* Laptop: trailing "⋯" over the status cell while the row is hovered or focused. */}
+      <RowMenu
+        placeName={a.name}
+        day={a.day_number}
+        {...actions}
+        className="absolute top-1.5 right-2 bg-surface-2 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 data-popup-open:opacity-100 max-lg:hidden"
+      />
+
+      {open && <PlaceTicket activity={a} stop={number} walk={walk} onUpdate={onUpdate} actions={actions} />}
     </li>
   )
 }

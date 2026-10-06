@@ -18,6 +18,7 @@ import { TripMapLazy } from '@/components/map/TripMapLazy'
 import { Maximize2Icon, Minimize2Icon } from '@/components/icons'
 import { BoardHead, ColumnHeads } from './BoardHead'
 import { BoardRow } from './BoardRow'
+import type { RowActions } from './RowMenu'
 import { BoardStatusLine } from './BoardStatusLine'
 import { DayTabs, dayKeyId, type DayKey } from './DayTabs'
 import { PlanHeader } from './PlanHeader'
@@ -39,7 +40,7 @@ const MAP_BUTTON =
 
 export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: CityPhoto | null }) {
   const { trip } = plan
-  const { activities, updateActivity, unsaved, error } = usePlan(plan)
+  const { activities, updateActivity, moveActivity, unsaved, error } = usePlan(plan)
   const canEdit = useCanEdit()
   const mapReady = useAfterMark(MAP_READY_MARK, PHOTO_HOLD_MAX_MS)
   const city = trip.destination || trip.title
@@ -68,6 +69,12 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cit
   useEffect(() => {
     if (performance.getEntriesByName(BOARD_READY_MARK).length === 0) performance.mark(BOARD_READY_MARK)
   }, [])
+
+  // The row "⋯" menu (16-09): every move is reachable without drag (D-22).
+  const actionsFor = (a: PlanActivity): RowActions => ({
+    dayCount: days.length,
+    move: (toDay) => moveActivity(a.id, toDay),
+  })
 
   const tabs = (props: { idPrefix?: string; controls?: (key: DayKey) => string; className?: string }) => (
     <DayTabs
@@ -170,6 +177,7 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cit
                   onOpen={setOpenId}
                   unsaved={unsaved}
                   onUpdate={updateActivity}
+                  actionsFor={actionsFor}
                   empty={
                     <>
                       <p className="font-mono text-base font-semibold uppercase">No stops yet</p>
@@ -191,6 +199,7 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cit
               onOpen={setOpenId}
               unsaved={unsaved}
               onUpdate={updateActivity}
+              actionsFor={actionsFor}
               empty={
                 <p className="text-base text-board-muted">
                   Nothing in Maybe. Move a place here to keep it without planning it.
@@ -219,6 +228,7 @@ interface DaySectionProps {
   onOpen: (id: string | null) => void
   unsaved: ReadonlySet<string>
   onUpdate: (id: string, update: ActivityUpdate) => void
+  actionsFor: (a: PlanActivity, index: number, rows: PlanActivity[]) => RowActions
   empty: React.ReactNode
 }
 
@@ -233,6 +243,7 @@ function DaySection({
   onOpen,
   unsaved,
   onUpdate,
+  actionsFor,
   empty,
 }: DaySectionProps) {
   const id = dayKeyId(day)
@@ -297,6 +308,7 @@ function DaySection({
                 onToggle={(open) => onOpen(open ? a.id : null)}
                 unsaved={unsaved.has(a.id)}
                 onUpdate={onUpdate}
+                actions={actionsFor(a, i, rows)}
               />
             ))}
           </ol>
