@@ -7,26 +7,19 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
 import { groupDays } from '@/lib/plan/days'
+import { chipFor, dayDate, nextStopId } from '@/lib/plan/board'
+import { dayKm, walkCells } from '@/lib/plan/walk'
 import type { PlanActivity, TripPlan } from '@/lib/plan/types'
 import { TripMapLazy } from '@/components/map/TripMapLazy'
 import type { DayKey } from '@/components/map/TripMap'
+import { BoardHead, ColumnHeads } from './BoardHead'
+import { BoardRow } from './BoardRow'
 
 /** Marked once the board has hydrated and its day tabs respond (logged by the budgets spec, Q46). */
 export const BOARD_READY_MARK = 'barabula:board-ready'
 
 // Element Timing attribute (not in React's DOM types, passed through as-is).
 const BOARD_TIMING = { elementtiming: 'board' } as Record<string, string>
-
-const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
-
-/** Calendar date of day n (1-based) from an ISO start date, without time-zone shifts. */
-function dayDate(startDate: string | null, n: number) {
-  const m = startDate ? /^(\d{4})-(\d{2})-(\d{2})/.exec(startDate) : null
-  if (!m) return null
-  const d = new Date(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3]) + n - 1))
-  return { weekday: WEEKDAYS[d.getUTCDay()], day: d.getUTCDate(), month: MONTHS[d.getUTCMonth()] }
-}
 
 function tripDates(plan: TripPlan): string {
   const first = dayDate(plan.trip.start_date, 1)
@@ -39,16 +32,13 @@ function tripDates(plan: TripPlan): string {
   return `${plan.dayCount} ${plan.dayCount === 1 ? 'day' : 'days'}`
 }
 
-function two(n: number): string {
-  return String(n).padStart(2, '0')
-}
-
 function tabKey(key: DayKey): string {
   return key === 'maybe' ? 'maybe' : String(key)
 }
 
 export function PlanClient({ plan }: { plan: TripPlan }) {
   const { trip, activities } = plan
+  const city = trip.destination || trip.title
   const { days, maybe } = useMemo(() => groupDays(activities, plan.dayCount), [activities, plan.dayCount])
   const [selected, setSelected] = useState<DayKey>(1)
 
@@ -149,14 +139,14 @@ export function PlanClient({ plan }: { plan: TripPlan }) {
 
         {days.map((rows, i) => {
           const n = i + 1
-          const date = dayDate(trip.start_date, n)
           return (
             <DaySection
               key={n}
               id={String(n)}
+              day={n}
+              city={city}
+              startDate={trip.start_date}
               hidden={selected !== n}
-              title={date ? `${date.weekday} ${date.day} ${date.month}` : `Day ${n}`}
-              short={`D${n}`}
               rows={rows}
               empty={
                 <>
@@ -170,10 +160,11 @@ export function PlanClient({ plan }: { plan: TripPlan }) {
 
         <DaySection
           id="maybe"
+          day="maybe"
+          city={city}
+          startDate={trip.start_date}
           hidden={selected !== 'maybe'}
-          title="Maybe"
           rows={maybe}
-          maybe
           empty={
             <p className="text-base text-board-muted">
               Nothing in Maybe. Move a place here to keep it without planning it.
@@ -189,16 +180,18 @@ export function PlanClient({ plan }: { plan: TripPlan }) {
 
 interface DaySectionProps {
   id: string
+  day: number | 'maybe'
+  city: string
+  startDate: string | null
   hidden: boolean
-  title: string
-  short?: string
   rows: PlanActivity[]
-  maybe?: boolean
   empty: React.ReactNode
 }
 
-function DaySection({ id, hidden, title, short, rows, maybe, empty }: DaySectionProps) {
-  const count = `${rows.length} ${rows.length === 1 ? 'stop' : 'stops'}`
+function DaySection({ id, day, city, startDate, hidden, rows, empty }: DaySectionProps) {
+  const maybe = day === 'maybe'
+  const walks = maybe ? [] : walkCells(rows)
+  const nextId = maybe ? null : nextStopId(rows)
   return (
     <section
       id={`day-panel-${id}`}
@@ -207,40 +200,32 @@ function DaySection({ id, hidden, title, short, rows, maybe, empty }: DaySection
       data-day={id}
       className={hidden ? 'max-lg:hidden' : undefined}
     >
-      <div className="flex items-end justify-between gap-3 border-b border-board-line px-4 pt-4 pb-2 lg:bg-surface-2 lg:py-2.5">
-        <div className="min-w-0">
-          <h2 id={`day-head-${id}`} className="font-mono text-[22px] leading-tight font-semibold uppercase lg:text-xs lg:tracking-[0.08em]">
-            {short && <span className="hidden lg:inline">{short} · </span>}
-            {title}
-          </h2>
-        </div>
-        <p className="shrink-0 font-mono text-xs text-board-muted uppercase tabular-nums">{count}</p>
-      </div>
+      <BoardHead
+        id={id}
+        city={city}
+        day={day}
+        startDate={startDate}
+        stops={rows.length}
+        km={maybe ? 0 : dayKm(rows)}
+      />
 
       {rows.length === 0 ? (
-        <div className="px-4 py-4">{empty}</div>
+        <div className="border-t border-board-line px-4 py-4">{empty}</div>
       ) : (
-        <ol>
-          {rows.map((a, i) => (
-            <li
-              key={a.id}
-              data-activity-id={a.id}
-              className="grid min-h-14 grid-cols-[32px_minmax(0,1fr)] items-start gap-2 border-b border-board-line px-4 py-3"
-            >
-              <span className="font-mono text-base leading-tight font-semibold text-board-muted tabular-nums">
-                {maybe ? '—' : two(i + 1)}
-              </span>
-              <span className="min-w-0">
-                <span className="line-clamp-2 font-label text-base leading-tight font-semibold tracking-[0.06em] break-words uppercase">
-                  {a.name}
-                </span>
-                {a.location && (
-                  <span className="mt-0.5 block truncate font-mono text-xs text-board-muted">{a.location}</span>
-                )}
-              </span>
-            </li>
-          ))}
-        </ol>
+        <>
+          <ColumnHeads />
+          <ol>
+            {rows.map((a, i) => (
+              <BoardRow
+                key={a.id}
+                activity={a}
+                number={maybe ? null : i + 1}
+                walk={maybe ? null : walks[i]}
+                chip={chipFor(a, nextId)}
+              />
+            ))}
+          </ol>
+        </>
       )}
     </section>
   )
