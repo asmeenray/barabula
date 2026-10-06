@@ -175,4 +175,28 @@ describe('Mark visited', () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2))
     expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({ extra_data: { visited: false } })
   })
+
+  it('offline: Mark visited is aria-disabled and does nothing', () => {
+    const onLine = vi.spyOn(navigator, 'onLine', 'get').mockReturnValue(false)
+    try {
+      renderBoard()
+      act(() => {
+        window.dispatchEvent(new Event('offline'))
+      })
+      openTicket(A1)
+      const btn = screen.getByRole('button', { name: 'Mark visited' })
+      expect(btn).toHaveAttribute('aria-disabled', 'true')
+      fireEvent.click(btn)
+      expect(fetchMock).not.toHaveBeenCalled()
+      expect(row(A1)).toHaveAttribute('data-chip', 'NEXT')
+
+      onLine.mockReturnValue(true)
+      act(() => {
+        window.dispatchEvent(new Event('online'))
+      })
+      expect(screen.getByRole('button', { name: 'Mark visited' })).not.toHaveAttribute('aria-disabled')
+    } finally {
+      onLine.mockRestore()
+    }
+  })
 })

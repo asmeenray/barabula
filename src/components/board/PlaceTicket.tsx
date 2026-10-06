@@ -1,7 +1,8 @@
 'use client'
 
-import { useLayoutEffect } from 'react'
+import { useLayoutEffect, useRef } from 'react'
 import { useAnnounce } from '@/components/a11y/LiveRegion'
+import { useCanEdit } from '@/lib/client/use-online'
 import { osmCoordsFrom } from '@/lib/geo-cache'
 import { isVisited } from '@/lib/plan/board'
 import { googleMapsUrl } from '@/lib/plan/maps-link'
@@ -17,8 +18,11 @@ import type { WalkCell } from '@/lib/plan/walk'
 export const TICKET_CLICK_MARK = 'barabula:ticket-click'
 export const TICKET_VISIBLE_MARK = 'barabula:ticket-visible'
 
-export const QUIET_BUTTON =
-  'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-surface-2 px-3 font-label text-base leading-none font-semibold tracking-[0.08em] text-ink uppercase transition-[background-color,transform] duration-150 ease-out hover:bg-line active:scale-[0.97]'
+const QUIET_BASE =
+  'inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-surface-2 px-3 font-label text-base leading-none font-semibold tracking-[0.08em] text-ink uppercase'
+export const QUIET_BUTTON = `${QUIET_BASE} transition-[background-color,transform] duration-150 ease-out hover:bg-line active:scale-[0.97]`
+/** Disabled (UI-SPEC Interaction States): 40% opacity, no hover; still focusable. */
+export const QUIET_BUTTON_DISABLED = `${QUIET_BASE} cursor-not-allowed opacity-40`
 
 const LABEL = 'font-label text-xs leading-[1.33] font-semibold tracking-[0.16em] text-board-muted uppercase'
 const VALUE = 'font-mono text-base leading-tight font-semibold tabular-nums'
@@ -51,15 +55,23 @@ interface PlaceTicketProps {
 
 export function PlaceTicket({ activity: a, stop, walk, onUpdate }: PlaceTicketProps) {
   const announce = useAnnounce()
+  const canEdit = useCanEdit()
+
+  const ref = useRef<HTMLDivElement>(null)
 
   useLayoutEffect(() => {
     performance.mark(TICKET_VISIBLE_MARK)
+    // On phone a lower row's ticket opens below the fold; bring it into the
+    // board's scroll area (instant: list scrolling is never animated).
+    ref.current?.scrollIntoView({ block: 'nearest' })
   }, [])
 
   const visited = isVisited(a)
 
   // D-26: the toggle is its own undo (no toast); the change is announced once.
   function toggleVisited() {
+    // Offline (D-34): the control stays focusable and explained by the banner, but does nothing.
+    if (!canEdit) return
     const next = !visited
     onUpdate(a.id, { extra_data: { visited: next } })
     announce(`${a.name} marked ${next ? 'visited' : 'not visited'}.`)
@@ -82,6 +94,7 @@ export function PlaceTicket({ activity: a, stop, walk, onUpdate }: PlaceTicketPr
 
   return (
     <div
+      ref={ref}
       id={ticketId(a.id)}
       role="region"
       aria-labelledby={nameId}
@@ -135,7 +148,12 @@ export function PlaceTicket({ activity: a, stop, walk, onUpdate }: PlaceTicketPr
       )}
 
       <div className="mt-4 flex flex-wrap gap-2">
-        <button type="button" onClick={toggleVisited} className={QUIET_BUTTON}>
+        <button
+          type="button"
+          aria-disabled={!canEdit || undefined}
+          onClick={toggleVisited}
+          className={canEdit ? QUIET_BUTTON : QUIET_BUTTON_DISABLED}
+        >
           {visited ? 'Mark not visited' : 'Mark visited'}
         </button>
         <a

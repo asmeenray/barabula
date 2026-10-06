@@ -6,10 +6,18 @@ interface BoardStatusLineProps {
   message: string
   onRetry?: () => void
   retryLabel?: string
+  /** Offline (D-34): Retry stays visible but aria-disabled and inert. */
+  retryDisabled?: boolean
   className?: string
 }
 
-export function BoardStatusLine({ message, onRetry, retryLabel = 'Retry', className }: BoardStatusLineProps) {
+export function BoardStatusLine({
+  message,
+  onRetry,
+  retryLabel = 'Retry',
+  retryDisabled = false,
+  className,
+}: BoardStatusLineProps) {
   return (
     <p
       role="status"
@@ -22,8 +30,11 @@ export function BoardStatusLine({ message, onRetry, retryLabel = 'Retry', classN
       {onRetry && (
         <button
           type="button"
-          onClick={onRetry}
-          className="-my-2 min-h-11 px-1 font-semibold text-ink underline underline-offset-[3px]"
+          aria-disabled={retryDisabled || undefined}
+          onClick={retryDisabled ? undefined : onRetry}
+          className={`-my-2 min-h-11 px-1 font-semibold text-ink underline underline-offset-[3px] ${
+            retryDisabled ? 'cursor-not-allowed opacity-40' : ''
+          }`}
         >
           {retryLabel}
         </button>

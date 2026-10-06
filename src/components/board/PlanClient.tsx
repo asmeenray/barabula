@@ -11,6 +11,7 @@ import { chipFor, dayTitle, nextStopId, stopsLabel } from '@/lib/plan/board'
 import { dayKm, walkCells } from '@/lib/plan/walk'
 import type { PlanActivity, TripPlan } from '@/lib/plan/types'
 import { usePlan, type ActivityUpdate } from '@/lib/plan/use-plan'
+import { useCanEdit } from '@/lib/client/use-online'
 import { TripMapLazy } from '@/components/map/TripMapLazy'
 import { Maximize2Icon, Minimize2Icon } from '@/components/icons'
 import { BoardHead, ColumnHeads } from './BoardHead'
@@ -30,6 +31,7 @@ const MAP_BUTTON =
 export function PlanClient({ plan }: { plan: TripPlan }) {
   const { trip } = plan
   const { activities, updateActivity, unsaved, error } = usePlan(plan)
+  const canEdit = useCanEdit()
   const city = trip.destination || trip.title
   const { days, maybe } = useMemo(() => groupDays(activities, plan.dayCount), [activities, plan.dayCount])
   const [selected, setSelected] = useState<DayKey>(1)
@@ -136,6 +138,7 @@ export function PlanClient({ plan }: { plan: TripPlan }) {
                 <BoardStatusLine
                   message={error.message}
                   onRetry={error.retry}
+                  retryDisabled={!canEdit}
                   className="border-b border-board-line px-4 py-2"
                 />
               )}
