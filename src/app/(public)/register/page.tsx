@@ -39,7 +39,7 @@ export default function RegisterPage() {
               type="text"
               required
               autoComplete="name"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-coral/40 focus:border-transparent"
             />
           </div>
           <div>
@@ -52,7 +52,7 @@ export default function RegisterPage() {
               type="email"
               required
               autoComplete="email"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-coral/40 focus:border-transparent"
             />
           </div>
           <div>
@@ -66,13 +66,13 @@ export default function RegisterPage() {
               required
               autoComplete="new-password"
               minLength={8}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-coral/40 focus:border-transparent"
             />
           </div>
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2 px-4 bg-blue-600 text-white rounded-md text-sm font-medium hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="w-full py-2 px-4 bg-coral text-white rounded-md text-sm font-medium hover:bg-coral-light disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {loading ? 'Creating account...' : 'Create account'}
           </button>
@@ -80,7 +80,7 @@ export default function RegisterPage() {
 
         <p className="mt-6 text-center text-sm text-gray-500">
           Already have an account?{' '}
-          <Link href="/login" className="text-blue-600 hover:underline">
+          <Link href="/login" className="text-coral hover:underline">
             Sign in
           </Link>
         </p>
