@@ -1,18 +1,27 @@
-// "Barabula." wordmark. Text for now; 16-06 swaps in the traced SVG with the
-// same props (role img, aria-label Barabula, navy token).
+import { WORDMARK_PATH, WORDMARK_VIEWBOX } from './wordmark-path'
+
+// "Barabula." wordmark: one SVG path traced from Abril Fatface
+// (scripts/trace-wordmark.mjs), filled with the navy token. No font file ships.
+
+const [, , VB_W, VB_H] = WORDMARK_VIEWBOX.split(' ').map(Number)
 
 interface WordmarkProps {
+  /** Rendered height in px (top bar: 20). */
+  height?: number
   className?: string
 }
 
-export function Wordmark({ className }: WordmarkProps) {
+export function Wordmark({ height = 20, className }: WordmarkProps) {
   return (
-    <span
+    <svg
       role="img"
       aria-label="Barabula"
-      className={`font-label text-[22px] leading-none font-semibold tracking-[-0.01em] text-navy select-none ${className ?? ''}`}
+      viewBox={WORDMARK_VIEWBOX}
+      height={height}
+      width={Math.round((height * VB_W) / VB_H)}
+      className={`block shrink-0 fill-navy ${className ?? ''}`}
     >
-      Barabula.
-    </span>
+      <path d={WORDMARK_PATH} />
+    </svg>
   )
 }

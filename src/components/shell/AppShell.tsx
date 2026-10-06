@@ -1,8 +1,14 @@
-import Link from 'next/link'
-import { Wordmark } from '@/components/brand/Wordmark'
+import { ShellTopBar, SignedInProvider } from './TopBar'
+import { TabBar } from './TabBar'
 
-// Minimal phase 16 shell (UI-SPEC Layout §1): a 56 px top bar under the safe
-// area, then the page. Tabs (Trips · Places · You) arrive with their screens.
+// Phase 16 shell (UI-SPEC Layout §1, D-35). Tab roots (/, /places, /you) get
+// the root top bar here; inner pages (trip plan, credits, not found) render
+// their own TopBar 'inner'. The phone tab bar shows when signed in, and the
+// content pads so nothing sits under it.
+
+// The phone tab bar's height (64 + safe area). Kept here, not imported from the
+// 'use client' TabBar module: a server component would get a client reference.
+const TAB_BAR_PADDING = 'max-lg:pb-[calc(64px+env(safe-area-inset-bottom))]'
 
 interface AppShellProps {
   children: React.ReactNode
@@ -11,27 +17,12 @@ interface AppShellProps {
 
 export function AppShell({ children, signedIn }: AppShellProps) {
   return (
-    <div className="flex h-dvh flex-col overflow-hidden bg-bg text-ink">
-      <header className="shrink-0 border-b border-line bg-surface pt-[env(safe-area-inset-top)]">
-        <div className="flex h-14 items-center justify-between px-4 lg:px-8">
-          <Link
-            href="/"
-            className="-mx-2 flex min-h-11 items-center rounded-lg px-2"
-            aria-label="Barabula, home"
-          >
-            <Wordmark />
-          </Link>
-          {!signedIn && (
-            <Link
-              href="/login"
-              className="flex min-h-11 items-center font-label text-base font-semibold text-ink underline underline-offset-[3px]"
-            >
-              Sign in
-            </Link>
-          )}
-        </div>
-      </header>
-      <main className="flex min-h-0 flex-1 flex-col">{children}</main>
-    </div>
+    <SignedInProvider signedIn={signedIn}>
+      <div className={`flex h-dvh flex-col overflow-hidden bg-bg text-ink ${signedIn ? TAB_BAR_PADDING : ''}`}>
+        <ShellTopBar />
+        <main className="flex min-h-0 flex-1 flex-col">{children}</main>
+      </div>
+      <TabBar signedIn={signedIn} />
+    </SignedInProvider>
   )
 }

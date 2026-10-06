@@ -4,6 +4,7 @@ import { isUuid } from '@/lib/uuid'
 import { dayCountFor, sortActivities } from '@/lib/plan/days'
 import type { PlanActivity, PlanTrip, TripPlan } from '@/lib/plan/types'
 import { PlanClient } from '@/components/board/PlanClient'
+import { TopBar } from '@/components/shell/TopBar'
 
 // Server-rendered trip plan (RESEARCH Pattern 4).
 // No loading.tsx and no Suspense fallback in this segment: the trip-open view
@@ -41,5 +42,11 @@ export default async function TripPlanPage({ params }: { params: Promise<{ id: s
     dayCount: dayCountFor(trip, sorted),
   }
 
-  return <PlanClient plan={plan} />
+  // Inner page: back to Trips, no wordmark; the trip "⋯" menu fills actions in 16-17.
+  return (
+    <>
+      <TopBar variant="inner" back={{ href: '/', label: 'Trips' }} />
+      <PlanClient plan={plan} />
+    </>
+  )
 }

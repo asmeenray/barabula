@@ -189,9 +189,27 @@ test.describe('open a trip (tracer)', () => {
     await expect(page.locator(`[data-activity-id="${fx.activityIds['2'][0]}"]`)).toBeVisible()
   })
 
-  test('unknown trip id answers 404', async ({ page }) => {
+  test('unknown trip id answers 404 with the board-style page', async ({ page }) => {
     const response = await page.goto(`/itinerary/${randomUUID()}`)
     expect(response?.status()).toBe(404)
+    await expect(page.getByRole('heading', { name: "This trip isn't on the board" })).toBeVisible()
+    await expect(page.getByText('It may have been deleted, or the link is wrong.')).toBeVisible()
+    await expect(page.getByRole('link', { name: 'Back to trips' }).last()).toHaveAttribute('href', '/')
+  })
+
+  test('shell: back to trips, no wordmark, three tabs (16-06)', async ({ page }) => {
+    const fx = readFixtures()
+    await page.goto(`/itinerary/${fx.lisbonId}`)
+    const back = page.getByRole('link', { name: 'Back to trips' })
+    await expect(back).toBeVisible()
+    await expect(back).toHaveAttribute('href', '/')
+    await expect(page.getByRole('img', { name: 'Barabula' })).toHaveCount(0)
+    const nav = page.getByRole('navigation', { name: 'Main' })
+    await expect(nav).toHaveCount(1) // phone: bottom tab bar; laptop: top bar tabs
+    for (const name of ['Trips', 'Places', 'You']) {
+      await expect(nav.getByRole('link', { name })).toBeVisible()
+    }
+    await expect(nav.getByRole('link', { name: 'Trips' })).toHaveAttribute('aria-current', 'page')
   })
 
   test('logged-out visitor is sent to /login (D-40 gap)', async ({ browser }) => {
