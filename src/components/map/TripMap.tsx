@@ -7,16 +7,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Map, { Layer, Source } from 'react-map-gl/maplibre'
 import type { ErrorEvent, MapRef } from 'react-map-gl/maplibre'
+import type { StyleSpecification } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { osmCoordsFrom } from '@/lib/geo-cache'
 import type { PlanActivity } from '@/lib/plan/types'
+import { MAPLIBRE_WORKER_URL, loadMapLib, loadStyle } from './maplibre-loader'
 
 export const MAP_LOAD_MARK = 'barabula:map-load'
-const WORKER_URL = '/maplibre/maplibre-gl-worker.mjs'
-const STYLE_URL = {
-  light: 'https://tiles.openfreemap.org/styles/positron',
-  dark: 'https://tiles.openfreemap.org/styles/dark',
-} as const
 
 /** 'maybe' or a 1-based day number. */
 export type DayKey = number | 'maybe'
@@ -83,6 +80,18 @@ export default function TripMap({ activities, selectedDay }: TripMapProps) {
   const [{ theme, accent, ring }] = useState(readTheme)
   const [failed, setFailed] = useState(false)
   const [attempt, setAttempt] = useState(0)
+  // Fetched (and slimmed) by maplibre-loader, usually already in flight from
+  // the board's warm-up by the time this chunk runs.
+  const [mapStyle, setMapStyle] = useState<StyleSpecification | string | null>(null)
+  useEffect(() => {
+    let live = true
+    loadStyle(theme).then((style) => {
+      if (live) setMapStyle(style)
+    })
+    return () => {
+      live = false
+    }
+  }, [theme, attempt])
   const mapRef = useRef<MapRef>(null)
   const loadedRef = useRef(false)
 
@@ -156,12 +165,13 @@ export default function TripMap({ activities, selectedDay }: TripMapProps) {
             </button>
           </p>
         </div>
-      ) : (
+      ) : mapStyle === null ? null : (
         <Map
           key={attempt}
           ref={mapRef}
-          workerUrl={WORKER_URL}
-          mapStyle={STYLE_URL[theme]}
+          mapLib={loadMapLib()}
+          workerUrl={MAPLIBRE_WORKER_URL /* /maplibre/maplibre-gl-worker.mjs */}
+          mapStyle={mapStyle}
           initialViewState={
             initialBounds
               ? { bounds: initialBounds, fitBoundsOptions: FIT_OPTIONS }
