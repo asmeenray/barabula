@@ -10,8 +10,10 @@ import { groupDays } from '@/lib/plan/days'
 import { chipFor, dayTitle, nextStopId, stopsLabel } from '@/lib/plan/board'
 import { dayKm, walkCells } from '@/lib/plan/walk'
 import type { PlanActivity, TripPlan } from '@/lib/plan/types'
+import type { CityPhoto } from '@/lib/photos/manifest'
 import { usePlan, type ActivityUpdate } from '@/lib/plan/use-plan'
 import { useCanEdit } from '@/lib/client/use-online'
+import { useAfterMark } from '@/lib/client/use-after-mark'
 import { TripMapLazy } from '@/components/map/TripMapLazy'
 import { Maximize2Icon, Minimize2Icon } from '@/components/icons'
 import { BoardHead, ColumnHeads } from './BoardHead'
@@ -25,13 +27,21 @@ export const BOARD_READY_MARK = 'barabula:board-ready'
 
 const MAP_REGION_ID = 'trip-map'
 
+// Same name as MAP_LOAD_MARK in TripMap.tsx; not imported, because that module
+// pulls MapLibre into this chunk. The header photo waits for it (Q46 map budget:
+// on throttled 4G the photo cost the map 0.7–1.4 s), or for the timeout if the
+// map never loads.
+const MAP_READY_MARK = 'barabula:map-load'
+const PHOTO_HOLD_MAX_MS = 10_000
+
 const MAP_BUTTON =
   'flex min-h-11 items-center justify-center gap-2 rounded-lg border border-field bg-surface text-ink transition-transform duration-150 ease-out active:scale-[0.97]'
 
-export function PlanClient({ plan }: { plan: TripPlan }) {
+export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: CityPhoto | null }) {
   const { trip } = plan
   const { activities, updateActivity, unsaved, error } = usePlan(plan)
   const canEdit = useCanEdit()
+  const mapReady = useAfterMark(MAP_READY_MARK, PHOTO_HOLD_MAX_MS)
   const city = trip.destination || trip.title
   const { days, maybe } = useMemo(() => groupDays(activities, plan.dayCount), [activities, plan.dayCount])
   const [selected, setSelected] = useState<DayKey>(1)
@@ -120,7 +130,7 @@ export function PlanClient({ plan }: { plan: TripPlan }) {
           mapExpanded ? 'max-lg:hidden' : ''
         }`}
       >
-        <PlanHeader trip={trip} />
+        <PlanHeader trip={trip} photo={photo} holdPhoto={!mapReady} />
 
         {isEmpty ? (
           <div className="px-4 pt-12 pb-8">

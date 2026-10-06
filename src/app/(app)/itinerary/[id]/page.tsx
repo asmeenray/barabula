@@ -3,6 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import { isUuid } from '@/lib/uuid'
 import { dayCountFor, sortActivities } from '@/lib/plan/days'
 import type { PlanActivity, PlanTrip, TripPlan } from '@/lib/plan/types'
+import { photoFor } from '@/lib/photos/match'
 import { PlanClient } from '@/components/board/PlanClient'
 import { TopBar } from '@/components/shell/TopBar'
 
@@ -41,12 +42,14 @@ export default async function TripPlanPage({ params }: { params: Promise<{ id: s
     activities: sorted,
     dayCount: dayCountFor(trip, sorted),
   }
+  // Cover photo chosen here on the server (D-06); no match gives the city-map cover.
+  const photo = photoFor(trip.destination || trip.title)
 
   // Inner page: back to Trips, no wordmark; the trip "⋯" menu fills actions in 16-17.
   return (
     <>
       <TopBar variant="inner" back={{ href: '/', label: 'Trips' }} />
-      <PlanClient plan={plan} />
+      <PlanClient plan={plan} photo={photo} />
     </>
   )
 }

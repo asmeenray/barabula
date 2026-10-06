@@ -1,10 +1,20 @@
-// Plan header (UI-SPEC §7 items 1–2): a 96 px strip with the city in white
-// inside a scrim (the photo cover replaces the plain gradient in 16-08), then
-// the ticket row WHEN · WHO · INTO. Read-only here; the cells become question
-// sheet triggers in 16-17. Values are sentence case; CSS sets the casing.
+'use client'
 
+// Plan header (UI-SPEC §7 items 1–2): a 96 px PassCover strip (the curated
+// photo, or the styled city-map cover) with the city in white inside the scrim,
+// then the ticket row WHEN · WHO · INTO and, under it, the photo credit when a
+// photo shows (the strip has no pass body). The photo is chosen on the server
+// page with photoFor(trip.destination) and passed down, so the manifest stays
+// out of client JS. On the plan the photo download waits for the map (PlanClient
+// passes holdPhoto) so it never slows the map on a slow phone. Read-only here;
+// the cells become question sheet triggers in 16-17. Values are sentence case;
+// CSS sets the casing.
+
+import { useState } from 'react'
 import { dayDate } from '@/lib/plan/board'
 import type { PlanTrip } from '@/lib/plan/types'
+import type { CityPhoto } from '@/lib/photos/manifest'
+import { PassCover, PhotoCredit } from '@/components/pass/PassCover'
 
 // Element Timing attribute (not in React's DOM types, passed through as-is).
 // The budgets spec reads when the board first paints from it (Q46).
@@ -66,8 +76,18 @@ export function intoValue(trip: PlanTrip): string {
   return interests.join(' · ') + (note ? ' + note' : '')
 }
 
-export function PlanHeader({ trip }: { trip: PlanTrip }) {
+export function PlanHeader({
+  trip,
+  photo,
+  holdPhoto = false,
+}: {
+  trip: PlanTrip
+  photo: CityPhoto | null
+  holdPhoto?: boolean
+}) {
   const city = trip.destination || trip.title
+  // A failed photo becomes the map cover; its credit goes with it.
+  const [photoFailed, setPhotoFailed] = useState(false)
   const cells = [
     { label: 'When', value: whenValue(trip) },
     { label: 'Who', value: whoValue(trip) },
@@ -76,14 +96,17 @@ export function PlanHeader({ trip }: { trip: PlanTrip }) {
 
   return (
     <header>
-      <div className="flex h-24 items-end bg-[linear-gradient(to_right,#0B1014_0%,#0B1014_45%,rgba(11,16,20,0)_100%)] px-4 pb-3">
-        <h1
-          {...BOARD_TIMING}
-          className="line-clamp-2 max-w-[75%] font-mono text-[22px] leading-[1.2] font-semibold tracking-[-0.01em] break-words text-on-photo uppercase"
-        >
-          {city}
-        </h1>
-      </div>
+      <PassCover
+        variant="header"
+        photo={photo}
+        cityName={city}
+        title={city}
+        code={photo?.iata}
+        titleAs="h1"
+        titleAttrs={BOARD_TIMING}
+        holdPhoto={holdPhoto}
+        onFallback={() => setPhotoFailed(true)}
+      />
 
       <dl className="grid grid-cols-3 border-b border-board-line">
         {cells.map((c, i) => (
@@ -102,6 +125,10 @@ export function PlanHeader({ trip }: { trip: PlanTrip }) {
           </div>
         ))}
       </dl>
+
+      {photo && !photoFailed && (
+        <PhotoCredit photo={photo} className="border-b border-board-line px-4 py-2 text-board-muted" />
+      )}
     </header>
   )
 }
