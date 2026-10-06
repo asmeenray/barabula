@@ -1,6 +1,6 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+/* Tailwind 4 bridge: keeps the v3 palette and fonts until 16-05 replaces the token layer */
+@config "../../tailwind.config.ts";
 
 html {
   height: 100%;
