@@ -224,3 +224,9 @@ api_keys.txt
 
 # MapLibre worker, copied from node_modules by scripts/copy-maplibre-worker.mjs
 public/maplibre/
+
+# Playwright e2e: local session, fixture ids and reports (local Supabase only)
+e2e/.auth/
+e2e/.fixtures.json
+test-results/
+playwright-report/
