@@ -97,3 +97,31 @@ export async function scriptBytes(
 export async function markTime(page: Page, name: string): Promise<number | undefined> {
   return page.evaluate((n) => performance.getEntriesByName(n)[0]?.startTime, name)
 }
+
+/**
+ * renderTime (ms) of the element marked elementtiming="{identifier}" (Element
+ * Timing API, Chromium), or null if it has not painted.
+ */
+export async function elementTime(page: Page, identifier: string): Promise<number | null> {
+  return page.evaluate(
+    (id) =>
+      new Promise<number | null>((resolve) => {
+        let found: number | null = null
+        try {
+          const observer = new PerformanceObserver((list) => {
+            for (const e of list.getEntries() as (PerformanceEntry & { identifier?: string; renderTime?: number })[]) {
+              if (e.identifier === id && found === null) found = e.renderTime || e.startTime
+            }
+          })
+          observer.observe({ type: 'element', buffered: true })
+          setTimeout(() => {
+            observer.disconnect()
+            resolve(found)
+          }, 250)
+        } catch {
+          resolve(null)
+        }
+      }),
+    identifier
+  )
+}

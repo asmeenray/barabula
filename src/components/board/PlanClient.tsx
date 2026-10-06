@@ -11,6 +11,12 @@ import type { PlanActivity, TripPlan } from '@/lib/plan/types'
 import { TripMapLazy } from '@/components/map/TripMapLazy'
 import type { DayKey } from '@/components/map/TripMap'
 
+/** Marked once the board has hydrated and its day tabs respond (logged by the budgets spec, Q46). */
+export const BOARD_READY_MARK = 'barabula:board-ready'
+
+// Element Timing attribute (not in React's DOM types, passed through as-is).
+const BOARD_TIMING = { elementtiming: 'board' } as Record<string, string>
+
 const WEEKDAYS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 
@@ -49,6 +55,10 @@ export function PlanClient({ plan }: { plan: TripPlan }) {
   const tabKeys: DayKey[] = useMemo(() => [...days.map((_, i) => i + 1), 'maybe' as const], [days])
   const tabRefs = useRef(new Map<string, HTMLButtonElement>())
 
+  useEffect(() => {
+    if (performance.getEntriesByName(BOARD_READY_MARK).length === 0) performance.mark(BOARD_READY_MARK)
+  }, [])
+
   // Keep the selected tab in view when the strip scrolls (more than 5 days).
   useEffect(() => {
     tabRefs.current.get(tabKey(selected))?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
@@ -77,7 +87,8 @@ export function PlanClient({ plan }: { plan: TripPlan }) {
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-board text-board-ink lg:col-start-1 lg:row-start-1 lg:border-r lg:border-line">
         <header className="px-4 pt-4 pb-3">
-          <h1 className="font-mono text-[22px] leading-tight font-semibold tracking-[-0.01em] uppercase">
+          {/* elementtiming: the budgets spec reads when the board first paints (Q46). */}
+          <h1 {...BOARD_TIMING} className="font-mono text-[22px] leading-tight font-semibold tracking-[-0.01em] uppercase">
             {trip.title}
           </h1>
           <p className="mt-1 font-mono text-xs text-board-muted uppercase tabular-nums">
