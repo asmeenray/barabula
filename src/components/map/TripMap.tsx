@@ -11,6 +11,7 @@ import type { StyleSpecification } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
 import { osmCoordsFrom } from '@/lib/geo-cache'
 import type { PlanActivity } from '@/lib/plan/types'
+import { BoardStatusLine } from '@/components/board/BoardStatusLine'
 import { MAPLIBRE_WORKER_URL, loadMapLib, loadStyle } from './maplibre-loader'
 
 export const MAP_LOAD_MARK = 'barabula:map-load'
@@ -21,6 +22,8 @@ export type DayKey = number | 'maybe'
 export interface TripMapProps {
   activities: PlanActivity[]
   selectedDay: DayKey
+  /** id of the map region (the floating day tabs point aria-controls at it). */
+  id?: string
 }
 
 type Bounds = [[number, number], [number, number]]
@@ -76,7 +79,7 @@ function readTheme(): { theme: 'light' | 'dark'; accent: string; ring: string } 
 
 const FIT_OPTIONS = { padding: 48, maxZoom: 15 }
 
-export default function TripMap({ activities, selectedDay }: TripMapProps) {
+export default function TripMap({ activities, selectedDay, id }: TripMapProps) {
   const [{ theme, accent, ring }] = useState(readTheme)
   const [failed, setFailed] = useState(false)
   const [attempt, setAttempt] = useState(0)
@@ -145,25 +148,14 @@ export default function TripMap({ activities, selectedDay }: TripMapProps) {
 
   return (
     <div
+      id={id}
       role="region"
       aria-label={`Map, ${dayName}, ${dayPins} ${dayPins === 1 ? 'place' : 'places'}`}
       className="relative h-full w-full overscroll-none bg-surface-2"
     >
       {failed ? (
         <div className="flex h-full items-start bg-board p-4">
-          <p role="status" className="flex flex-wrap items-center gap-x-3 gap-y-1 text-base text-board-ink">
-            <span className="rounded-[4px] bg-accent px-2 py-1 font-label text-xs leading-none font-semibold tracking-[0.16em] text-on-accent uppercase">
-              Delayed
-            </span>
-            <span>Map didn&apos;t load. Your plan still works.</span>
-            <button
-              type="button"
-              onClick={retry}
-              className="-my-2 min-h-11 px-1 font-semibold text-ink underline underline-offset-[3px]"
-            >
-              Retry
-            </button>
-          </p>
+          <BoardStatusLine message="Map didn't load. Your plan still works." onRetry={retry} />
         </div>
       ) : mapStyle === null ? null : (
         <Map

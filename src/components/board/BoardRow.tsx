@@ -62,6 +62,7 @@ export function BoardRow({ activity: a, number, walk, chip }: BoardRowProps) {
 
       {/* Walk: START / ~{n} min / — (always "~": straight-line estimate). */}
       <span
+        data-walk
         className={`pt-0.5 font-mono text-xs leading-tight whitespace-nowrap text-board-muted tabular-nums ${
           walk === 'start' ? 'uppercase' : ''
         }`}

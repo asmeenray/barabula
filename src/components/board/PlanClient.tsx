@@ -1,177 +1,170 @@
 'use client'
 
-// Read-only trip plan board (tracer, 16-05). One DOM for both layouts:
-// phone = map strip above the board, one day at a time behind day tabs;
-// laptop (lg) = 440 px list with every day stacked, map filling the rest.
+// Read-only trip plan board (UI-SPEC §7 phone, §8 laptop). One DOM for both:
+// phone = map strip above the board, one day at a time behind day tabs, with
+// an Expand map button; laptop (lg) = 440 px list with every day stacked under
+// clickable day header rows, map filling the rest.
 
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { KeyboardEvent } from 'react'
 import { groupDays } from '@/lib/plan/days'
-import { chipFor, dayDate, nextStopId } from '@/lib/plan/board'
+import { chipFor, dayTitle, nextStopId, stopsLabel } from '@/lib/plan/board'
 import { dayKm, walkCells } from '@/lib/plan/walk'
 import type { PlanActivity, TripPlan } from '@/lib/plan/types'
 import { TripMapLazy } from '@/components/map/TripMapLazy'
-import type { DayKey } from '@/components/map/TripMap'
+import { Maximize2Icon, Minimize2Icon } from '@/components/icons'
 import { BoardHead, ColumnHeads } from './BoardHead'
 import { BoardRow } from './BoardRow'
+import { DayTabs, dayKeyId, type DayKey } from './DayTabs'
+import { PlanHeader } from './PlanHeader'
 
 /** Marked once the board has hydrated and its day tabs respond (logged by the budgets spec, Q46). */
 export const BOARD_READY_MARK = 'barabula:board-ready'
 
-// Element Timing attribute (not in React's DOM types, passed through as-is).
-const BOARD_TIMING = { elementtiming: 'board' } as Record<string, string>
+const MAP_REGION_ID = 'trip-map'
 
-function tripDates(plan: TripPlan): string {
-  const first = dayDate(plan.trip.start_date, 1)
-  const last = plan.trip.end_date ? dayDate(plan.trip.end_date, 1) : null
-  if (first && last) {
-    return first.month === last.month
-      ? `${first.day}–${last.day} ${first.month}`
-      : `${first.day} ${first.month} – ${last.day} ${last.month}`
-  }
-  return `${plan.dayCount} ${plan.dayCount === 1 ? 'day' : 'days'}`
-}
-
-function tabKey(key: DayKey): string {
-  return key === 'maybe' ? 'maybe' : String(key)
-}
+const MAP_BUTTON =
+  'flex min-h-11 items-center justify-center gap-2 rounded-lg border border-field bg-surface text-ink transition-transform duration-150 ease-out active:scale-[0.97]'
 
 export function PlanClient({ plan }: { plan: TripPlan }) {
   const { trip, activities } = plan
   const city = trip.destination || trip.title
   const { days, maybe } = useMemo(() => groupDays(activities, plan.dayCount), [activities, plan.dayCount])
   const [selected, setSelected] = useState<DayKey>(1)
+  const [mapExpanded, setMapExpanded] = useState(false)
+  const isEmpty = activities.length === 0
+  const expandRef = useRef<HTMLButtonElement>(null)
+  const shrinkRef = useRef<HTMLButtonElement>(null)
+  const toggledRef = useRef(false)
 
-  const tabKeys: DayKey[] = useMemo(() => [...days.map((_, i) => i + 1), 'maybe' as const], [days])
-  const tabRefs = useRef(new Map<string, HTMLButtonElement>())
+  function toggleMap(expanded: boolean) {
+    toggledRef.current = true
+    setMapExpanded(expanded)
+  }
+
+  // The button the user pressed unmounts; hand focus to its counterpart.
+  useEffect(() => {
+    if (!toggledRef.current) return
+    toggledRef.current = false
+    ;(mapExpanded ? shrinkRef : expandRef).current?.focus()
+  }, [mapExpanded])
 
   useEffect(() => {
     if (performance.getEntriesByName(BOARD_READY_MARK).length === 0) performance.mark(BOARD_READY_MARK)
   }, [])
 
-  // Keep the selected tab in view when the strip scrolls (more than 5 days).
-  useEffect(() => {
-    tabRefs.current.get(tabKey(selected))?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
-  }, [selected])
-
-  function onTabKeyDown(e: KeyboardEvent<HTMLDivElement>) {
-    const index = tabKeys.findIndex((k) => k === selected)
-    let next = index
-    if (e.key === 'ArrowRight') next = (index + 1) % tabKeys.length
-    else if (e.key === 'ArrowLeft') next = (index - 1 + tabKeys.length) % tabKeys.length
-    else if (e.key === 'Home') next = 0
-    else if (e.key === 'End') next = tabKeys.length - 1
-    else return
-    e.preventDefault()
-    const key = tabKeys[next]
-    setSelected(key)
-    tabRefs.current.get(tabKey(key))?.focus()
-  }
+  const tabs = (props: { idPrefix?: string; controls?: (key: DayKey) => string; className?: string }) => (
+    <DayTabs
+      dayCount={days.length}
+      maybeCount={maybe.length}
+      startDate={trip.start_date}
+      selected={selected}
+      onSelect={setSelected}
+      {...props}
+    />
+  )
 
   return (
     <div className="flex min-h-0 flex-1 flex-col lg:grid lg:grid-cols-[440px_minmax(0,1fr)]">
-      {/* Map: strip on phone, fills the right column on laptop. */}
-      <div className="h-[34vh] min-h-[200px] shrink-0 lg:col-start-2 lg:row-start-1 lg:h-auto lg:min-h-0">
-        <TripMapLazy activities={activities} selectedDay={selected} />
+      {/* Map: 34% strip on phone (full height when expanded), fills the right column on laptop. */}
+      <div
+        className={`relative shrink-0 lg:col-start-2 lg:row-start-1 lg:h-auto lg:min-h-0 ${
+          mapExpanded ? 'min-h-0 flex-1' : 'h-[34vh] min-h-[200px]'
+        }`}
+      >
+        <TripMapLazy activities={activities} selectedDay={selected} id={MAP_REGION_ID} />
+
+        {mapExpanded ? (
+          <>
+            <div className="absolute inset-x-0 top-0 z-10 flex items-center gap-2 border-b border-board-line bg-board py-2 pr-2 pl-4 lg:hidden">
+              {tabs({ idPrefix: 'map-day-tab', controls: () => MAP_REGION_ID, className: 'min-w-0 flex-1' })}
+              <button
+                type="button"
+                ref={shrinkRef}
+                aria-label="Shrink map"
+                onClick={() => toggleMap(false)}
+                className={`${MAP_BUTTON} w-11 shrink-0`}
+              >
+                <Minimize2Icon />
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={() => toggleMap(false)}
+              className={`${MAP_BUTTON} absolute bottom-6 left-1/2 z-10 -translate-x-1/2 px-4 font-label text-base font-semibold tracking-[0.08em] uppercase lg:hidden`}
+            >
+              Show list
+            </button>
+          </>
+        ) : (
+          <button
+            type="button"
+            ref={expandRef}
+            aria-label="Expand map"
+            onClick={() => toggleMap(true)}
+            className={`${MAP_BUTTON} absolute top-2 right-2 z-10 w-11 lg:hidden`}
+          >
+            <Maximize2Icon />
+          </button>
+        )}
       </div>
 
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-board text-board-ink lg:col-start-1 lg:row-start-1 lg:border-r lg:border-line">
-        <header className="px-4 pt-4 pb-3">
-          {/* elementtiming: the budgets spec reads when the board first paints (Q46). */}
-          <h1 {...BOARD_TIMING} className="font-mono text-[22px] leading-tight font-semibold tracking-[-0.01em] uppercase">
-            {trip.title}
-          </h1>
-          <p className="mt-1 font-mono text-xs text-board-muted uppercase tabular-nums">
-            {tripDates(plan)} · {activities.length} {activities.length === 1 ? 'place' : 'places'}
-          </p>
-        </header>
+      <div
+        className={`min-h-0 flex-1 overflow-y-auto overscroll-contain bg-board text-board-ink lg:col-start-1 lg:row-start-1 lg:block lg:border-r lg:border-line ${
+          mapExpanded ? 'max-lg:hidden' : ''
+        }`}
+      >
+        <PlanHeader trip={trip} />
 
-        {/* Day tabs: phone only. */}
-        <div
-          role="tablist"
-          aria-label="Days"
-          onKeyDown={onTabKeyDown}
-          className="sticky top-0 z-10 flex snap-x snap-mandatory scroll-px-4 gap-1.5 overflow-x-auto border-b border-board-line bg-board px-4 py-2 lg:hidden"
-        >
-          {tabKeys.map((key) => {
-            const isSelected = key === selected
-            const id = tabKey(key)
-            const date = key === 'maybe' ? null : dayDate(trip.start_date, key)
-            return (
-              <button
-                key={id}
-                ref={(el) => {
-                  if (el) tabRefs.current.set(id, el)
-                  else tabRefs.current.delete(id)
-                }}
-                id={`day-tab-${id}`}
-                type="button"
-                role="tab"
-                aria-selected={isSelected}
-                aria-controls={`day-panel-${id}`}
-                tabIndex={isSelected ? 0 : -1}
-                onClick={() => setSelected(key)}
-                className={`flex h-12 min-w-16 flex-1 shrink-0 snap-start flex-col items-start justify-center rounded-[4px] border px-2 text-left transition-colors duration-150 ease-out ${
-                  isSelected
-                    ? 'border-board-ink bg-board-ink text-board'
-                    : 'border-board-line text-board-muted'
-                }`}
-              >
-                {key === 'maybe' ? (
-                  <>
-                    <span className="font-label text-xs leading-none font-semibold tracking-[0.16em] uppercase">Maybe</span>
-                    <span className="mt-1 font-mono text-xs leading-none tabular-nums">{maybe.length}</span>
-                  </>
-                ) : (
-                  <>
-                    <span className="font-mono text-base leading-none font-semibold tabular-nums">D{key}</span>
-                    {date && (
-                      <span className="mt-1 font-label text-xs leading-none font-semibold tracking-[0.16em] whitespace-nowrap uppercase">
-                        {date.weekday} {date.day}
-                      </span>
-                    )}
-                  </>
-                )}
-              </button>
-            )
-          })}
-        </div>
+        {isEmpty ? (
+          <div className="px-4 pt-12 pb-8">
+            <h2 className="text-[22px] leading-[1.2] font-semibold">Now boarding: {city}</h2>
+            <p className="mt-2 max-w-[60ch] text-base text-board-muted">
+              Your plan is empty. Add the places you want to see, then arrange them by day.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Day tabs: phone only, sticky at the top of the board panel. */}
+            {tabs({ className: 'sticky top-0 z-10 border-b border-board-line bg-board px-4 py-2 lg:hidden' })}
 
-        {days.map((rows, i) => {
-          const n = i + 1
-          return (
+            {days.map((rows, i) => {
+              const n = i + 1
+              return (
+                <DaySection
+                  key={n}
+                  day={n}
+                  city={city}
+                  startDate={trip.start_date}
+                  selected={selected === n}
+                  onSelect={() => setSelected(n)}
+                  rows={rows}
+                  empty={
+                    <>
+                      <p className="font-mono text-base font-semibold uppercase">No stops yet</p>
+                      <p className="mt-1 text-base text-board-muted">Add a place to this day, or drag one here.</p>
+                    </>
+                  }
+                />
+              )
+            })}
+
             <DaySection
-              key={n}
-              id={String(n)}
-              day={n}
+              day="maybe"
               city={city}
               startDate={trip.start_date}
-              hidden={selected !== n}
-              rows={rows}
+              selected={selected === 'maybe'}
+              onSelect={() => setSelected('maybe')}
+              rows={maybe}
               empty={
-                <>
-                  <p className="font-mono text-base font-semibold uppercase">No stops yet</p>
-                  <p className="mt-1 text-base text-board-muted">Add a place to this day, or drag one here.</p>
-                </>
+                <p className="text-base text-board-muted">
+                  Nothing in Maybe. Move a place here to keep it without planning it.
+                </p>
               }
             />
-          )
-        })}
+          </>
+        )}
 
-        <DaySection
-          id="maybe"
-          day="maybe"
-          city={city}
-          startDate={trip.start_date}
-          hidden={selected !== 'maybe'}
-          rows={maybe}
-          empty={
-            <p className="text-base text-board-muted">
-              Nothing in Maybe. Move a place here to keep it without planning it.
-            </p>
-          }
-        />
-
+        {/* Clears the Add place opener (16-07) under the last row. */}
         <div className="h-24" aria-hidden />
       </div>
     </div>
@@ -179,38 +172,64 @@ export function PlanClient({ plan }: { plan: TripPlan }) {
 }
 
 interface DaySectionProps {
-  id: string
-  day: number | 'maybe'
+  day: DayKey
   city: string
   startDate: string | null
-  hidden: boolean
+  /** Phone shows only the selected day; laptop shows every day and marks this one. */
+  selected: boolean
+  onSelect: () => void
   rows: PlanActivity[]
   empty: React.ReactNode
 }
 
-function DaySection({ id, day, city, startDate, hidden, rows, empty }: DaySectionProps) {
+function DaySection({ day, city, startDate, selected, onSelect, rows, empty }: DaySectionProps) {
+  const id = dayKeyId(day)
   const maybe = day === 'maybe'
   const walks = maybe ? [] : walkCells(rows)
-  const nextId = maybe ? null : nextStopId(rows)
+  // Accent NEXT only on the selected day (UI-SPEC "Accent reserved for" 1).
+  const nextId = maybe || !selected ? null : nextStopId(rows)
+  const km = maybe ? 0 : dayKm(rows)
+
   return (
     <section
       id={`day-panel-${id}`}
       role="tabpanel"
       aria-labelledby={`day-head-${id}`}
       data-day={id}
-      className={hidden ? 'max-lg:hidden' : undefined}
+      className={selected ? undefined : 'max-lg:hidden'}
     >
+      {/* Phone: the board head for the selected day. */}
       <BoardHead
         id={id}
         city={city}
         day={day}
         startDate={startDate}
         stops={rows.length}
-        km={maybe ? 0 : dayKm(rows)}
+        km={km}
+        className="lg:hidden"
       />
 
+      {/* Laptop: a day header row that selects the day and refits the map. */}
+      <button
+        type="button"
+        aria-pressed={selected}
+        onClick={onSelect}
+        className={`hidden min-h-11 w-full items-center justify-between gap-3 border-b px-4 py-2.5 text-left transition-colors duration-150 ease-out lg:flex ${
+          selected
+            ? 'border-board-ink bg-board-ink text-board'
+            : 'border-board-line bg-surface-2 text-board-ink hover:bg-row-selected'
+        }`}
+      >
+        <span className="font-mono text-xs font-semibold tracking-[0.08em] uppercase tabular-nums">
+          {maybe ? 'Maybe' : `D${day} · ${dayTitle(startDate, day)}`}
+        </span>
+        <span className="shrink-0 font-mono text-xs uppercase tabular-nums">
+          {maybe ? stopsLabel(rows.length) : `~${km} km`}
+        </span>
+      </button>
+
       {rows.length === 0 ? (
-        <div className="border-t border-board-line px-4 py-4">{empty}</div>
+        <div className="border-b border-board-line px-4 py-4">{empty}</div>
       ) : (
         <>
           <ColumnHeads />
