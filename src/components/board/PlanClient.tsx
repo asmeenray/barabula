@@ -10,10 +10,12 @@ import { groupDays } from '@/lib/plan/days'
 import { chipFor, dayTitle, nextStopId, stopsLabel } from '@/lib/plan/board'
 import { dayKm, walkCells } from '@/lib/plan/walk'
 import type { PlanActivity, TripPlan } from '@/lib/plan/types'
+import { usePlan, type ActivityUpdate } from '@/lib/plan/use-plan'
 import { TripMapLazy } from '@/components/map/TripMapLazy'
 import { Maximize2Icon, Minimize2Icon } from '@/components/icons'
 import { BoardHead, ColumnHeads } from './BoardHead'
 import { BoardRow } from './BoardRow'
+import { BoardStatusLine } from './BoardStatusLine'
 import { DayTabs, dayKeyId, type DayKey } from './DayTabs'
 import { PlanHeader } from './PlanHeader'
 
@@ -26,7 +28,8 @@ const MAP_BUTTON =
   'flex min-h-11 items-center justify-center gap-2 rounded-lg border border-field bg-surface text-ink transition-transform duration-150 ease-out active:scale-[0.97]'
 
 export function PlanClient({ plan }: { plan: TripPlan }) {
-  const { trip, activities } = plan
+  const { trip } = plan
+  const { activities, updateActivity, unsaved, error } = usePlan(plan)
   const city = trip.destination || trip.title
   const { days, maybe } = useMemo(() => groupDays(activities, plan.dayCount), [activities, plan.dayCount])
   const [selected, setSelected] = useState<DayKey>(1)
@@ -126,8 +129,18 @@ export function PlanClient({ plan }: { plan: TripPlan }) {
           </div>
         ) : (
           <>
-            {/* Day tabs: phone only, sticky at the top of the board panel. */}
-            {tabs({ className: 'sticky top-0 z-10 border-b border-board-line bg-board px-4 py-2 lg:hidden' })}
+            {/* Sticky at the top of the board panel: the DELAYED line (D-33) while a
+                save has failed, then the day tabs (phone only). */}
+            <div className="sticky top-0 z-10 bg-board">
+              {error && (
+                <BoardStatusLine
+                  message={error.message}
+                  onRetry={error.retry}
+                  className="border-b border-board-line px-4 py-2"
+                />
+              )}
+              {tabs({ className: 'border-b border-board-line px-4 py-2 lg:hidden' })}
+            </div>
 
             {days.map((rows, i) => {
               const n = i + 1
@@ -142,6 +155,8 @@ export function PlanClient({ plan }: { plan: TripPlan }) {
                   rows={rows}
                   openId={openId}
                   onOpen={setOpenId}
+                  unsaved={unsaved}
+                  onUpdate={updateActivity}
                   empty={
                     <>
                       <p className="font-mono text-base font-semibold uppercase">No stops yet</p>
@@ -161,6 +176,8 @@ export function PlanClient({ plan }: { plan: TripPlan }) {
               rows={maybe}
               openId={openId}
               onOpen={setOpenId}
+              unsaved={unsaved}
+              onUpdate={updateActivity}
               empty={
                 <p className="text-base text-board-muted">
                   Nothing in Maybe. Move a place here to keep it without planning it.
@@ -187,10 +204,24 @@ interface DaySectionProps {
   rows: PlanActivity[]
   openId: string | null
   onOpen: (id: string | null) => void
+  unsaved: ReadonlySet<string>
+  onUpdate: (id: string, update: ActivityUpdate) => void
   empty: React.ReactNode
 }
 
-function DaySection({ day, city, startDate, selected, onSelect, rows, openId, onOpen, empty }: DaySectionProps) {
+function DaySection({
+  day,
+  city,
+  startDate,
+  selected,
+  onSelect,
+  rows,
+  openId,
+  onOpen,
+  unsaved,
+  onUpdate,
+  empty,
+}: DaySectionProps) {
   const id = dayKeyId(day)
   const maybe = day === 'maybe'
   const walks = maybe ? [] : walkCells(rows)
@@ -251,6 +282,8 @@ function DaySection({ day, city, startDate, selected, onSelect, rows, openId, on
                 chip={chipFor(a, nextId)}
                 open={openId === a.id}
                 onToggle={(open) => onOpen(open ? a.id : null)}
+                unsaved={unsaved.has(a.id)}
+                onUpdate={onUpdate}
               />
             ))}
           </ol>

@@ -1,9 +1,12 @@
 'use client'
 
 import { useLayoutEffect } from 'react'
+import { useAnnounce } from '@/components/a11y/LiveRegion'
 import { osmCoordsFrom } from '@/lib/geo-cache'
+import { isVisited } from '@/lib/plan/board'
 import { googleMapsUrl } from '@/lib/plan/maps-link'
 import type { PlanActivity } from '@/lib/plan/types'
+import type { ActivityUpdate } from '@/lib/plan/use-plan'
 import type { WalkCell } from '@/lib/plan/walk'
 
 // A place's ticket, opened inline under its board row (UI-SPEC §7 item 7).
@@ -43,12 +46,24 @@ interface PlaceTicketProps {
   /** 1-based stop number in the day; null in Maybe. */
   stop: number | null
   walk: WalkCell
+  onUpdate: (id: string, update: ActivityUpdate) => void
 }
 
-export function PlaceTicket({ activity: a, stop, walk }: PlaceTicketProps) {
+export function PlaceTicket({ activity: a, stop, walk, onUpdate }: PlaceTicketProps) {
+  const announce = useAnnounce()
+
   useLayoutEffect(() => {
     performance.mark(TICKET_VISIBLE_MARK)
   }, [])
+
+  const visited = isVisited(a)
+
+  // D-26: the toggle is its own undo (no toast); the change is announced once.
+  function toggleVisited() {
+    const next = !visited
+    onUpdate(a.id, { extra_data: { visited: next } })
+    announce(`${a.name} marked ${next ? 'visited' : 'not visited'}.`)
+  }
 
   const maybe = a.day_number === null
   const nameId = `${ticketId(a.id)}-name`
@@ -120,6 +135,9 @@ export function PlaceTicket({ activity: a, stop, walk }: PlaceTicketProps) {
       )}
 
       <div className="mt-4 flex flex-wrap gap-2">
+        <button type="button" onClick={toggleVisited} className={QUIET_BUTTON}>
+          {visited ? 'Mark not visited' : 'Mark visited'}
+        </button>
         <a
           href={googleMapsUrl({ name: a.name, location: a.location, lat: coords?.lat, lng: coords?.lng })}
           target="_blank"

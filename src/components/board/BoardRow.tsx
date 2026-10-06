@@ -2,6 +2,7 @@ import { useRef } from 'react'
 import type { Chip } from '@/lib/plan/board'
 import type { WalkCell } from '@/lib/plan/walk'
 import type { PlanActivity } from '@/lib/plan/types'
+import type { ActivityUpdate } from '@/lib/plan/use-plan'
 import { PlaceTicket, TICKET_CLICK_MARK, ticketId } from './PlaceTicket'
 import { StatusChip } from './StatusChip'
 
@@ -24,6 +25,9 @@ interface BoardRowProps {
   /** This row's ticket is open. */
   open: boolean
   onToggle: (open: boolean) => void
+  /** The last change to this row failed to save (D-33). */
+  unsaved: boolean
+  onUpdate: (id: string, update: ActivityUpdate) => void
 }
 
 function two(n: number): string {
@@ -36,7 +40,7 @@ function clock(time: string): string {
   return m ? `${m[1].padStart(2, '0')}:${m[2]}` : time.trim()
 }
 
-export function BoardRow({ activity: a, number, walk, chip, open, onToggle }: BoardRowProps) {
+export function BoardRow({ activity: a, number, walk, chip, open, onToggle, unsaved, onUpdate }: BoardRowProps) {
   const rowRef = useRef<HTMLButtonElement>(null)
   const visited = chip === 'VISITED'
   // D-25: clock times are shown only for fixed anchors (bookings, timed tickets).
@@ -86,6 +90,11 @@ export function BoardRow({ activity: a, number, walk, chip, open, onToggle }: Bo
           {a.location && (
             <span className="mt-0.5 block truncate font-mono text-xs text-board-muted">{a.location}</span>
           )}
+          {unsaved && (
+            <span data-unsaved className="mt-0.5 block text-xs leading-[1.33] text-board-muted">
+              Not saved yet
+            </span>
+          )}
         </span>
 
         {/* Walk: START / ~{n} min / — (always "~": straight-line estimate). */}
@@ -103,7 +112,7 @@ export function BoardRow({ activity: a, number, walk, chip, open, onToggle }: Bo
         </span>
       </button>
 
-      {open && <PlaceTicket activity={a} stop={number} walk={walk} />}
+      {open && <PlaceTicket activity={a} stop={number} walk={walk} onUpdate={onUpdate} />}
     </li>
   )
 }
