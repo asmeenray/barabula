@@ -162,6 +162,14 @@
   user-select: none;
 }
 
+/* Ticket expand (Motion contract "Content": 250 ms, ease-out, no bounce). */
+@keyframes ticket-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
 /* View transitions: never block taps; off under reduced motion (Pitfall 8). */
 ::view-transition {
   pointer-events: none;

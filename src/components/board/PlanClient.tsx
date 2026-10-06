@@ -31,6 +31,8 @@ export function PlanClient({ plan }: { plan: TripPlan }) {
   const { days, maybe } = useMemo(() => groupDays(activities, plan.dayCount), [activities, plan.dayCount])
   const [selected, setSelected] = useState<DayKey>(1)
   const [mapExpanded, setMapExpanded] = useState(false)
+  // One ticket open at a time (UI-SPEC §7 item 7).
+  const [openId, setOpenId] = useState<string | null>(null)
   const isEmpty = activities.length === 0
   const expandRef = useRef<HTMLButtonElement>(null)
   const shrinkRef = useRef<HTMLButtonElement>(null)
@@ -138,6 +140,8 @@ export function PlanClient({ plan }: { plan: TripPlan }) {
                   selected={selected === n}
                   onSelect={() => setSelected(n)}
                   rows={rows}
+                  openId={openId}
+                  onOpen={setOpenId}
                   empty={
                     <>
                       <p className="font-mono text-base font-semibold uppercase">No stops yet</p>
@@ -155,6 +159,8 @@ export function PlanClient({ plan }: { plan: TripPlan }) {
               selected={selected === 'maybe'}
               onSelect={() => setSelected('maybe')}
               rows={maybe}
+              openId={openId}
+              onOpen={setOpenId}
               empty={
                 <p className="text-base text-board-muted">
                   Nothing in Maybe. Move a place here to keep it without planning it.
@@ -179,10 +185,12 @@ interface DaySectionProps {
   selected: boolean
   onSelect: () => void
   rows: PlanActivity[]
+  openId: string | null
+  onOpen: (id: string | null) => void
   empty: React.ReactNode
 }
 
-function DaySection({ day, city, startDate, selected, onSelect, rows, empty }: DaySectionProps) {
+function DaySection({ day, city, startDate, selected, onSelect, rows, openId, onOpen, empty }: DaySectionProps) {
   const id = dayKeyId(day)
   const maybe = day === 'maybe'
   const walks = maybe ? [] : walkCells(rows)
@@ -241,6 +249,8 @@ function DaySection({ day, city, startDate, selected, onSelect, rows, empty }: D
                 number={maybe ? null : i + 1}
                 walk={maybe ? null : walks[i]}
                 chip={chipFor(a, nextId)}
+                open={openId === a.id}
+                onToggle={(open) => onOpen(open ? a.id : null)}
               />
             ))}
           </ol>
