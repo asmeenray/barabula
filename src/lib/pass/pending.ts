@@ -7,16 +7,18 @@
 // can only ever open /itinerary/{id} from the API's answer (T-16-41). What is
 // read back is re-validated with the create schema (T-16-42); the server
 // validates again. Every function is a no-op when storage is blocked.
+//
+// The schema (and zod, ~90 KB gzip) is imported only when a kept pass exists
+// and passes the cheap checks (16-24): the home page calls loadPending on
+// every visit, and almost every visit has nothing kept.
 
 import type { PassAnswers } from './types'
-import { PassCreateSchema } from './schema'
 import { isUuid } from '@/lib/uuid'
 
 export const PENDING_PASS_KEY = 'barabula-pending-pass'
 export const PENDING_TTL_MS = 24 * 60 * 60 * 1000
 
 const VERSION = 1
-const PassOnly = PassCreateSchema.omit({ client_ref: true })
 
 export type PendingPass = { pass: PassAnswers; clientRef: string }
 
@@ -46,10 +48,10 @@ export function savePending(
 }
 
 /** The kept answers while younger than 24 h; anything else is removed and gives null. */
-export function loadPending(
+export async function loadPending(
   storage: Storage | null = deviceStorage(),
   now: number = Date.now()
-): PendingPass | null {
+): Promise<PendingPass | null> {
   if (!storage) return null
   let raw: string | null
   try {
@@ -59,12 +61,12 @@ export function loadPending(
   }
   if (raw === null) return null
 
-  const kept = read(raw, now)
+  const kept = await read(raw, now)
   if (!kept) clearPending(storage)
   return kept
 }
 
-function read(raw: string, now: number): PendingPass | null {
+async function read(raw: string, now: number): Promise<PendingPass | null> {
   let data: unknown
   try {
     data = JSON.parse(raw)
@@ -77,7 +79,8 @@ function read(raw: string, now: number): PendingPass | null {
   const age = now - savedAt
   if (!(age >= 0 && age < PENDING_TTL_MS)) return null
   if (!isUuid(clientRef)) return null
-  const parsed = PassOnly.safeParse(pass)
+  const { PassCreateSchema } = await import('./schema')
+  const parsed = PassCreateSchema.omit({ client_ref: true }).safeParse(pass)
   if (!parsed.success) return null
   return { pass: parsed.data, clientRef }
 }

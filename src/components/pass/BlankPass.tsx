@@ -144,16 +144,21 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
   // hydration, since the server has no device storage).
   useEffect(() => {
     if (signedIn) return
-    const kept = loadPending()
-    if (!kept) return
-    clientRef.current = kept.clientRef
+    let live = true
     // Device storage only exists after hydration, so this one restore cannot
-    // be an initial state without a server/client mismatch.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setAnswers(kept.pass)
-    setReachedEnd(true)
-    setStep('ready')
-    setInterrupted(true)
+    // be an initial state without a server/client mismatch. Async: the schema
+    // that re-checks the kept answers loads only when something is kept.
+    void loadPending().then((kept) => {
+      if (!live || !kept) return
+      clientRef.current = kept.clientRef
+      setAnswers(kept.pass)
+      setReachedEnd(true)
+      setStep('ready')
+      setInterrupted(true)
+    })
+    return () => {
+      live = false
+    }
   }, [signedIn])
 
   // Closing the inline panel brings Start planning back; focus returns to it.

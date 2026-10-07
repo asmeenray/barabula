@@ -39,10 +39,14 @@ export function ResumePendingTrip() {
 
   const resume = useCallback(() => {
     if (inFlight.current) return
-    const kept = loadPending()
-    if (!kept) return
+    // Set before the (async) read, so a second call cannot post twice.
     inFlight.current = true
-    void createKept(kept.pass, kept.clientRef).then((id) => {
+    void loadPending().then(async (kept) => {
+      if (!kept) {
+        inFlight.current = false
+        return
+      }
+      const id = await createKept(kept.pass, kept.clientRef)
       if (id) {
         clearPending()
         router.replace(`/itinerary/${id}`)
