@@ -38,7 +38,6 @@ export interface PinFeature {
     id: string
     day: number
     num: number
-    state: 'day' | 'visited'
     /** Image for the pin at rest, and when hovered or selected. */
     img: string
     sel: string
@@ -65,7 +64,6 @@ export function pinFeatures(activities: readonly PlanActivity[], theme: PinTheme
         id: a.id,
         day,
         num,
-        state: visited ? 'visited' : 'day',
         img: pinImageId({ state: visited ? 'visited' : 'day', num: n, theme }),
         sel: pinImageId({ state: 'selected', num: n, theme }),
       },
@@ -93,18 +91,12 @@ let font = '600 12px ui-monospace, monospace'
 
 /**
  * Loads Geist Mono 600 (the --font-geist-mono family from next/font) so the
- * first pins are drawn in it. Never rejects; gives up waiting after 3 s.
+ * first pins are drawn in it. Never rejects (a failed load draws in the fallback).
  */
-export function loadPinFont(): Promise<void> {
+export function loadPinFont(): Promise<unknown> {
   const family = getComputedStyle(document.documentElement).getPropertyValue('--font-geist-mono').trim()
   if (family) font = `600 12px ${family}`
-  return Promise.race([
-    document.fonts.load(font).then(
-      () => {},
-      () => {}
-    ),
-    new Promise<void>((done) => setTimeout(done, 3000)),
-  ])
+  return document.fonts.load(font).catch(() => {})
 }
 
 const H = 28 // body height
@@ -135,15 +127,16 @@ export function drawPin(spec: PinSpec, pixelRatio: number): ImageData {
   const visited = spec.state === 'visited' || spec.num === 0
   const label = String(spec.num).padStart(2, '0')
   const canvas = document.createElement('canvas')
-  let c = canvas.getContext('2d') as CanvasRenderingContext2D
+  // Resizing the canvas below resets this context's state, not the context.
+  const c = canvas.getContext('2d') as CanvasRenderingContext2D
   c.font = font
-  const w = visited ? H : Math.max(H, Math.ceil(c.measureText(label).width) + 14)
+  const tw = c.measureText(label).width
+  const w = visited ? H : Math.max(H, Math.ceil(tw) + 14)
   // Ring 2 px outside the body; the selected outline sits 2 px further out and is 2 px wide.
   const m = selected ? 6 : 2
   const scale = selected ? 1.15 : 1
   canvas.width = Math.ceil((w + 2 * m) * scale * pixelRatio)
   canvas.height = Math.ceil((H + TIP + 2 * m) * scale * pixelRatio)
-  c = canvas.getContext('2d') as CanvasRenderingContext2D
   c.scale(scale * pixelRatio, scale * pixelRatio)
   c.lineJoin = 'round'
   c.lineCap = 'round'
@@ -174,11 +167,10 @@ export function drawPin(spec: PinSpec, pixelRatio: number): ImageData {
     c.lineTo(cx + 5, cy - 3.5)
     c.stroke()
   } else {
+    // Centred by hand: digits sit on the baseline, about 8.5 px tall at 12 px.
     c.font = font
     c.fillStyle = colours.on
-    c.textAlign = 'center'
-    c.textBaseline = 'middle'
-    c.fillText(label, cx, cy + 0.5)
+    c.fillText(label, cx - tw / 2, cy + 4.5)
   }
   return c.getImageData(0, 0, canvas.width, canvas.height)
 }

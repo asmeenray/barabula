@@ -40,6 +40,10 @@ interface BoardRowProps {
   /** This row's ticket is open. */
   open: boolean
   onToggle: (open: boolean) => void
+  /** Laptop: this row or its pin is under the pointer (row wash, pin grows). */
+  hovered?: boolean
+  /** Laptop: pointer entered (id) or left (null) the row. */
+  onHover?: (id: string | null) => void
   /** The last change to this row failed to save (D-33). */
   unsaved: boolean
   onUpdate: (id: string, update: ActivityUpdate) => void
@@ -87,6 +91,8 @@ export function BoardRow({
   chip,
   open,
   onToggle,
+  hovered = false,
+  onHover,
   unsaved,
   onUpdate,
   actions,
@@ -122,6 +128,8 @@ export function BoardRow({
       data-chip={chip}
       className={`group relative border-b border-board-line ${draggable ? DRAG_ROW : ''}`}
       onKeyDown={onKeyDown}
+      onMouseEnter={onHover && (() => onHover(a.id))}
+      onMouseLeave={onHover && (() => onHover(null))}
     >
       {/* Laptop drag handle: replaces the "#" number on row hover or focus (UI-SPEC §8).
           First in the DOM so Tab goes grip → row → "⋯". Hidden on phone (long-press the row). */}
@@ -142,7 +150,7 @@ export function BoardRow({
         aria-controls={open ? ticketId(a.id) : undefined}
         onClick={toggle}
         className={`${BOARD_GRID} min-h-14 w-full items-start py-3 text-left transition-colors duration-150 ease-out ${
-          open ? 'bg-row-selected' : 'lg:group-hover:bg-surface-2'
+          open || hovered ? 'bg-row-selected' : 'lg:group-hover:bg-surface-2'
         }`}
       >
         <span

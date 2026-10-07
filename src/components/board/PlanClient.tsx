@@ -154,6 +154,8 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cov
   const [mapExpanded, setMapExpanded] = useState(false)
   // One ticket open at a time (UI-SPEC §7 item 7).
   const [openId, setOpenId] = useState<string | null>(null)
+  // Laptop row ↔ pin hover (UI-SPEC §8): the hovered row's pin grows; a hovered pin washes its row.
+  const [hoveredId, setHoveredId] = useState<string | null>(null)
   const isEmpty = activities.length === 0
   const expandRef = useRef<HTMLButtonElement>(null)
   const shrinkRef = useRef<HTMLButtonElement>(null)
@@ -244,6 +246,18 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cov
     )
   }
 
+  /** A pin was tapped: its day, the list (phone) and its ticket open. */
+  function selectPin(id: string) {
+    setSelected(activities.find((a) => a.id === id)?.day_number ?? 'maybe')
+    setMapExpanded(false)
+    setOpenId(id)
+  }
+
+  // The open ticket's row stays in view (a pin tap can open one off screen).
+  useEffect(() => {
+    if (openId) rowButtonOf(openId)?.scrollIntoView({ block: 'nearest' })
+  }, [openId, mapExpanded])
+
   function toggleMap(expanded: boolean) {
     toggledRef.current = true
     setMapExpanded(expanded)
@@ -298,7 +312,15 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cov
           mapExpanded ? 'min-h-0 flex-1' : 'h-[34vh] min-h-[200px]'
         }`}
       >
-        <TripMapLazy activities={activities} selectedDay={selected} id={MAP_REGION_ID} />
+        <TripMapLazy
+          activities={activities}
+          selectedDay={selected}
+          id={MAP_REGION_ID}
+          hoveredId={hoveredId}
+          selectedId={openId}
+          onPinHover={setHoveredId}
+          onPinSelect={selectPin}
+        />
 
         {mapExpanded ? (
           <>
@@ -383,6 +405,8 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cov
                     rows={rows}
                     openId={openId}
                     onOpen={setOpenId}
+                    hoveredId={hoveredId}
+                    onHover={isLaptop ? setHoveredId : undefined}
                     unsaved={unsaved}
                     onUpdate={updateActivity}
                     actionsFor={actionsFor}
@@ -409,6 +433,8 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cov
                 rows={maybe}
                 openId={openId}
                 onOpen={setOpenId}
+                hoveredId={hoveredId}
+                onHover={isLaptop ? setHoveredId : undefined}
                 unsaved={unsaved}
                 onUpdate={updateActivity}
                 actionsFor={actionsFor}
@@ -512,6 +538,9 @@ interface DaySectionProps {
   rows: PlanActivity[]
   openId: string | null
   onOpen: (id: string | null) => void
+  hoveredId: string | null
+  /** Laptop only: the pointer entered (id) or left (null) a row. */
+  onHover?: (id: string | null) => void
   unsaved: ReadonlySet<string>
   onUpdate: (id: string, update: ActivityUpdate) => void
   actionsFor: (a: PlanActivity, index: number, rows: PlanActivity[]) => RowActions
@@ -534,6 +563,8 @@ function DaySection({
   rows,
   openId,
   onOpen,
+  hoveredId,
+  onHover,
   unsaved,
   onUpdate,
   actionsFor,
@@ -604,6 +635,8 @@ function DaySection({
                 chip={chipFor(a, nextId)}
                 open={openId === a.id}
                 onToggle={(open) => onOpen(open ? a.id : null)}
+                hovered={hoveredId === a.id}
+                onHover={onHover}
                 unsaved={unsaved.has(a.id)}
                 onUpdate={onUpdate}
                 actions={actionsFor(a, i, rows)}

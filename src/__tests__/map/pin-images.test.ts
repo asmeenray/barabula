@@ -95,7 +95,6 @@ describe('pinFeatures', () => {
   it('names the day, visited and selected images for the theme', () => {
     expect(byId['d2-c'].properties.img).toBe('pin-day-03-light')
     expect(byId['d2-c'].properties.sel).toBe('pin-selected-03-light')
-    expect(byId['d1-b'].properties.state).toBe('visited')
     expect(byId['d1-b'].properties.img).toBe('pin-visited-00-light')
     expect(byId['d1-b'].properties.sel).toBe('pin-selected-00-light')
     expect(pinFeatures(ACTS, 'dark')[0].properties.img).toMatch(/-dark$/)

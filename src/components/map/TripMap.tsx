@@ -13,7 +13,7 @@ import type { PlanActivity } from '@/lib/plan/types'
 import { LAPTOP_QUERY, useMediaQuery } from '@/lib/client/use-media'
 import { BoardStatusLine } from '@/components/board/BoardStatusLine'
 import { MAPLIBRE_WORKER_URL, loadMapLib, loadStyle } from './maplibre-loader'
-import { drawPin, loadPinFont, parsePinImageId, pinFeatures, type PinFeature, type PinTheme } from './pinImages'
+import { dayRoute, drawPin, loadPinFont, parsePinImageId, pinFeatures, PIN_COLOURS, type PinFeature, type PinTheme } from './pinImages'
 
 export const MAP_LOAD_MARK = 'barabula:map-load'
 
@@ -25,26 +25,25 @@ export interface TripMapProps {
   selectedDay: DayKey
   /** id of the map region (the floating day tabs point aria-controls at it). */
   id?: string
+  /** Laptop: the row under the pointer; its pin grows (UI-SPEC §8). */
+  hoveredId?: string | null
+  /** The place whose ticket is open; its pin is drawn selected. */
+  selectedId?: string | null
+  /** Pointer over a pin (laptop), or off every pin. */
+  onPinHover?: (id: string | null) => void
+  /** A pin was clicked or tapped. */
+  onPinSelect?: (id: string) => void
 }
 
 type Bounds = [[number, number], [number, number]]
 
 function boundsOf(pins: PinFeature[]): Bounds | null {
   if (pins.length === 0) return null
-  let minLng = Infinity
-  let minLat = Infinity
-  let maxLng = -Infinity
-  let maxLat = -Infinity
-  for (const p of pins) {
-    const [lng, lat] = p.geometry.coordinates
-    minLng = Math.min(minLng, lng)
-    minLat = Math.min(minLat, lat)
-    maxLng = Math.max(maxLng, lng)
-    maxLat = Math.max(maxLat, lat)
-  }
+  const lngs = pins.map((p) => p.geometry.coordinates[0])
+  const lats = pins.map((p) => p.geometry.coordinates[1])
   return [
-    [minLng, minLat],
-    [maxLng, maxLat],
+    [Math.min(...lngs), Math.min(...lats)],
+    [Math.max(...lngs), Math.max(...lats)],
   ]
 }
 
@@ -55,9 +54,12 @@ function fitTarget(pins: PinFeature[], day: DayKey): Bounds | null {
 const FIT_OPTIONS = { padding: 48, maxZoom: 15 }
 
 const PINS_LAYER = 'trip-pins'
+/** Hovered and selected pins, drawn on top with the 'selected' image. */
+const TOP_LAYER = 'trip-pins-top'
+const PIN_LAYERS = [PINS_LAYER, TOP_LAYER]
 
 // Pin images wait for Geist Mono (started once, when the map chunk first mounts).
-let fontReady: Promise<void> | null = null
+let fontReady: Promise<unknown> | null = null
 
 /** Draws tag pins on demand; MapLibre keeps the resolver across style reloads. */
 function registerPins(map: MapLibreMap) {
@@ -65,12 +67,20 @@ function registerPins(map: MapLibreMap) {
     const spec = parsePinImageId(imageId)
     if (!spec) return
     await (fontReady ??= loadPinFont())
-    const ratio = Math.max(1, window.devicePixelRatio || 1)
+    const ratio = window.devicePixelRatio || 1
     if (!map.hasImage(imageId)) map.addImage(imageId, drawPin(spec, ratio), { pixelRatio: ratio })
   })
 }
 
-export default function TripMap({ activities, selectedDay, id }: TripMapProps) {
+export default function TripMap({
+  activities,
+  selectedDay,
+  id,
+  hoveredId = null,
+  selectedId = null,
+  onPinHover,
+  onPinSelect,
+}: TripMapProps) {
   // Theme at mount; live switching lands with the theme setting (16-19).
   const [theme] = useState<PinTheme>(() => (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'))
   const isLaptop = useMediaQuery(LAPTOP_QUERY)
@@ -104,13 +114,38 @@ export default function TripMap({ activities, selectedDay, id }: TripMapProps) {
 
   // Phone shows only the selected day's pins; laptop dims the other days (45%, 0.8).
   const onDay: ExpressionSpecification = ['==', ['get', 'day'], selectedDay === 'maybe' ? -1 : selectedDay]
+  const top = [hoveredId, selectedId].filter((x): x is string => x !== null)
+  const onTop: ExpressionSpecification = ['in', ['get', 'id'], ['literal', top]]
+  const selectedPin = selectedId !== null && pins.some((p) => p.properties.id === selectedId) ? selectedId : undefined
+
+  // The selected day's route through its located stops (unlocated ones skipped).
+  // lineMetrics is on for the moment-2 line-progress draw (16-22); static here.
+  const route = useMemo(() => {
+    const line = dayRoute(pins, selectedDay)
+    return {
+      type: 'FeatureCollection' as const,
+      features: line.length
+        ? [{ type: 'Feature' as const, properties: {}, geometry: { type: 'LineString' as const, coordinates: line } }]
+        : [],
+    }
+  }, [pins, selectedDay])
+  const lineLayout = { 'line-join': 'round', 'line-cap': 'round' } as const
+  // Pins never hide each other; map labels under a pin give way to it.
+  const pinLayout = { 'icon-anchor': 'bottom', 'icon-allow-overlap': true } as const
+  const hoverRef = useRef<string | null>(null)
+  function hoverPin(map: MapLibreMap, next: string | null) {
+    if (hoverRef.current === next) return
+    hoverRef.current = next
+    map.getCanvas().style.cursor = next ? 'pointer' : ''
+    onPinHover?.(next)
+  }
 
   /** Test observability: how many of the selected day's pins are on screen. */
   function countPins(map: MapLibreMap) {
     const region = map.getContainer().closest<HTMLElement>('[role=region]')
     if (!region || !map.getLayer(PINS_LAYER)) return
     const ids = new Set<unknown>()
-    for (const f of map.queryRenderedFeatures({ layers: [PINS_LAYER] })) {
+    for (const f of map.queryRenderedFeatures({ layers: PIN_LAYERS })) {
       if (f.properties.day === selectedDay) ids.add(f.properties.id)
     }
     region.dataset.pinsRendered = String(ids.size)
@@ -153,6 +188,7 @@ export default function TripMap({ activities, selectedDay, id }: TripMapProps) {
       id={id}
       role="region"
       aria-label={`Map, ${dayName}, ${dayPins} ${dayPins === 1 ? 'place' : 'places'}`}
+      data-selected-pin={selectedPin}
       className="relative h-full w-full overscroll-none bg-surface-2"
     >
       {failed ? (
@@ -192,23 +228,53 @@ export default function TripMap({ activities, selectedDay, id }: TripMapProps) {
           }}
           onError={handleError}
           onIdle={(e) => countPins(e.target)}
+          interactiveLayerIds={ready ? PIN_LAYERS : undefined}
+          onMouseMove={(e) => hoverPin(e.target, (e.features?.[0]?.properties.id as string | undefined) ?? null)}
+          onMouseLeave={(e) => hoverPin(e.target, null)}
+          onClick={(e) => {
+            const pin = e.features?.[0]?.properties.id
+            if (typeof pin === 'string') onPinSelect?.(pin)
+          }}
         >
+          {ready && (
+            <Source id="trip-route" type="geojson" lineMetrics data={route}>
+              {/* Light theme: a 7 px ink casing under the yellow line (yellow on Positron is 1.8:1). */}
+              {theme === 'light' && (
+                <Layer
+                  id="trip-route-casing"
+                  type="line"
+                  layout={lineLayout}
+                  paint={{ 'line-color': PIN_COLOURS.light.ring, 'line-width': 7 }}
+                />
+              )}
+              <Layer
+                id="trip-route"
+                type="line"
+                layout={lineLayout}
+                paint={{ 'line-color': PIN_COLOURS[theme].accent, 'line-width': 4 }}
+              />
+            </Source>
+          )}
           {ready && (
             <Source id="trip-pins" type="geojson" data={geojson}>
               <Layer
                 id={PINS_LAYER}
                 type="symbol"
-                filter={isLaptop ? true : onDay}
+                filter={['all', isLaptop ? true : onDay, ['!', onTop]]}
                 layout={{
+                  ...pinLayout,
                   'icon-image': ['get', 'img'],
-                  'icon-anchor': 'bottom',
-                  'icon-allow-overlap': true,
-                  'icon-ignore-placement': true,
                   'icon-size': isLaptop ? ['case', onDay, 1, 0.8] : 1,
                   // The selected day on top, then lower stop numbers over higher ones.
                   'symbol-sort-key': ['-', ['case', onDay, 200, 0], ['get', 'num']],
                 }}
                 paint={{ 'icon-opacity': isLaptop ? ['case', onDay, 1, 0.45] : 1 }}
+              />
+              <Layer
+                id={TOP_LAYER}
+                type="symbol"
+                filter={isLaptop ? onTop : ['all', onDay, onTop]}
+                layout={{ ...pinLayout, 'icon-image': ['get', 'sel'] }}
               />
             </Source>
           )}
