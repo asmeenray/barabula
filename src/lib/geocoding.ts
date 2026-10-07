@@ -29,10 +29,21 @@ export function buildGeocodeQuery(location: string, destination: string | null):
   return destination ? `${location}, ${destination}` : location
 }
 
+/**
+ * Operational kill switch: NOMINATIM_DISABLED=1 makes every lookup answer
+ * 'error' (nothing cached, nothing counted). The e2e server sets it so tests
+ * never call the public Nominatim service.
+ */
+export function nominatimDisabled(): boolean {
+  return process.env.NOMINATIM_DISABLED === '1'
+}
+
 export async function geocodeQuery(
   query: string,
   tracker?: Pick<CostTracker, 'count'>
 ): Promise<GeocodeResult> {
+  // Checked before the throttle and before counting: a disabled lookup costs nothing.
+  if (nominatimDisabled()) return { status: 'error' }
   await waitForSlot()
   const url = `${NOMINATIM_SEARCH_URL}?q=${encodeURIComponent(query)}&format=jsonv2&limit=1`
   try {

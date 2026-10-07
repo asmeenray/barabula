@@ -13,6 +13,7 @@ import type { PlanActivity, TripPlan } from '@/lib/plan/types'
 import type { CityPhoto } from '@/lib/photos/manifest'
 import { clockOf, isTempId, usePlan, type ActivityUpdate, type NewPlace } from '@/lib/plan/use-plan'
 import { useCanEdit } from '@/lib/client/use-online'
+import { useGeocode } from '@/lib/plan/use-geocode'
 import { LAPTOP_QUERY, useMediaQuery } from '@/lib/client/use-media'
 import { useUndo } from '@/components/undo/UndoProvider'
 import { useAfterMark } from '@/lib/client/use-after-mark'
@@ -21,7 +22,7 @@ import { Maximize2Icon, Minimize2Icon } from '@/components/icons'
 import { AddPlaceButton, LazyPlaceForm } from './AddPlaceButton'
 import type { PlaceFormValues } from './PlaceForm'
 import { BoardHead, ColumnHeads } from './BoardHead'
-import { BoardRow } from './BoardRow'
+import { BoardRow, type RowGeo } from './BoardRow'
 import type { RowActions } from './RowMenu'
 import { BoardStatusLine } from './BoardStatusLine'
 import { DayTabs, dayKeyId, type DayKey } from './DayTabs'
@@ -84,6 +85,7 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cit
     activities: all,
     addActivity,
     editActivity,
+    patchLocalExtra,
     updateActivity,
     moveActivity,
     moveUp,
@@ -100,6 +102,13 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cit
   )
   const canEdit = useCanEdit()
   const mapReady = useAfterMark(MAP_READY_MARK, PHOTO_HOLD_MAX_MS)
+  // Places without a pin are looked up through the server once the map is up (D-23).
+  const { finding, stillOff, geocodeOne } = useGeocode(trip.id, all, canEdit, { start: mapReady, patchLocalExtra })
+  const geoFor = (a: PlanActivity): RowGeo => ({
+    finding: finding.has(a.id),
+    stillOff: stillOff.has(a.id),
+    find: () => void geocodeOne(a.id, { manual: true }),
+  })
   const city = trip.destination || trip.title
   const { days, maybe } = useMemo(() => groupDays(activities, plan.dayCount), [activities, plan.dayCount])
   const [selected, setSelected] = useState<DayKey>(1)
@@ -140,13 +149,18 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cit
     const place = toNewPlace(values)
     // Phone shows one day: follow the place to its day so it is seen landing.
     setSelected(place.day_number ?? 'maybe')
-    void addActivity(place)
+    void addActivity(place).then((row) => {
+      if (row?.location) void geocodeOne(row.id)
+    })
   }
 
   function submitEdit(id: string, values: PlaceFormValues) {
     const place = toNewPlace(values)
     if (activities.find((a) => a.id === id)?.day_number !== place.day_number) setSelected(place.day_number ?? 'maybe')
-    void editActivity(id, place)
+    void editActivity(id, place).then(({ saved, locationChanged }) => {
+      // The server cleared the old pin; look the new address up (D-24).
+      if (saved && locationChanged && place.location) void geocodeOne(id)
+    })
   }
 
   const editing = form?.mode === 'edit' ? activities.find((a) => a.id === form.id) ?? null : null
@@ -303,6 +317,7 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cit
                     onUpdate={updateActivity}
                     actionsFor={actionsFor}
                     editorFor={editorFor}
+                    geoFor={geoFor}
                     empty={
                       <>
                         <p className="font-mono text-base font-semibold uppercase">No stops yet</p>
@@ -326,6 +341,7 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cit
                 onUpdate={updateActivity}
                 actionsFor={actionsFor}
                 editorFor={editorFor}
+                geoFor={geoFor}
                 empty={
                   <p className="text-base text-board-muted">
                     Nothing in Maybe. Move a place here to keep it without planning it.
@@ -412,6 +428,7 @@ interface DaySectionProps {
   actionsFor: (a: PlanActivity, index: number, rows: PlanActivity[]) => RowActions
   /** The inline edit form for a row (laptop), or null. */
   editorFor: (a: PlanActivity) => React.ReactNode
+  geoFor: (a: PlanActivity) => RowGeo
   empty: React.ReactNode
 }
 
@@ -428,6 +445,7 @@ function DaySection({
   onUpdate,
   actionsFor,
   editorFor,
+  geoFor,
   empty,
 }: DaySectionProps) {
   const id = dayKeyId(day)
@@ -494,6 +512,7 @@ function DaySection({
                 onUpdate={onUpdate}
                 actions={actionsFor(a, i, rows)}
                 editor={editorFor(a)}
+                geo={geoFor(a)}
               />
             ))}
           </ol>

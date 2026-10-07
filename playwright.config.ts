@@ -59,6 +59,8 @@ export default defineConfig({
       NEXT_PUBLIC_SUPABASE_URL: supabase.apiUrl,
       NEXT_PUBLIC_SUPABASE_ANON_KEY: supabase.anonKey,
       SUPABASE_SERVICE_ROLE_KEY: supabase.serviceRoleKey,
+      // Kill switch (16-11): e2e never calls the public Nominatim service.
+      NOMINATIM_DISABLED: '1',
     },
   },
 })

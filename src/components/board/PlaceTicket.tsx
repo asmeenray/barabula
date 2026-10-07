@@ -10,6 +10,7 @@ import type { PlanActivity } from '@/lib/plan/types'
 import type { ActivityUpdate } from '@/lib/plan/use-plan'
 import type { WalkCell } from '@/lib/plan/walk'
 import { RowMenu, type RowActions } from './RowMenu'
+import type { RowGeo } from './BoardRow'
 
 // A place's ticket, opened inline under its board row (UI-SPEC §7 item 7).
 // Renders only from data already on the page: no fetch on open (≤ 300 ms).
@@ -54,9 +55,13 @@ interface PlaceTicketProps {
   onUpdate: (id: string, update: ActivityUpdate) => void
   /** The "⋯" menu (16-09): the keyboard / screen-reader path for moves. */
   actions: RowActions
+  /** Map lookup state and the "Find on map" retry (16-11). */
+  geo?: RowGeo
 }
 
-export function PlaceTicket({ activity: a, stop, walk, onUpdate, actions }: PlaceTicketProps) {
+const STILL_OFF = 'Still not on map. Add an address with Edit place.'
+
+export function PlaceTicket({ activity: a, stop, walk, onUpdate, actions, geo }: PlaceTicketProps) {
   const announce = useAnnounce()
   // A just-added place can't be edited until its save has answered.
   const canEdit = useCanEdit() && !actions.locked
@@ -84,6 +89,9 @@ export function PlaceTicket({ activity: a, stop, walk, onUpdate, actions }: Plac
   const maybe = a.day_number === null
   const nameId = `${ticketId(a.id)}-name`
   const coords = osmCoordsFrom(a.extra_data)
+  // "Find on map" only for a place without a pin (UI-SPEC §7 item 7).
+  const offMap = coords === null && geo !== undefined
+  const canFind = canEdit && !geo?.finding
   const fixedTime = a.extra_data?.fixed_time === true && a.time ? clock(a.time) : null
   const note = text(a.description)
   const duration = text(a.duration)
@@ -168,8 +176,26 @@ export function PlaceTicket({ activity: a, stop, walk, onUpdate, actions }: Plac
         >
           Open in Google Maps
         </a>
+        {offMap && (
+          <button
+            type="button"
+            aria-disabled={!canFind || undefined}
+            onClick={() => {
+              if (canFind) geo.find()
+            }}
+            className={canFind ? QUIET_BUTTON : QUIET_BUTTON_DISABLED}
+          >
+            Find on map
+          </button>
+        )}
         <RowMenu placeName={a.name} day={a.day_number} {...actions} className="ml-auto bg-surface-2" />
       </div>
+
+      {offMap && (
+        <p aria-live="polite" className="mt-2 max-w-[65ch] text-base text-muted empty:hidden">
+          {geo.stillOff && !geo.finding ? STILL_OFF : ''}
+        </p>
+      )}
     </div>
   )
 }

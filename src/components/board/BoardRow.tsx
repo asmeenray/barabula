@@ -35,6 +35,23 @@ interface BoardRowProps {
   actions: RowActions
   /** The inline edit form (laptop, 16-11); shown instead of the ticket. */
   editor?: React.ReactNode
+  /** Map lookup state for this place (16-11, D-23, D-24). */
+  geo?: RowGeo
+}
+
+/** A place's map lookup state, from useGeocode. */
+export interface RowGeo {
+  /** A lookup for it is running. */
+  finding: boolean
+  /** The user's "Find on map" found nothing (or it has no address). */
+  stillOff: boolean
+  /** "Find on map": one lookup through the server. */
+  find: () => void
+}
+
+/** Not on the map: no address, or the lookup found nothing (UI-SPEC "NOT ON MAP"). */
+export function notOnMap(a: Pick<PlanActivity, 'location' | 'extra_data'>): boolean {
+  return !a.location?.trim() || a.extra_data?.geo_status === 'not_found'
 }
 
 function two(n: number): string {
@@ -58,6 +75,7 @@ export function BoardRow({
   onUpdate,
   actions,
   editor = null,
+  geo,
 }: BoardRowProps) {
   const rowRef = useRef<HTMLButtonElement>(null)
   const visited = chip === 'VISITED'
@@ -112,8 +130,21 @@ export function BoardRow({
               {a.name}
             </span>
           </span>
-          {a.location && (
-            <span className="mt-0.5 block truncate font-mono text-xs text-board-muted">{a.location}</span>
+          {/* Meta line: "Finding on map…" while a lookup runs, the NOT ON MAP tag
+              (sentence case in the DOM, uppercase by CSS), else the location. */}
+          {geo?.finding ? (
+            <span data-geo="finding" className="mt-0.5 block truncate font-mono text-xs text-board-muted">
+              Finding on map…
+            </span>
+          ) : notOnMap(a) ? (
+            <span
+              data-geo="not-on-map"
+              className="mt-1 inline-flex h-5 items-center rounded-[4px] border border-board-muted px-1.5 font-label text-xs leading-none font-semibold tracking-[0.16em] whitespace-nowrap text-board-muted uppercase"
+            >
+              Not on map
+            </span>
+          ) : (
+            a.location && <span className="mt-0.5 block truncate font-mono text-xs text-board-muted">{a.location}</span>
           )}
           {unsaved && (
             <span data-unsaved className="mt-0.5 block text-xs leading-[1.33] text-board-muted">
@@ -146,7 +177,7 @@ export function BoardRow({
         className="absolute top-1.5 right-2 bg-surface-2 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 data-popup-open:opacity-100 max-lg:hidden"
       />
 
-      {editor ?? (open && <PlaceTicket activity={a} stop={number} walk={walk} onUpdate={onUpdate} actions={actions} />)}
+      {editor ?? (open && <PlaceTicket activity={a} stop={number} walk={walk} onUpdate={onUpdate} actions={actions} geo={geo} />)}
     </li>
   )
 }
