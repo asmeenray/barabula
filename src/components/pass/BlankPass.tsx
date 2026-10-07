@@ -25,13 +25,20 @@ type Props = {
   /** The curated set: offered first in "Where to?" and used for the chosen city's cover. */
   photos: readonly CityPhoto[]
   signedIn: boolean
+  /**
+   * Laptop shape. horizontal: photo left 55%, body right 45%, min-height 440
+   * (no Now/Next pass beside it). vertical: a column beside a Now/Next pass,
+   * cover 280 (16-12). Phone is always vertical.
+   */
+  layout?: 'horizontal' | 'vertical'
 }
 
 const EMPTY: PassAnswers = { stops: [], when: null, adults: null, kids: null, interests: [], note: null }
 
 type CreateState = 'idle' | 'creating' | 'failed'
 
-export function BlankPass({ coverPhoto, photos, signedIn }: Props) {
+export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical' }: Props) {
+  const horizontal = layout === 'horizontal'
   const router = useRouter()
   const announce = useAnnounce()
   const [answers, setAnswers] = useState<PassAnswers>(EMPTY)
@@ -128,7 +135,10 @@ export function BlankPass({ coverPhoto, photos, signedIn }: Props) {
   return (
     <section
       aria-label="Next trip"
-      className="overflow-hidden rounded-2xl bg-surface shadow-[0_24px_48px_-28px_rgba(0,0,0,.55)] dark:border dark:border-line dark:shadow-none"
+      data-layout={layout}
+      className={`overflow-hidden rounded-2xl bg-surface shadow-[0_24px_48px_-28px_rgba(0,0,0,.55)] dark:border dark:border-line dark:shadow-none ${
+        horizontal ? 'lg:grid lg:min-h-[440px] lg:grid-cols-[55fr_45fr]' : ''
+      }`}
     >
       <PassCover
         key={photo?.slug ?? `map:${coverCity}`}
@@ -142,11 +152,15 @@ export function BlankPass({ coverPhoto, photos, signedIn }: Props) {
         priority
         titleAs="h1"
         onFallback={() => photo && setFailedSlug(photo.slug)}
+        className={horizontal ? 'lg:h-auto lg:min-h-[440px]' : 'lg:h-70'}
       />
 
-      <Perforation />
+      <div className={horizontal ? 'lg:hidden' : undefined}>
+        <Perforation />
+      </div>
 
-      <div className="flex flex-col gap-4 px-4 pt-2 pb-4 lg:px-6 lg:pb-6">
+      <div className="relative flex min-w-0 flex-col gap-4 px-4 pt-2 pb-4 lg:px-6 lg:pt-4 lg:pb-6">
+        {horizontal && <SidePerforation />}
         {stops.length > 0 && (
           <div>
             <StampLine label="To" value={passTitle(stops, codeOf)} editName="Edit destination" onEdit={() => goTo(1)} />
@@ -200,6 +214,17 @@ export function BlankPass({ coverPhoto, photos, signedIn }: Props) {
         {photo && showCredit && <PhotoCredit photo={photo} />}
       </div>
     </section>
+  )
+}
+
+/** The laptop horizontal pass: the perforation runs down the body's left edge. */
+function SidePerforation() {
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 hidden w-0 lg:block">
+      <span className="absolute -top-3 -left-3 h-6 w-6 rounded-full bg-bg" />
+      <span className="absolute inset-y-4 left-0 border-l-[1.5px] border-dashed border-perf" />
+      <span className="absolute -bottom-3 -left-3 h-6 w-6 rounded-full bg-bg" />
+    </div>
   )
 }
 

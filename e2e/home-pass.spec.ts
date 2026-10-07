@@ -100,3 +100,46 @@ test.describe('home blank pass', () => {
     await expect(page.getByRole('heading', { level: 1, name: 'Lisbon' })).toBeVisible()
   })
 })
+
+test.describe('home first visit', () => {
+  test.describe('logged out', () => {
+    test.use({ storageState: { cookies: [], origins: [] } })
+
+    test('shows the pass, one line and What Barabula does, with Sign in and no tabs', async ({ page }) => {
+      const cover = page.waitForResponse((r) => new URL(r.url()).pathname.startsWith('/images/cities/'))
+      const response = await page.goto('/')
+      expect(response?.status()).toBe(200)
+      // The cover photo is served as a file, not redirected to /login (proxy, D-38).
+      const coverResponse = await cover
+      expect(coverResponse.status()).toBe(200)
+      expect(coverResponse.request().redirectedFrom()).toBeNull()
+
+      await expect(page.getByRole('heading', { level: 1, name: /where to next\?/i })).toBeVisible()
+      await expect(page.getByText('Fill the pass to plan your first trip.')).toBeVisible()
+      await expect(page.getByRole('link', { name: 'Sign in' })).toBeVisible()
+      await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0)
+
+      const what = page.getByRole('region', { name: 'What Barabula does' })
+      await expect(what).toBeVisible()
+      await expect(what.locator('li')).toHaveCount(3)
+      await expect(what.locator('[data-step="SAVE"]')).toContainText(/soon/i)
+      await expect(what.locator('[data-step="PLAN"]')).not.toContainText(/soon/i)
+      await expect(page.getByText(/ask barabula/i)).toHaveCount(0)
+      for (const heading of ['Upcoming', 'Past', 'Create a new trip']) {
+        await expect(page.getByRole('heading', { name: heading })).toHaveCount(0)
+      }
+
+      // Logged out, Start planning goes to sign-in for now (16-15 keeps the answers).
+      await pickCity(page, 'Lisbon', 'Lisbon')
+      await page.getByRole('button', { name: 'Start planning' }).click()
+      await expect(page).toHaveURL(/\/login$/)
+    })
+  })
+
+  test('the signed-in owner, who has trips, does not see the first-visit line', async ({ page }) => {
+    await page.goto('/')
+    await expect(page.getByRole('heading', { level: 1, name: /where to next\?/i })).toBeVisible()
+    await expect(page.getByRole('region', { name: 'What Barabula does' })).toBeVisible()
+    await expect(page.getByText('Fill the pass to plan your first trip.')).toHaveCount(0)
+  })
+})
