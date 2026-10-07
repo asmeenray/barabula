@@ -1,5 +1,6 @@
 import { dayTitle, stopsLabel } from '@/lib/plan/board'
 import { BOARD_GRID } from './BoardRow'
+import { BOARD_FLIP, SplitFlap } from '@/components/motion/SplitFlap'
 
 // Board head (UI-SPEC §7 items 4–5): "{CITY} · DAY {n}", the big Mono line
 // ("TUE 12 MAY" or "DAY {n}") and "{n} STOPS · ~{km} KM", then the column
@@ -15,9 +16,11 @@ interface BoardHeadProps {
   km: number
   /** The big head is phone-only when the laptop shows its own day header row. */
   className?: string
+  /** A new truthy value split-flaps the date line (moment 3, day switch). */
+  flip?: unknown
 }
 
-export function BoardHead({ id, city, day, startDate, stops, km, className }: BoardHeadProps) {
+export function BoardHead({ id, city, day, startDate, stops, km, className, flip = 0 }: BoardHeadProps) {
   const isMaybe = day === 'maybe'
   return (
     <div className={`px-4 pt-4 pb-3 ${className ?? ''}`}>
@@ -30,7 +33,12 @@ export function BoardHead({ id, city, day, startDate, stops, km, className }: Bo
             id={`day-head-${id}`}
             className="mt-1 font-mono text-[22px] leading-[1.2] font-semibold uppercase tabular-nums"
           >
-            {isMaybe ? 'Maybe' : dayTitle(startDate, day)}
+            <SplitFlap
+              text={isMaybe ? 'Maybe' : dayTitle(startDate, day)}
+              play={flip}
+              frames={BOARD_FLIP.frames}
+              frameMs={BOARD_FLIP.frameMs}
+            />
           </h2>
         </div>
         <p className="shrink-0 pb-0.5 font-mono text-xs leading-[1.33] text-board-muted uppercase tabular-nums">

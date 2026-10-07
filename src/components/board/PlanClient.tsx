@@ -37,6 +37,7 @@ import { BoardStatusLine } from './BoardStatusLine'
 import { DayTabs, dayKeyId, type DayKey } from './DayTabs'
 import { PlanHeader } from './PlanHeader'
 import { DndElements, handleKey, rowKey, targetKey } from './dnd/elements'
+import { BOARD_FLIP, SplitFlap, boardFlipDelay } from '@/components/motion/SplitFlap'
 import type { PlanDndProps } from './dnd/PlanDnd'
 
 /** Marked once the board has hydrated and its day tabs respond (logged by the budgets spec, Q46). */
@@ -50,6 +51,9 @@ const MAP_REGION_ID = 'trip-map'
 // map never loads.
 const MAP_READY_MARK = 'barabula:map-load'
 const PHOTO_HOLD_MAX_MS = 10_000
+
+/** How long a day flip stays live: the board flip ends by 500 ms (moment 3). */
+const DAY_FLIP_MS = 600
 
 /** The place form, open in add or edit mode (16-11, D-18). */
 type FormState = { mode: 'add' } | { mode: 'edit'; id: string }
@@ -168,6 +172,22 @@ export function PlanClient({
     return { days: grouped.days.map((_, i) => pick(dragOrder[bucketKey(i + 1)])), maybe: pick(dragOrder.maybe) }
   }, [dragOrder, grouped, activities])
   const [selected, setSelected] = useState<DayKey>(1)
+  // Moment 3 "day switch board flip" (D-30): each change of the selected day
+  // (never the first render, never a click on the day already selected) gets
+  // a new token; the selected day's head, first 6 names and cells flip while
+  // it is live. Derived during render so the flip starts with the switch.
+  const [dayFlip, setDayFlip] = useState({ day: selected, token: 0, live: false })
+  if (dayFlip.day !== selected) setDayFlip({ day: selected, token: dayFlip.token + 1, live: true })
+  useEffect(() => {
+    if (!dayFlip.live) return
+    const token = dayFlip.token
+    const timer = window.setTimeout(
+      () => setDayFlip((f) => (f.token === token ? { ...f, live: false } : f)),
+      DAY_FLIP_MS
+    )
+    return () => window.clearTimeout(timer)
+  }, [dayFlip.live, dayFlip.token])
+  const flipToken = dayFlip.live ? dayFlip.token : 0
   const [mapExpanded, setMapExpanded] = useState(false)
   // One ticket open at a time (UI-SPEC §7 item 7).
   const [openId, setOpenId] = useState<string | null>(null)
@@ -463,6 +483,7 @@ export function PlanClient({
                     city={city}
                     startDate={trip.start_date}
                     selected={selected === n}
+                    flip={selected === n ? flipToken : 0}
                     onSelect={() => setSelected(n)}
                     rows={rows}
                     openId={openId}
@@ -508,6 +529,7 @@ export function PlanClient({
                 city={city}
                 startDate={trip.start_date}
                 selected={selected === 'maybe'}
+                flip={selected === 'maybe' ? flipToken : 0}
                 onSelect={() => setSelected('maybe')}
                 rows={maybe}
                 openId={openId}
@@ -613,6 +635,8 @@ interface DaySectionProps {
   startDate: string | null
   /** Phone shows only the selected day; laptop shows every day and marks this one. */
   selected: boolean
+  /** Day switch flip token (moment 3); 0 when this day is not flipping. */
+  flip: number
   onSelect: () => void
   rows: PlanActivity[]
   openId: string | null
@@ -638,6 +662,7 @@ function DaySection({
   city,
   startDate,
   selected,
+  flip,
   onSelect,
   rows,
   openId,
@@ -677,6 +702,7 @@ function DaySection({
         stops={rows.length}
         km={km}
         className="lg:hidden"
+        flip={flip}
       />
 
       {/* Laptop: a day header row that selects the day and refits the map. */}
@@ -692,7 +718,12 @@ function DaySection({
         }`}
       >
         <span className="font-mono text-xs font-semibold tracking-[0.08em] uppercase tabular-nums">
-          {maybe ? 'Maybe' : `D${day} · ${dayTitle(startDate, day)}`}
+          <SplitFlap
+            text={maybe ? 'Maybe' : `D${day} · ${dayTitle(startDate, day)}`}
+            play={flip}
+            frames={BOARD_FLIP.frames}
+            frameMs={BOARD_FLIP.frameMs}
+          />
         </span>
         <span className="shrink-0 font-mono text-xs uppercase tabular-nums">
           {maybe ? stopsLabel(rows.length) : `~${km} km`}
@@ -723,6 +754,8 @@ function DaySection({
                 geo={geoFor(a)}
                 itemRef={elements.ref(rowKey(a.id))}
                 handleRef={draggable ? elements.ref(handleKey(a.id)) : null}
+                flip={boardFlipDelay(i) === null ? 0 : flip}
+                flipDelay={boardFlipDelay(i) ?? 0}
               />
             ))}
           </ol>

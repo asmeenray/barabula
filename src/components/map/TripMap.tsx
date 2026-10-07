@@ -55,6 +55,12 @@ function fitTarget(pins: PinFeature[], day: DayKey): Bounds | null {
 }
 
 const FIT_OPTIONS = { padding: 48, maxZoom: 15 }
+/** Day switch camera move (moment 3). */
+const DAY_FIT_MS = 600
+
+function reducedMotion(): boolean {
+  return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
+}
 
 const PINS_LAYER = 'trip-pins'
 /** Hovered and selected pins, drawn on top with the 'selected' image. */
@@ -157,16 +163,21 @@ export default function TripMap({
     region.dataset.pinsRendered = String(ids.size)
   }
 
-  // The first fit comes from initialViewState; later day changes refit at once
-  // (the animated board flip is moment 3, a later plan).
+  // The first fit comes from initialViewState. A day switch fits the new day
+  // over 600 ms (moment 3, D-30; at once under reduced motion); other pin
+  // changes (visited, edits) refit at once.
   const firstFit = useRef(true)
+  const fittedDay = useRef(selectedDay)
   useEffect(() => {
+    const dayChanged = fittedDay.current !== selectedDay
+    fittedDay.current = selectedDay
     if (firstFit.current) {
       firstFit.current = false
       return
     }
     const target = fitTarget(pins, selectedDay)
-    if (target && loadedRef.current) mapRef.current?.fitBounds(target, { ...FIT_OPTIONS, duration: 0 })
+    const duration = dayChanged && !reducedMotion() ? DAY_FIT_MS : 0
+    if (target && loadedRef.current) mapRef.current?.fitBounds(target, { ...FIT_OPTIONS, duration })
   }, [pins, selectedDay])
 
   function handleError(e: ErrorEvent) {

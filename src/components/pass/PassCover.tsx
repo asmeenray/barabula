@@ -7,6 +7,7 @@
 import type { CoverPhoto } from '@/lib/photos/manifest'
 import { CityMapCover } from './CityMapCover'
 import { CoverImage } from './CoverImage'
+import { SplitFlap } from '@/components/motion/SplitFlap'
 
 export type PassVariant = 'blank' | 'nownext' | 'upcoming' | 'header' | 'past'
 
@@ -62,6 +63,11 @@ type Props = {
   titleAttrs?: Record<string, string>
   /** One line with ellipsis (trip titles in lists); otherwise up to 2 lines. */
   oneLine?: boolean
+  /**
+   * Split-flap the Display title (moment 1, the Now/Next title once per
+   * visit): a SplitFlap `play` value, falsy on the server render.
+   */
+  flapTitle?: unknown
   className?: string
 }
 
@@ -79,6 +85,7 @@ export function PassCover({
   titleAs: Title = 'h2',
   titleAttrs,
   oneLine = false,
+  flapTitle,
   className = '',
 }: Props) {
   return (
@@ -110,7 +117,7 @@ export function PassCover({
           {...titleAttrs}
           className={`${oneLine ? 'truncate' : 'line-clamp-2 text-balance break-words'} max-w-[85%] font-mono font-semibold uppercase ${TITLE[variant]}`}
         >
-          {title}
+          {flapTitle === undefined ? title : <SplitFlap text={title} play={flapTitle} />}
         </Title>
         {statusLine && <p className="mt-1 truncate font-mono text-base leading-tight tabular-nums">{statusLine}</p>}
       </div>

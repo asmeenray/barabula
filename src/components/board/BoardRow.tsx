@@ -7,6 +7,7 @@ import { PlaceTicket, TICKET_CLICK_MARK, ticketId } from './PlaceTicket'
 import { GripVerticalIcon } from '@/components/icons'
 import { RowMenu, type RowActions } from './RowMenu'
 import { StatusChip } from './StatusChip'
+import { BOARD_FLIP, FlipIn, SplitFlap } from '@/components/motion/SplitFlap'
 
 // One departure-board line (UI-SPEC §7 item 6): # · place · walk · status.
 // Walk cell reads START (first located stop), "~{n} min" or "—"; a bare
@@ -57,6 +58,10 @@ interface BoardRowProps {
   itemRef?: (el: Element | null) => void
   /** Set once the drag layer has loaded: registers the grip handle and shows it. */
   handleRef?: ((el: Element | null) => void) | null
+  /** Day switch (moment 3): a new truthy value flips the name and the walk and status cells. */
+  flip?: unknown
+  /** This row's place in the flip's stagger (ms). */
+  flipDelay?: number
 }
 
 /** A place's map lookup state, from useGeocode. */
@@ -100,6 +105,8 @@ export function BoardRow({
   geo,
   itemRef,
   handleRef = null,
+  flip = 0,
+  flipDelay = 0,
 }: BoardRowProps) {
   const draggable = handleRef !== null
   const rowRef = useRef<HTMLButtonElement>(null)
@@ -166,13 +173,16 @@ export function BoardRow({
             {fixedTime && (
               <time className="shrink-0 font-mono text-xs font-semibold tabular-nums">{fixedTime}</time>
             )}
-            <span
+            <SplitFlap
+              text={a.name}
+              play={flip}
+              delayMs={flipDelay}
+              frames={BOARD_FLIP.frames}
+              frameMs={BOARD_FLIP.frameMs}
               className={`line-clamp-2 min-w-0 font-label text-base leading-tight font-semibold tracking-[0.06em] break-words uppercase ${
                 visited ? 'line-through decoration-[1.5px]' : ''
               }`}
-            >
-              {a.name}
-            </span>
+            />
           </span>
           {/* Meta line: "Finding on map…" while a lookup runs, the NOT ON MAP tag
               (sentence case in the DOM, uppercase by CSS), else the location. */}
@@ -204,12 +214,16 @@ export function BoardRow({
             walk === 'start' ? 'uppercase' : ''
           }`}
         >
-          {walk === 'start' ? 'Start' : walk === null ? '—' : `~${walk} min`}
+          <FlipIn flip={flip} delayMs={flipDelay}>
+            {walk === 'start' ? 'Start' : walk === null ? '—' : `~${walk} min`}
+          </FlipIn>
         </span>
 
         {/* Laptop: the "⋯" takes the status cell while the row is hovered or focused. */}
         <span className="justify-self-end lg:group-focus-within:invisible lg:group-hover:invisible">
-          <StatusChip chip={chip} />
+          <FlipIn flip={flip} delayMs={flipDelay}>
+            <StatusChip chip={chip} />
+          </FlipIn>
         </span>
       </button>
 

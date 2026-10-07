@@ -8,7 +8,7 @@
 // to the plan. All values arrive pre-computed from getHomeData (no dates are
 // read during render). Client only so a failed photo can hide its credit.
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import type { HomeTrip } from '@/lib/home/data'
 import { LinkLoadingRow } from '@/components/motion/LoadingRow'
@@ -24,12 +24,41 @@ type Props = {
 
 const STATE_LABEL = { now: 'Now', next: 'Next trip' } as const
 
+/** sessionStorage: the Now/Next title has split-flapped on this visit. */
+export const NOWNEXT_FLAP_KEY = 'barabula-nownext-flap'
+
+/** True the first time it is called in a browser session (storage blocked: never). */
+function firstFlapThisVisit(): boolean {
+  try {
+    if (window.sessionStorage.getItem(NOWNEXT_FLAP_KEY)) return false
+    window.sessionStorage.setItem(NOWNEXT_FLAP_KEY, '1')
+    return true
+  } catch {
+    return false
+  }
+}
+
 /** LOADING… over a tapped pass's body while its plan opens (D-32; the plan route has no loading.tsx). */
 export const PASS_LOADING =
   'absolute inset-0 z-[1] flex items-center bg-surface px-4 font-mono text-base font-semibold text-board-muted uppercase lg:px-6'
 
 export function NowNextPass({ trip, state, priority = false }: Props) {
   const [photoFailed, setPhotoFailed] = useState(false)
+  // The title split-flaps once per visit only (UI-SPEC "Split-flap rules"),
+  // after hydration: the server has no session storage. The flag is written
+  // in the frame callback, so a Strict Mode re-run still flips once.
+  const [flap, setFlap] = useState(false)
+  useEffect(() => {
+    try {
+      if (window.sessionStorage.getItem(NOWNEXT_FLAP_KEY)) return
+    } catch {
+      return
+    }
+    const frame = requestAnimationFrame(() => {
+      if (firstFlapThisVisit()) setFlap(true)
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [])
   const lines = [
     { label: 'To', value: trip.title },
     trip.when && { label: 'When', value: trip.when },
@@ -58,6 +87,7 @@ export function NowNextPass({ trip, state, priority = false }: Props) {
         statusLine={trip.status ?? undefined}
         priority={priority}
         titleAs="h2"
+        flapTitle={flap}
         onFallback={() => setPhotoFailed(true)}
         className="lg:h-70"
       />

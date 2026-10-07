@@ -19,6 +19,7 @@ import { intoLine, passTitle, whenLine, whoLine } from '@/lib/pass/format'
 import type { PassAnswers, PassCity } from '@/lib/pass/types'
 import { loadPending, savePending } from '@/lib/pass/pending'
 import { LAPTOP_QUERY, useMediaQuery } from '@/lib/client/use-media'
+import { vibrate } from '@/lib/client/haptics'
 import { useAnnounce } from '@/components/a11y/LiveRegion'
 import { BoardStatusLine } from '@/components/board/BoardStatusLine'
 import { PassCover, PhotoCredit } from './PassCover'
@@ -154,6 +155,8 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
   }, [step, focusSignal])
 
   function setStops(next: string[]) {
+    // Moment 1: a short buzz on a city pick (Android, Haptics on; a no-op elsewhere).
+    if (next.some((city) => !stops.includes(city))) vibrate(8)
     setAnswers((a) => ({ ...a, stops: next }))
     if (next.length) announce(`To: ${next.join(', then ')}`)
   }
@@ -230,8 +233,9 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
         horizontal ? 'lg:grid lg:min-h-[440px] lg:grid-cols-[55fr_45fr]' : ''
       }`}
     >
+      {/* Not keyed by photo: CoverImage crossfades a new city's photo over the
+          old one and the title split-flaps to the city (moment 1, D-30). */}
       <PassCover
-        key={photo?.slug ?? `map:${coverCity}`}
         variant="blank"
         photo={photo}
         cityName={coverCity}
@@ -241,6 +245,7 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
         statusLine={first ? undefined : 'Pick a city to start'}
         priority={priority}
         titleAs="h1"
+        flapTitle={stops.length > 0}
         onFallback={() => photo && setFailedSlug(photo.slug)}
         className={horizontal ? 'lg:h-auto lg:min-h-[440px]' : 'lg:h-70'}
       />
@@ -253,10 +258,10 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
         {horizontal && <SidePerforation />}
         {stops.length > 0 && (
           <div>
-            <StampLine label="To" value={passTitle(stops, codeOf)} editName="Edit destination" onEdit={() => goTo(1)} />
-            {when && <StampLine label="When" value={when} editName="Edit dates" onEdit={() => goTo(2)} />}
-            {who && <StampLine label="Who" value={who} editName="Edit travellers" onEdit={() => goTo(3)} />}
-            {into && <StampLine label="Into" value={into} editName="Edit interests" onEdit={() => goTo(4)} />}
+            <StampLine label="To" value={passTitle(stops, codeOf)} editName="Edit destination" onEdit={() => goTo(1)} print />
+            {when && <StampLine label="When" value={when} editName="Edit dates" onEdit={() => goTo(2)} print />}
+            {who && <StampLine label="Who" value={who} editName="Edit travellers" onEdit={() => goTo(3)} print />}
+            {into && <StampLine label="Into" value={into} editName="Edit interests" onEdit={() => goTo(4)} print />}
           </div>
         )}
 

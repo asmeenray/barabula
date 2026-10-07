@@ -23,6 +23,18 @@ export const DRUM = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ '
 const EASE_OUT = [0.23, 1, 0.32, 1] as const
 
 /**
+ * Moment 3 "day switch board flip" (D-30): the board head and the first 6
+ * row names flip in 240 ms each (9 × 26 ms) with a 40 ms stagger; walk and
+ * status cells flip in over 260 ms. The last row ends by 240 + 260 = 500 ms.
+ */
+export const BOARD_FLIP = { frames: 9, frameMs: 26, staggerMs: 40, rows: 6, cellMs: 260 } as const
+
+/** Delay of board row i (0-based) in a day flip; null for rows that do not flip. */
+export function boardFlipDelay(i: number): number | null {
+  return i < BOARD_FLIP.rows ? (i + 1) * BOARD_FLIP.staggerMs : null
+}
+
+/**
  * The text shown at one frame. Letters step one drum place per frame and land
  * on the last frame; spaces stay put; other characters (digits, arrows,
  * accents) show drum letters until they land.
@@ -148,5 +160,26 @@ export function SplitFlap({ text, play = true, delayMs = 0, frameMs = 34, frames
         )
       })}
     </span>
+  )
+}
+
+/**
+ * A board cell that flips in (rotateX 80° → 0, 260 ms) each time `flip`
+ * changes to a new truthy value; plain children otherwise and under reduced
+ * motion.
+ */
+export function FlipIn({ flip, delayMs = 0, children }: { flip: unknown; delayMs?: number; children: React.ReactNode }) {
+  const reduced = useReducedMotionConfig() === true
+  if (!flip || reduced) return <>{children}</>
+  return (
+    <m.span
+      key={String(flip)}
+      className="inline-block"
+      initial={{ rotateX: 80, opacity: 0.4 }}
+      animate={{ rotateX: 0, opacity: 1 }}
+      transition={{ duration: BOARD_FLIP.cellMs / 1000, delay: delayMs / 1000, ease: EASE_OUT }}
+    >
+      {children}
+    </m.span>
   )
 }
