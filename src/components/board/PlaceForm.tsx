@@ -150,7 +150,12 @@ function FormBody({
             </Select.Trigger>
           </div>
           <Select.Portal>
-            <Select.Positioner className="z-[60] outline-none" sideOffset={4} collisionPadding={16}>
+            <Select.Positioner
+              className="z-[60] outline-none"
+              alignItemWithTrigger={false}
+              sideOffset={4}
+              collisionPadding={16}
+            >
               <Select.Popup className="max-h-[min(320px,var(--available-height))] min-w-[var(--anchor-width)] origin-[var(--transform-origin)] overflow-y-auto overscroll-contain rounded-xl border border-line bg-surface py-1 text-ink shadow-[0_8px_24px_rgb(11_16_20/0.16)] outline-none transition-[opacity,scale] duration-150 ease-out data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-starting-style:scale-[0.98] data-starting-style:opacity-0 motion-reduce:transition-none">
                 <Select.List>
                   {dayItems.map((item) => (
