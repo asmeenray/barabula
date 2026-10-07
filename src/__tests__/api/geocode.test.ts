@@ -24,7 +24,7 @@ const USER = { id: 'user-1' }
 type Act = {
   id: string
   name: string
-  day_number: number
+  day_number: number | null
   location: string | null
   activity_type: string | null
   extra_data: Record<string, unknown> | null
@@ -136,6 +136,7 @@ describe('POST /api/itineraries/[id]/geocode', () => {
     expect(body).toEqual({
       pins: [{ id: 'act-1', name: 'Activity 1', day: 1, lat: 35.7, lng: 139.8, type: 'activity' }],
       remaining: 0,
+      not_found: [],
     })
     expect(fetchMock).not.toHaveBeenCalled()
     expect(updates).toHaveLength(0)
@@ -188,13 +189,13 @@ describe('POST /api/itineraries/[id]/geocode', () => {
     const res = await callPost()
     const body = await res.json()
     expect(updates[0].payload.extra_data).toEqual({ geo_status: 'not_found', geocoded_at: expect.any(String) })
-    expect(body).toEqual({ pins: [], remaining: 0 })
+    expect(body).toEqual({ pins: [], remaining: 0, not_found: ['act-1'] })
 
     // Later call: the stored not_found means no repeat query.
     fetchMock.mockClear()
     mockDb({ id: ITIN_ID, destination: 'Tokyo', activities: [act(1, updates[0].payload.extra_data as Record<string, unknown>)] })
     const res2 = await callPost()
-    expect(await res2.json()).toEqual({ pins: [], remaining: 0 })
+    expect(await res2.json()).toEqual({ pins: [], remaining: 0, not_found: [] })
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
@@ -205,7 +206,7 @@ describe('POST /api/itineraries/[id]/geocode', () => {
     const body = await res.json()
     expect(fetchMock).toHaveBeenCalledTimes(1)
     expect(updates).toHaveLength(0)
-    expect(body).toEqual({ pins: [], remaining: 2 })
+    expect(body).toEqual({ pins: [], remaining: 2, not_found: [] })
   })
 
   it('writes nothing and stops the batch on a network error', async () => {
@@ -246,9 +247,29 @@ describe('POST /api/itineraries/[id]/geocode', () => {
   it('skips activities without a location', async () => {
     mockDb({ id: ITIN_ID, destination: 'Tokyo', activities: [act(1, null, null)] })
     const res = await callPost()
-    expect(await res.json()).toEqual({ pins: [], remaining: 0 })
+    expect(await res.json()).toEqual({ pins: [], remaining: 0, not_found: [] })
     expect(fetchMock).not.toHaveBeenCalled()
   })
+
+  it('geocodes Maybe places too (day null on the pin)', async () => {
+    fetchMock.mockResolvedValueOnce(nominatimHit('1.5', '2.5'))
+    mockDb({ id: ITIN_ID, destination: 'Tokyo', activities: [{ ...act(1), day_number: null }] })
+    const res = await callPost()
+    const body = await res.json()
+    expect(body.pins).toEqual([{ id: 'act-1', name: 'Activity 1', day: null, lat: 1.5, lng: 2.5, type: 'activity' }])
+  })
+
+  it('with NOMINATIM_DISABLED=1 calls nothing, writes nothing and keeps them remaining', async () => {
+    vi.stubEnv('NOMINATIM_DISABLED', '1')
+    mockDb({ id: ITIN_ID, destination: 'Tokyo', activities: [act(1), act(2)] })
+    const res = await callPost()
+    expect(await res.json()).toEqual({ pins: [], remaining: 2, not_found: [] })
+    expect(fetchMock).not.toHaveBeenCalled()
+    expect(updates).toHaveLength(0)
+    expect(mockCostInsert).not.toHaveBeenCalled()
+    vi.unstubAllEnvs()
+  })
+
   describe('cost logging', () => {
     it('writes one cost_log row counting each Nominatim attempt, with model null', async () => {
       fetchMock

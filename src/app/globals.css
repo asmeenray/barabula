@@ -1,49 +1,300 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
 
-html {
-  height: 100%;
+/* Phase 16 token layer (UI-SPEC "Color", D-01..D-04).
+   Theme lives on <html data-theme="light|dark">, set before first paint by the
+   head script in src/app/layout.tsx. */
+@custom-variant dark (&:where([data-theme=dark], [data-theme=dark] *));
+
+@theme {
+  /* Closed palette: no Tailwind default colours exist, so blue-* (and every
+     other default hue) cannot generate. Only the semantic tokens below do. */
+  --color-*: initial;
+
+  --breakpoint-md: 48rem; /* 768 */
+  --breakpoint-lg: 64rem; /* 1024 */
+  --breakpoint-xl: 80rem; /* 1280 */
 }
 
-body {
-  margin: 0;
+@theme inline {
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-board: var(--board);
+  --color-board-ink: var(--board-ink);
+  --color-board-muted: var(--board-muted);
+  --color-board-line: var(--board-line);
+  --color-surface-2: var(--surface-2);
+  --color-row-selected: var(--row-selected);
+  --color-accent: var(--accent);
+  --color-on-accent: var(--on-accent);
+  --color-ink: var(--ink);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-perf: var(--perf);
+  --color-field: var(--field);
+  --color-visited: var(--visited);
+  --color-visited-pin: var(--visited-pin);
+  --color-navy: var(--navy);
+  --color-danger: var(--danger);
+  --color-focus: var(--ink);
+  --color-on-photo: #FFFFFF;
+
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+  --font-label: var(--font-archivo-narrow), system-ui, sans-serif;
+  --font-read: var(--font-atkinson), system-ui, sans-serif;
+
+  --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --ease-move: cubic-bezier(0.77, 0, 0.175, 1);
+  --ease-sheet: cubic-bezier(0.32, 0.72, 0, 1);
 }
 
-/* Page-level scrollbar — completely hidden (landing page, etc.) */
-html::-webkit-scrollbar {
-  display: none;
+/* Light: "airport daylight" (UI-SPEC Color table, exact values). */
+:root {
+  color-scheme: light;
+  --bg: #EEF1F4;
+  --surface: #FFFFFF;
+  --board: #FFFFFF;
+  --board-ink: #0B1014;
+  --board-muted: #5A6470;
+  --board-line: #E3E7EC;
+  --surface-2: #EEF1F4;
+  --row-selected: #EEF1F4;
+  --accent: #F2A900;
+  --on-accent: #16202B;
+  --ink: #0B1014;
+  --muted: #56606B;
+  --line: #D9DEE4;
+  --perf: #C4CBD3;
+  --field: #8A949F;
+  --visited: #23704A;
+  --visited-pin: #2E8B57;
+  --navy: #285185;
+  --danger: #B42318;
+  /* Map pin ring: ink in light, page colour in dark (UI-SPEC "Map colour"). */
+  --pin-ring: #0B1014;
 }
 
-html {
-  scrollbar-width: none;
+/* Dark: "night board". */
+[data-theme=dark] {
+  color-scheme: dark;
+  --bg: #080D10;
+  --surface: #151B21;
+  --board: #000000;
+  --board-ink: #E6E8EB;
+  --board-muted: #8B96A3;
+  --board-line: #1A2027;
+  --surface-2: #1E262E;
+  --row-selected: #1E262E;
+  --accent: #FFC233;
+  --on-accent: #0E141B;
+  --ink: #E6E8EB;
+  --muted: #8B96A3;
+  --line: #232B33;
+  --perf: #2E3A46;
+  --field: #66717D;
+  --visited: #5CC48A;
+  --visited-pin: #5CC48A;
+  --navy: #8DB0E3;
+  --danger: #FF8A80;
+  --pin-ring: #080D10;
 }
 
-/* Inner element scrollbars — ultra subtle for chat panel, etc. */
-::-webkit-scrollbar {
-  width: 3px;
-  height: 3px;
+@layer base {
+  html {
+    height: 100%;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    position: relative;
+    margin: 0;
+    min-height: 100%;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-read);
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  /* Base UI quick-start: portals stack above the app. */
+  .root {
+    isolation: isolate;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--ink);
+    outline-offset: 2px;
+  }
+
+  ::selection {
+    background: color-mix(in oklab, var(--accent) 35%, transparent);
+    color: inherit;
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--line) transparent;
+    caret-color: var(--ink);
+  }
+
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--line);
+    border-radius: 999px;
+  }
+
+  button {
+    touch-action: manipulation;
+  }
 }
 
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: rgba(0, 0, 0, 0.1);
-  border-radius: 2px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: rgba(0, 0, 0, 0.2);
-}
-
-*:not(html) {
-  scrollbar-width: thin;
-  scrollbar-color: rgba(0, 0, 0, 0.1) transparent;
-}
-
-/* Resizable split panel — no text selection while dragging */
+/* Old screens (landing, chat) still use this until 16-23 deletes them. */
 .dragging-panel {
   user-select: none;
+}
+
+/* Ticket expand (Motion contract "Content": 250 ms, ease-out, no bounce). */
+@keyframes ticket-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+/* Split-flap glyph and board cell flips (16-20, D-30). CSS, not Motion, so
+   the plan route carries no animation runtime (budget Q63). Only rendered
+   when reduced motion is off. */
+@keyframes flap-glyph {
+  from {
+    opacity: 0.4;
+    transform: rotateX(70deg);
+  }
+}
+@keyframes flap-cell {
+  from {
+    opacity: 0.4;
+    transform: rotateX(80deg);
+  }
+}
+
+/* Moment 2 "place lands in plan" (16-22, D-30): the just-located pin drops
+   with one small bounce (the overshoot easing goes a little past the ground,
+   then a 1.06/0.94 squash at 85%) and a ring pulses where it lands. Inner
+   elements only: MapLibre owns the marker root's transform. PinDrop renders
+   pin-drop-fade instead under reduced motion. */
+.pin-drop {
+  transform-origin: 50% 100%;
+  animation:
+    pin-in 120ms linear 420ms both,
+    pin-drop 520ms 420ms both;
+}
+.pin-drop-fade {
+  animation: pin-in 150ms var(--ease-out) both;
+}
+.pin-drop-ring {
+  position: absolute;
+  left: 50%;
+  bottom: 2px;
+  width: 28px;
+  height: 28px;
+  margin: 0 0 -14px -14px;
+  border: 2px solid var(--accent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--accent) 24%, transparent);
+  opacity: 0;
+  animation: pin-ring 520ms var(--ease-out) 840ms forwards;
+}
+@keyframes pin-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes pin-drop {
+  0% {
+    transform: translateY(-26px) scale(0.9);
+    animation-timing-function: cubic-bezier(0.34, 1.45, 0.64, 1);
+  }
+  85% {
+    transform: translateY(0) scale(1.06, 0.94);
+    animation-timing-function: cubic-bezier(0.23, 1, 0.32, 1);
+  }
+  100% {
+    transform: none;
+  }
+}
+@keyframes pin-ring {
+  from {
+    opacity: 0.7;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 0;
+    transform: scale(1.9);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pin-drop,
+  .pin-drop-ring {
+    animation: none;
+  }
+}
+
+/* View transitions: never block taps; off under reduced motion (Pitfall 8). */
+::view-transition {
+  pointer-events: none;
+}
+
+/* Moment 4 "trip opens from its pass" (16-22, D-30): the pass cover
+   (trip-cover-{id}, share="morph") glides into the plan header strip over
+   480 ms on --ease-sheet. Both snapshots fill the moving box (cover crop), so
+   the 144/200 px pass and the 96 px strip never stretch. */
+::view-transition-group(*) {
+  animation-duration: 480ms;
+  animation-timing-function: var(--ease-sheet);
+}
+::view-transition-group(.morph) {
+  overflow: clip;
+}
+::view-transition-old(.morph),
+::view-transition-new(.morph) {
+  height: 100%;
+  object-fit: cover;
+  animation-duration: 480ms;
+  animation-timing-function: var(--ease-sheet);
+}
+
+/* The plan list under the header enters 210 ms after the morph starts
+   (enter 210 ms, UI-SPEC Motion "Navigation"). A CSS entry on the live list:
+   React gives this navigation no root transition, so the list is painted
+   under the morphing cover. Opacity only, so nothing the cover's snapshot
+   measures moves. */
+.trip-list-enter {
+  animation: trip-list-in 210ms var(--ease-out) 210ms both;
+}
+@keyframes trip-list-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .trip-list-enter {
+    animation: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
 }

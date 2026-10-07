@@ -9,8 +9,7 @@ import { startCostLog, type CostTracker } from '@/lib/cost-log'
 import { fetchCityImage, fetchActivityImage } from '@/lib/unsplash'
 import { fetchPlacesData } from '@/lib/places'
 import { isUuid } from '@/lib/uuid'
-import type { FlightInputData } from '@/components/chat/FlightsTabPanel'
-import type { HotelSaveData } from '@/components/chat/HotelsTabPanel'
+import type { FlightInputData, HotelSaveData } from '@/lib/ai/input-types'
 
 export const maxDuration = 60 // seconds — prevents Vercel's default 10s timeout killing AI calls
 

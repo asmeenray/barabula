@@ -6,7 +6,7 @@ export default function AuthCodeErrorPage() {
         <p className="text-gray-500 text-sm mb-6">
           There was a problem completing your sign in. Please try again.
         </p>
-        <a href="/login" className="text-blue-600 hover:underline text-sm">
+        <a href="/login" className="text-coral hover:underline text-sm">
           Back to login
         </a>
       </div>

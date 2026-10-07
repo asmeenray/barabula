@@ -12,7 +12,8 @@ const GEOCODE_BATCH_LIMIT = 20
 type ActivityRow = {
   id: string
   name: string
-  day_number: number
+  /** null = Maybe (D-21); Maybe places are geocoded too. */
+  day_number: number | null
   location: string | null
   activity_type: string | null
   extra_data: Record<string, unknown> | null
@@ -21,7 +22,7 @@ type ActivityRow = {
 type Pin = {
   id: string
   name: string
-  day: number
+  day: number | null
   lat: number
   lng: number
   type: 'activity' | 'hotel'
@@ -41,7 +42,8 @@ function toPin(act: ActivityRow, coords: { lat: number; lng: number }): Pin {
 /**
  * Owner-only: geocodes up to GEOCODE_BATCH_LIMIT uncached activities through
  * Nominatim, stores OSM coordinates in activities.extra_data and returns all
- * known pins plus how many activities still need geocoding.
+ * known pins, the ids found not to exist on the map in this call, and how many
+ * activities still need geocoding.
  */
 export async function POST(
   _req: Request,
@@ -89,6 +91,7 @@ async function geocodeItinerary(
   }
 
   let processed = 0
+  const notFound: string[] = []
   for (const act of pending.slice(0, GEOCODE_BATCH_LIMIT)) {
     const result = await geocodeQuery(buildGeocodeQuery(act.location as string, destination), cost)
     // Network error, 429 or 403: write nothing, stop, retry on a later call.
@@ -112,7 +115,8 @@ async function geocodeItinerary(
 
     processed++
     if (result.status === 'hit') pins.push(toPin(act, result))
+    else notFound.push(act.id)
   }
 
-  return Response.json({ pins, remaining: pending.length - processed })
+  return Response.json({ pins, remaining: pending.length - processed, not_found: notFound })
 }

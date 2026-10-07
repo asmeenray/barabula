@@ -41,3 +41,6 @@ Next.js 16 (App Router) + Supabase (Postgres, PostGIS, RLS, Auth) + Vercel. Test
 
 ## When unsure
 Stop and ask Asmeen. Add the question to handover section 25.
+
+## Spike findings
+- **Spike findings for barabula** (implementation patterns, constraints, gotchas) → `Skill("spike-findings-barabula")`

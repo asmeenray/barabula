@@ -3,7 +3,10 @@ import type { TripState, ConversationPhase } from './ai/schemas'
 export interface Activity {
   id: string
   itinerary_id: string
-  day_number: number
+  /** null = Maybe bucket (D-21, D-44); matches the live schema and PlanActivity. */
+  day_number: number | null
+  /** Fractional order inside a day; null sorts last. */
+  position: number | null
   name: string
   time: string | null
   description: string | null
@@ -82,11 +85,6 @@ export interface GeneratedItinerary {
 
 export type { TripState, ConversationPhase, AIResponse } from './ai/schemas'
 // Flight and DailyFood defined above; also re-exported from schemas for schema consumers
-
-export interface ChipConfig {
-  label: string
-  message: string
-}
 
 /** One row of the dashboard "In progress" list (D-09): a trip chat with no itinerary yet. */
 export interface TripSessionSummary {
