@@ -12,6 +12,7 @@ import {
   Map as MapGlyph,
   Maximize2,
   Minimize2,
+  Minus,
   Plus,
   Search,
   Ticket,
@@ -39,6 +40,7 @@ export const ArrowLeftIcon = seam(ArrowLeft, 'ArrowLeftIcon')
 export const Maximize2Icon = seam(Maximize2, 'Maximize2Icon')
 export const Minimize2Icon = seam(Minimize2, 'Minimize2Icon')
 export const PlusIcon = seam(Plus, 'PlusIcon')
+export const MinusIcon = seam(Minus, 'MinusIcon')
 export const GripVerticalIcon = seam(GripVertical, 'GripVerticalIcon')
 /** Lucide renamed more-horizontal to ellipsis; same glyph. */
 export const MoreHorizontalIcon = seam(Ellipsis, 'MoreHorizontalIcon')

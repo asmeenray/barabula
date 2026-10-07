@@ -7,11 +7,11 @@
 // set, Start planning (D-10), which creates the trip and opens its empty plan
 // (D-18). No From field and no flights link (D-14).
 
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { CityPhoto } from '@/lib/photos/manifest'
 import { findCity } from '@/lib/photos/normalize'
-import { passTitle } from '@/lib/pass/format'
+import { intoLine, passTitle, whenLine, whoLine } from '@/lib/pass/format'
 import type { PassAnswers, PassCity } from '@/lib/pass/types'
 import { useAnnounce } from '@/components/a11y/LiveRegion'
 import { BoardStatusLine } from '@/components/board/BoardStatusLine'
@@ -35,8 +35,11 @@ export function BlankPass({ coverPhoto, photos, signedIn }: Props) {
   const router = useRouter()
   const announce = useAnnounce()
   const [answers, setAnswers] = useState<PassAnswers>(EMPTY)
-  const [step, setStep] = useState<QuestionStep>(1)
+  const [step, setStep] = useState<QuestionStep | 'ready'>(1)
+  // Once the last question has been answered, Next after an Edit goes back to the ready pass.
+  const [reachedEnd, setReachedEnd] = useState(false)
   const [focusSignal, setFocusSignal] = useState(0)
+  const readyRef = useRef<HTMLHeadingElement>(null)
   const [create, setCreate] = useState<CreateState>('idle')
   const [failedSlug, setFailedSlug] = useState<string | null>(null)
   // One id per pass, so a retried create returns the same trip (Pitfall 7).
@@ -56,15 +59,48 @@ export function BlankPass({ coverPhoto, photos, signedIn }: Props) {
   const code = stops.length === 1 ? codeOf(first) : undefined
   const showCredit = photo && failedSlug !== photo.slug
 
-  function goTo(next: QuestionStep) {
+  function goTo(next: QuestionStep | 'ready') {
     setStep(next)
     setFocusSignal((n) => n + 1)
   }
+
+  function advance() {
+    if (step === 'ready') return
+    if (step === 4 || reachedEnd) {
+      setReachedEnd(true)
+      goTo('ready')
+    } else goTo((step + 1) as QuestionStep)
+  }
+
+  // The ready pass takes focus when the user arrives there, like a new question.
+  useEffect(() => {
+    if (step === 'ready' && focusSignal) readyRef.current?.focus()
+  }, [step, focusSignal])
 
   function setStops(next: string[]) {
     setAnswers((a) => ({ ...a, stops: next }))
     if (next.length) announce(`To: ${next.join(', then ')}`)
   }
+
+  /** Saves one answer (a skip saves null / empty, which prints nothing), announces its line, moves on. */
+  function answer(patch: Partial<PassAnswers>) {
+    const next = { ...answers, ...patch }
+    setAnswers(next)
+    const line =
+      'when' in patch
+        ? whenLine(next.when) && `When: ${whenLine(next.when)}`
+        : 'adults' in patch
+          ? whoLine(next.adults, next.kids) && `Who: ${whoLine(next.adults, next.kids)}`
+          : 'interests' in patch
+            ? intoLine(next.interests, next.note) && `Into: ${intoLine(next.interests, next.note)}`
+            : null
+    if (line) announce(line)
+    advance()
+  }
+
+  const when = whenLine(answers.when)
+  const who = whoLine(answers.adults, answers.kids)
+  const into = intoLine(answers.interests, answers.note)
 
   async function startPlanning() {
     if (create === 'creating') return
@@ -113,24 +149,32 @@ export function BlankPass({ coverPhoto, photos, signedIn }: Props) {
       <div className="flex flex-col gap-4 px-4 pt-2 pb-4 lg:px-6 lg:pb-6">
         {stops.length > 0 && (
           <div>
-            <StampLine
-              label="To"
-              value={passTitle(stops, codeOf)}
-              editName="Edit destination"
-              onEdit={() => goTo(1)}
-            />
+            <StampLine label="To" value={passTitle(stops, codeOf)} editName="Edit destination" onEdit={() => goTo(1)} />
+            {when && <StampLine label="When" value={when} editName="Edit dates" onEdit={() => goTo(2)} />}
+            {who && <StampLine label="Who" value={who} editName="Edit travellers" onEdit={() => goTo(3)} />}
+            {into && <StampLine label="Into" value={into} editName="Edit interests" onEdit={() => goTo(4)} />}
           </div>
         )}
 
-        <QuestionCard
-          step={step}
-          stops={stops}
-          cities={cities}
-          onStops={setStops}
-          onNext={() => goTo(Math.min(step + 1, 4) as QuestionStep)}
-          onBack={() => goTo(Math.max(step - 1, 1) as QuestionStep)}
-          focusSignal={focusSignal}
-        />
+        {step === 'ready' ? (
+          <div className="py-2">
+            <h2 ref={readyRef} tabIndex={-1} className="font-read text-[22px] leading-[1.2] font-semibold text-ink outline-none">
+              Your pass is ready.
+            </h2>
+            <p className="mt-1 text-base text-muted">Tap any line to change it.</p>
+          </div>
+        ) : (
+          <QuestionCard
+            step={step}
+            answers={answers}
+            cities={cities}
+            onStops={setStops}
+            onAnswer={answer}
+            onNext={advance}
+            onBack={() => goTo(Math.max(step - 1, 1) as QuestionStep)}
+            focusSignal={focusSignal}
+          />
+        )}
 
         {stops.length > 0 && (
           <div className="flex flex-col gap-3">
