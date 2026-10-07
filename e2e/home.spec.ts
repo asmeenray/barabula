@@ -39,9 +39,10 @@ test.describe('trips home', () => {
       expect(nowBox.y + nowBox.height).toBeLessThanOrEqual(blankBox.y)
     }
     await expect(page.locator('[data-pass="next"]')).toHaveCount(0)
-    // Only the top pass may ask for a high-priority photo. Madrid has the
-    // city-map cover (no photo), and the blank pass below it does not ask.
-    await expect(page.locator('img[fetchpriority="high"]')).toHaveCount(0)
+    // Only the top pass may ask for a high-priority photo: Madrid's photo (a
+    // curated city since 16-21) on the Now pass; the blank pass below does not ask.
+    await expect(page.locator('img[fetchpriority="high"]')).toHaveCount(1)
+    await expect(now.locator('img[fetchpriority="high"]')).toHaveCount(1)
 
     // Upcoming: 3 passes, then All upcoming (4) reveals Porto (undated, last).
     const upcoming = page.getByRole('region', { name: /^Upcoming/ })

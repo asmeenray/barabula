@@ -43,7 +43,8 @@ test.describe('home describe mode', () => {
     await expect(line(page, 'Into')).toContainText('Museums · Architecture')
 
     await page.getByRole('button', { name: 'Use this trip description' }).click()
-    await expect(pass(page).getByRole('heading', { level: 1, name: 'Paris → Prague' })).toBeVisible()
+    // Both stops are curated cities with codes (16-21), so the pass prints the codes.
+    await expect(pass(page).getByRole('heading', { level: 1, name: 'PAR → PRG' })).toBeVisible()
     // Who's going? is the first question the sentence left open.
     await expect(page.getByText('Question 3 of 4')).toBeVisible()
     await expect(page.getByRole('group', { name: "Who's going?" })).toBeVisible()
@@ -70,10 +71,16 @@ test.describe('home describe mode', () => {
     await expect(line(page, 'To')).toContainText('ANYWHERE?')
     // A month alone does not answer When? (D-13).
     await expect(line(page, 'When')).toContainText("we'll ask")
-    // The curated set has no verified climate tags yet, so no city is suggested.
+    // Only cities whose cited climate table has a 24–32 °C mean high in March (16-21).
+    const fit = page.getByRole('list', { name: 'Cities that fit' })
+    await expect(fit.getByRole('button')).toHaveText(['Cape Town', 'Dubai', 'Hanoi', 'Sydney'])
+    await expect(page.getByRole('button', { name: 'Use this trip description' })).toHaveAttribute('aria-disabled', 'true')
+
+    // Nothing to match on: the name-a-city line instead.
+    await box(page).fill('somewhere nice')
+    await expect(line(page, 'To')).toContainText('ANYWHERE?')
     await expect(page.getByText('Cities that fit')).toHaveCount(0)
     await expect(page.getByText("Name a city and we'll fill in the rest.")).toBeVisible()
-    await expect(page.getByRole('button', { name: 'Use this trip description' })).toHaveAttribute('aria-disabled', 'true')
 
     // A capitalised word that is not a known city is never read as one.
     await box(page).fill('Visit Gotham for 3 days')

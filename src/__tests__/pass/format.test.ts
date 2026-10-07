@@ -21,8 +21,9 @@ describe('passTitle', () => {
   })
 
   it('falls back to names when a stop has no code in the manifest', () => {
-    expect(CITY_PHOTOS.some((p) => p.names.includes('prague'))).toBe(false)
-    expect(passTitle(['Lisbon', 'Prague'], manifestCode)).toBe('Lisbon → Prague')
+    expect(CITY_PHOTOS.some((p) => p.names.includes('bordeaux'))).toBe(false)
+    expect(passTitle(['Lisbon', 'Bordeaux'], manifestCode)).toBe('Lisbon → Bordeaux')
+    expect(passTitle(['Lisbon', 'Prague'], manifestCode)).toBe('LIS → PRG')
   })
 
   it('names without a lookup, and ignores blank stops', () => {

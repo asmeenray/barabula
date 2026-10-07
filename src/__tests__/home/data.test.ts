@@ -75,10 +75,11 @@ describe('getHomeData', () => {
       placeCount: 2,
       code: 'LIS',
     })
-    expect(data.now?.photo?.city).toBe('Lisbon')
+    expect(data.now?.photo?.slug).toBe('lisbon')
     expect(data.next).toBeNull()
     expect(data.upcoming.map((t) => t.id)).toEqual(['por'])
-    expect(data.upcoming[0]).toMatchObject({ when: null, dates: null, dayCount: 2, status: 'Dates not set', photo: null })
+    expect(data.upcoming[0]).toMatchObject({ when: null, dates: null, dayCount: 2, status: 'Dates not set', code: 'OPO' })
+    expect(data.upcoming[0].photo?.slug).toBe('porto')
     expect(data.past.map((t) => t.id)).toEqual(['prg'])
   })
 
@@ -87,15 +88,24 @@ describe('getHomeData', () => {
       data: [
         row({
           id: 'x',
-          title: 'Lisbon → Prague',
+          title: 'Lisbon → Bordeaux',
           destination: 'Lisbon',
-          extra_data: { pass: { stops: ['Lisbon', 'Prague'], when: { kind: 'length', days: 4 } } },
+          extra_data: { pass: { stops: ['Lisbon', 'Bordeaux'], when: { kind: 'length', days: 4 } } },
         }),
       ],
       error: null,
     })
     const data = await getHomeData(supabase, user, 'UTC', NOW)
-    expect(data.next).toMatchObject({ title: 'Lisbon → Prague', when: '4 days', code: undefined })
+    // Bordeaux has no curated code, so the stops print as names.
+    expect(data.next).toMatchObject({ title: 'Lisbon → Bordeaux', when: '4 days', code: undefined })
+  })
+
+  it('codes print when every stop has one', async () => {
+    const { supabase } = client({
+      data: [row({ id: 'y', destination: 'Lisbon', extra_data: { pass: { stops: ['Lisbon', 'Prague'] } } })],
+      error: null,
+    })
+    expect((await getHomeData(supabase, user, 'UTC', NOW)).next).toMatchObject({ title: 'LIS → PRG' })
   })
 
   it('an invalid zone falls back to UTC', async () => {

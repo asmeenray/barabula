@@ -36,8 +36,8 @@ describe('photoFor', () => {
   })
 
   it('returns null for cities outside the set', () => {
-    expect(photoFor('Kyoto')).toBeNull()
-    expect(photoFor('Porto')).toBeNull()
+    expect(photoFor('Bordeaux')).toBeNull()
+    expect(photoFor('Nice, France')).toBeNull()
   })
 
   it('returns null for empty or missing input', () => {

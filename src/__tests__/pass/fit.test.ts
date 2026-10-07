@@ -45,8 +45,15 @@ describe('citiesThatFit', () => {
     expect(citiesThatFit(read('somewhere in March'), [{ city: 'Test D' }] as Entry[])).toEqual([])
   })
 
-  it('the current manifest has no verified tags, so nothing fits', () => {
-    expect(citiesThatFit(read('somewhere warm in March'), CITY_PHOTOS)).toEqual([])
+  it('the real manifest suggests only cities whose cited climate table fits (16-21)', () => {
+    // Mean daily highs of 24–32 °C in March, from each city's cited weather box.
+    expect(citiesThatFit(read('somewhere warm in March'), CITY_PHOTOS).map((p) => p.city)).toEqual([
+      'Cape Town',
+      'Dubai',
+      'Hanoi',
+      'Sydney',
+    ])
+    // Beach tags were not verified for any city, so none is suggested for beaches.
     expect(citiesThatFit(read('beaches in October'), CITY_PHOTOS)).toEqual([])
   })
 })

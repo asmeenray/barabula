@@ -64,9 +64,9 @@ describe('PassCover', () => {
   })
 
   it('uses the styled city-map cover for a city outside the set, with no image', () => {
-    const kyoto = photoFor('Kyoto')
-    expect(kyoto).toBeNull()
-    const { container } = render(<PassCover variant="upcoming" photo={kyoto} cityName="Kyoto" title="Kyoto" />)
+    const bordeaux = photoFor('Bordeaux')
+    expect(bordeaux).toBeNull()
+    const { container } = render(<PassCover variant="upcoming" photo={bordeaux} cityName="Bordeaux" title="Bordeaux" />)
     expect(container.querySelector('[data-cover="map"]')).not.toBeNull()
     expect(container.querySelector('img')).toBeNull()
     expect(container.querySelector('picture')).toBeNull()
@@ -135,7 +135,7 @@ describe('PlanHeader cover', () => {
   })
 
   it('shows the map cover and no credit for a city outside the set', () => {
-    const { container } = render(<PlanHeader trip={trip('Porto')} photo={photoFor('Porto')} />)
+    const { container } = render(<PlanHeader trip={trip('Bordeaux')} photo={photoFor('Bordeaux')} />)
     expect(container.querySelector('[data-cover="map"]')).not.toBeNull()
     expect(screen.queryByText(/^Photo:/)).toBeNull()
   })

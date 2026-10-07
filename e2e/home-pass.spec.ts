@@ -103,8 +103,9 @@ test.describe('home blank pass', () => {
     await pickCity(page, 'Lisbon', 'Lisbon')
     await page.getByRole('button', { name: 'Add a stop' }).click()
     await expect(page.getByRole('combobox')).toBeFocused()
-    await pickCity(page, 'Prague', 'Use “Prague”')
-    await expect(page.getByRole('heading', { level: 1, name: 'Lisbon → Prague' })).toBeVisible()
+    // Prague is a curated city since 16-21, so both stops print as codes.
+    await pickCity(page, 'Prague', 'Prague')
+    await expect(page.getByRole('heading', { level: 1, name: 'LIS → PRG' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Remove Prague' })).toBeVisible()
 
     await page.getByRole('button', { name: 'Remove Prague' }).click()
