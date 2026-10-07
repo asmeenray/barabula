@@ -4,7 +4,7 @@ import { MotionConfig } from 'motion/react'
 import { DRUM, SplitFlap, flapFrame } from '@/components/motion/SplitFlap'
 
 // Split-flap text (16-20, D-30, UI-SPEC "Split-flap rules"): the real string
-// in aria-label, flipping glyphs aria-hidden, final text at once under
+// as text (sr-only copy while flipping), flipping glyphs aria-hidden, final text at once under
 // reduced motion.
 
 describe('flapFrame', () => {
@@ -28,6 +28,13 @@ describe('flapFrame', () => {
   })
 })
 
+/** The flap's container (data-flap). */
+function flapIn(container: HTMLElement): HTMLElement {
+  const el = container.querySelector<HTMLElement>('[data-flap]')
+  if (!el) throw new Error('no [data-flap] element')
+  return el
+}
+
 describe('SplitFlap', () => {
   beforeEach(() => {
     vi.useFakeTimers()
@@ -36,24 +43,30 @@ describe('SplitFlap', () => {
     vi.useRealTimers()
   })
 
-  it('shows the final text at once under reduced motion, labelled with the text', () => {
-    const { getByLabelText } = render(
+  it('shows the final text at once under reduced motion, as plain text', () => {
+    const { container } = render(
       <MotionConfig reducedMotion="always">
         <SplitFlap text="LISBON" play />
       </MotionConfig>
     )
-    const flap = getByLabelText('LISBON')
+    const flap = flapIn(container)
+    expect(flap).not.toHaveAttribute('aria-label')
     expect(flap).toHaveTextContent(/^LISBON$/)
     expect(flap.querySelectorAll('[aria-hidden="true"]')).toHaveLength(0)
   })
 
   it('flips aria-hidden glyphs, then settles on the plain text', () => {
-    const { getByLabelText } = render(
+    const { container } = render(
       <MotionConfig reducedMotion="never">
         <SplitFlap text="LISBON" play />
       </MotionConfig>
     )
-    const flap = getByLabelText('LISBON')
+    const flap = flapIn(container)
+    // While flipping, screen readers get one sr-only copy of the real text.
+    const copy = flap.querySelector('.sr-only')
+    expect(copy).toHaveTextContent(/^LISBON$/)
+    expect(copy).not.toHaveAttribute('aria-hidden')
+    expect(flap).not.toHaveAttribute('aria-label')
     const glyphs = flap.querySelectorAll('[data-glyph]')
     expect(glyphs).toHaveLength(6)
     glyphs.forEach((g) => expect(g).toHaveAttribute('aria-hidden', 'true'))
@@ -63,23 +76,24 @@ describe('SplitFlap', () => {
       vi.advanceTimersByTime(9 * 34 + 64)
     })
     expect(flap.querySelectorAll('[data-glyph]')).toHaveLength(0)
-    expect(flap).toHaveTextContent(/^LISBON$/)
-    expect(flap).toHaveAttribute('aria-label', 'LISBON')
+    expect(flapIn(container)).toHaveTextContent(/^LISBON$/)
+    expect(flapIn(container).querySelectorAll('[aria-hidden="true"]')).toHaveLength(0)
   })
 
   it('does not flip without play, and flips when the text changes while playing', () => {
-    const { getByLabelText, rerender } = render(
+    const { container, rerender } = render(
       <MotionConfig reducedMotion="never">
         <SplitFlap text="WHERE TO NEXT?" play={false} />
       </MotionConfig>
     )
-    expect(getByLabelText('WHERE TO NEXT?').querySelectorAll('[data-glyph]')).toHaveLength(0)
+    expect(flapIn(container)).toHaveTextContent(/^WHERE TO NEXT\?$/)
+    expect(flapIn(container).querySelectorAll('[data-glyph]')).toHaveLength(0)
 
     rerender(
       <MotionConfig reducedMotion="never">
         <SplitFlap text="PORTO" play />
       </MotionConfig>
     )
-    expect(getByLabelText('PORTO').querySelectorAll('[data-glyph]')).toHaveLength(5)
+    expect(flapIn(container).querySelectorAll('[data-glyph]')).toHaveLength(5)
   })
 })

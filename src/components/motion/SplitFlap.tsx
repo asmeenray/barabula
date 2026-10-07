@@ -6,7 +6,9 @@
 // signature moments, the Now/Next title once per visit and the LOADING row;
 // never on body text, lists in general or anything typed.
 //
-// The container carries the real string in aria-label. While flipping, each
+// Screen readers get the real string as text: plain text at rest, and one
+// sr-only copy while flipping (no aria-label: ARIA 1.2 prohibits it on a plain
+// span, axe 16-24). While flipping, each
 // glyph is aria-hidden and sized by its final character (an invisible copy),
 // so nothing reflows; the frames are written straight into the glyph faces
 // from one requestAnimationFrame loop (no React state per frame). Each glyph
@@ -106,7 +108,7 @@ export function SplitFlap({ text, play = true, delayMs = 0, frameMs = 34, frames
 
   if (!flipping) {
     return (
-      <span aria-label={text} title={title} className={className}>
+      <span data-flap="" title={title} className={className}>
         {text}
       </span>
     )
@@ -123,7 +125,7 @@ export function SplitFlap({ text, play = true, delayMs = 0, frameMs = 34, frames
     at = stop + 1
   }
   return (
-    <span aria-label={text} title={title} className={className}>
+    <span data-flap="" title={title} className={className}>
       <span className="sr-only">{text}</span>
       {words.map(({ word, start }, w) => {
         return (
