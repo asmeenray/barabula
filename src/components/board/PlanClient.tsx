@@ -13,6 +13,7 @@ import type { PlanActivity, TripPlan } from '@/lib/plan/types'
 import type { CityPhoto } from '@/lib/photos/manifest'
 import { usePlan, type ActivityUpdate } from '@/lib/plan/use-plan'
 import { useCanEdit } from '@/lib/client/use-online'
+import { useUndo } from '@/components/undo/UndoProvider'
 import { useAfterMark } from '@/lib/client/use-after-mark'
 import { TripMapLazy } from '@/components/map/TripMapLazy'
 import { Maximize2Icon, Minimize2Icon } from '@/components/icons'
@@ -40,7 +41,22 @@ const MAP_BUTTON =
 
 export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: CityPhoto | null }) {
   const { trip } = plan
-  const { activities, updateActivity, moveActivity, moveUp, moveDown, unsaved, error } = usePlan(plan)
+  const {
+    activities: all,
+    updateActivity,
+    moveActivity,
+    moveUp,
+    moveDown,
+    removeActivity,
+    unsaved,
+    error,
+  } = usePlan(plan)
+  // A place whose removal is waiting out its Undo window is not shown (16-09).
+  const { pendingIds } = useUndo()
+  const activities = useMemo(
+    () => (pendingIds.size === 0 ? all : all.filter((a) => !pendingIds.has(a.id))),
+    [all, pendingIds]
+  )
   const canEdit = useCanEdit()
   const mapReady = useAfterMark(MAP_READY_MARK, PHOTO_HOLD_MAX_MS)
   const city = trip.destination || trip.title
@@ -77,6 +93,8 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cit
     move: (toDay) => moveActivity(a.id, toDay),
     moveUp: index > 0 ? () => moveUp(a.id) : undefined,
     moveDown: index < rows.length - 1 ? () => moveDown(a.id) : undefined,
+    // No confirm dialog: the place hides at once with a 10 s Undo (D-27 pattern).
+    remove: () => removeActivity(a.id),
   })
 
   const tabs = (props: { idPrefix?: string; controls?: (key: DayKey) => string; className?: string }) => (

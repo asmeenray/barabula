@@ -9,6 +9,9 @@
 // Moves (16-09, D-22) are one PATCH { day_number, position } with the position
 // halfway between the new neighbours, and one Undo toast; the toast is the
 // announcement (Pitfall 11), so only Undo writes to the live region.
+// Remove from trip hides the row at once and holds the DELETE until the Undo
+// toast closes (D-27 pattern); if it then fails, the row comes back with the
+// DELAYED line, so a failure never loses data.
 
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useAnnounce } from '@/components/a11y/LiveRegion'
@@ -91,9 +94,23 @@ function where(day: number | null): string {
   return day === null ? 'in Maybe' : `on day ${day}`
 }
 
+export function activityUrl(id: string): string {
+  return `/api/activities/${encodeURIComponent(id)}`
+}
+
+/** True when the row is gone on the server (deleted now, or already missing). */
+async function sendDelete(id: string): Promise<boolean> {
+  try {
+    const res = await fetch(activityUrl(id), { method: 'DELETE' })
+    return res.ok || res.status === 404
+  } catch {
+    return false
+  }
+}
+
 async function sendUpdate(id: string, update: ActivityUpdate): Promise<boolean> {
   try {
-    const res = await fetch(`/api/activities/${encodeURIComponent(id)}`, {
+    const res = await fetch(activityUrl(id), {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(update),
@@ -115,6 +132,10 @@ export function usePlan(initial: TripPlan) {
   const pending = useRef(new Map<string, ActivityUpdate>())
   /** Last save in flight per id; the next save for that id waits for it. */
   const queue = useRef(new Map<string, Promise<unknown>>())
+  /** Rows removed on screen whose DELETE is held for the Undo window. */
+  const removed = useRef(new Map<string, PlanActivity>())
+  /** Removals whose DELETE failed; Retry removes them again (with Undo). */
+  const failedRemovals = useRef(new Set<string>())
 
   const markUnsaved = useCallback((id: string, saved: boolean) => {
     setUnsaved((prev) => {
@@ -150,7 +171,7 @@ export function usePlan(initial: TripPlan) {
       setActivities((prev) => sortActivities(prev.map((a) => (a.id === id ? applyUpdate(a, update) : a))))
       const ok = await save(id, update)
       if (!ok) setFailed(true)
-      else if (pending.current.size === 0) setFailed(false)
+      else if (pending.current.size === 0 && failedRemovals.current.size === 0) setFailed(false)
       return ok
     },
     [save]
@@ -168,7 +189,7 @@ export function usePlan(initial: TripPlan) {
         if (!(await save(c.id, c.update))) allSaved = false
       }
       if (!allSaved) setFailed(true)
-      else if (pending.current.size === 0) setFailed(false)
+      else if (pending.current.size === 0 && failedRemovals.current.size === 0) setFailed(false)
       return allSaved
     },
     [save]
@@ -230,17 +251,61 @@ export function usePlan(initial: TripPlan) {
   const moveUp = useCallback((id: string) => moveBy(id, -1), [moveBy])
   const moveDown = useCallback((id: string) => moveBy(id, 1), [moveBy])
 
+  /** Puts a removed row back on the board. */
+  const restore = useCallback((id: string) => {
+    const row = removed.current.get(id)
+    if (!row) return
+    removed.current.delete(id)
+    setActivities((prev) => (prev.some((a) => a.id === id) ? prev : sortActivities([...prev, row])))
+  }, [])
+
+  /** Hides the place now; the DELETE goes out when the Undo toast closes. */
+  const removeActivity = useCallback(
+    (id: string) => {
+      const a = activities.find((x) => x.id === id)
+      if (!a) return
+      removed.current.set(id, a)
+      failedRemovals.current.delete(id)
+      setActivities((prev) => prev.filter((x) => x.id !== id))
+      undo.run({
+        id,
+        label: `Removed ${a.name}`,
+        deferred: true,
+        keepaliveRequest: { url: activityUrl(id), method: 'DELETE' },
+        commit: async () => {
+          if (await sendDelete(id)) {
+            removed.current.delete(id)
+            return
+          }
+          // Safe direction (T-16-25): the place comes back, explained by DELAYED.
+          restore(id)
+          failedRemovals.current.add(id)
+          setFailed(true)
+        },
+        undo: () => {
+          restore(id)
+          announce(`Undone. ${a.name} is back ${where(a.day_number)}.`)
+        },
+      })
+    },
+    [activities, undo, restore, announce]
+  )
+
   const retry = useCallback(async () => {
+    // A removal that failed is offered again, with its own Undo.
+    const removals = [...failedRemovals.current]
+    failedRemovals.current.clear()
+    for (const id of removals) removeActivity(id)
     const entries = [...pending.current.entries()]
     // Retrying an entry merges it with itself; pass an empty update.
     const results = await Promise.all(entries.map(([id]) => save(id, {})))
-    setFailed(results.some((ok) => !ok) || pending.current.size > 0)
-  }, [save])
+    setFailed(results.some((ok) => !ok) || pending.current.size > 0 || failedRemovals.current.size > 0)
+  }, [save, removeActivity])
 
   const error: PlanError | null = useMemo(
     () => (failed ? { message: SAVE_ERROR, retry: () => void retry() } : null),
     [failed, retry]
   )
 
-  return { activities, updateActivity, moveActivity, moveUp, moveDown, unsaved, error }
+  return { activities, updateActivity, moveActivity, moveUp, moveDown, removeActivity, unsaved, error }
 }

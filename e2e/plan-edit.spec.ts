@@ -250,3 +250,55 @@ test.describe('move places from the row menu', () => {
     expect(await idsIn(page, '1')).toEqual(fx.activityIds['1'])
   })
 })
+
+test.describe('remove a place with a deferred Undo', () => {
+  test('Undo keeps the place; a closed toast deletes it', async ({ page }) => {
+    test.setTimeout(60_000)
+    const fx = readFixtures()
+    // Not day 3's first place (plan-open checks its NEXT chip). Phone and laptop
+    // share one seeded database, so each removes a different place; the seed
+    // recreates both on the next run.
+    const phone = isPhone(page)
+    const id = fx.activityIds['3'][phone ? 3 : 2]
+    const name = phone ? 'Torre de Belém' : 'Mosteiro dos Jerónimos'
+    const deleted = (r: { request(): { method(): string }; url(): string }) =>
+      r.request().method() === 'DELETE' && new URL(r.url()).pathname === `/api/activities/${id}`
+    const deleteCalls: string[] = []
+    page.on('request', (r) => {
+      if (r.method() === 'DELETE') deleteCalls.push(new URL(r.url()).pathname)
+    })
+
+    await page.goto(`/itinerary/${fx.lisbonId}`)
+    await expect(page.getByRole('heading', { level: 1, name: 'Lisbon' })).toBeVisible()
+
+    // Remove → gone at once, toast → Undo → back, nothing deleted.
+    await openActions(page, id, '3')
+    await page.getByRole('menuitem', { name: 'Remove from trip' }).click()
+    await expect(rowOf(page, id)).toHaveCount(0)
+    await expect(toast(page)).toContainText(`Removed ${name}`)
+    await toast(page).getByRole('button', { name: 'Undo' }).click()
+    await expect(rowOf(page, id)).toHaveCount(1)
+    await expect(page.getByTestId('live-region')).toHaveText(`Undone. ${name} is back on day 3.`)
+    expect(deleteCalls).toEqual([])
+
+    await page.reload()
+    await showDay(page, '3')
+    await expect(rowOf(page, id)).toBeVisible()
+    expect(deleteCalls).toEqual([])
+
+    // Remove again and let the 10 s window close (pointer away: hover pauses it).
+    await openActions(page, id, '3')
+    const sent = page.waitForResponse(deleted, { timeout: 15_000 })
+    await page.getByRole('menuitem', { name: 'Remove from trip' }).click()
+    if (!phone) await page.mouse.move(5, 5)
+    await expect(toast(page)).toContainText(`Removed ${name}`)
+    expect(deleteCalls).toEqual([])
+    expect((await sent).status()).toBe(200)
+    await expect(toast(page)).not.toContainText(`Removed ${name}`)
+    expect(deleteCalls).toEqual([`/api/activities/${id}`])
+
+    await page.reload()
+    await expect(page.getByRole('heading', { level: 1, name: 'Lisbon' })).toBeVisible()
+    await expect(rowOf(page, id)).toHaveCount(0)
+  })
+})

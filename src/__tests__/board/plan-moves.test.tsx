@@ -7,7 +7,8 @@ import type { PlanActivity, TripPlan } from '@/lib/plan/types'
 
 // Moves from the row menu through usePlan (16-09, D-21, D-22): one PATCH of
 // { day_number, position } between the new neighbours, one Undo that PATCHes
-// back, and a renumbered bucket when the gap is too small.
+// back, and a renumbered bucket when the gap is too small. Remove from trip
+// hides the row and holds the DELETE until the Undo window ends.
 
 vi.mock('@/components/map/TripMapLazy', () => ({ TripMapLazy: () => null }))
 
@@ -108,7 +109,7 @@ describe('moves from the row menu', () => {
 
     await waitFor(() => expect(patches()).toEqual([{ id: A, body: { day_number: 2, position: 6 } }]))
     expect(idsIn('2')).toEqual([C, A])
-    expect(screen.getByText('Moved Time Out Market to day 2')).toBeTruthy()
+    expect(await screen.findByText('Moved Time Out Market to day 2')).toBeTruthy()
     // The toast is the announcement (Pitfall 11): the app live region stays quiet.
     await new Promise((r) => setTimeout(r, 80))
     expect(screen.getByTestId('live-region').textContent).toBe('')
@@ -122,7 +123,7 @@ describe('moves from the row menu', () => {
     expect(patches()[0].body).toEqual({ day_number: null, position: 1 })
     expect(idsIn('maybe')).toEqual([A])
 
-    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Undo' }))
     await waitFor(() => expect(patches()).toHaveLength(2))
     expect(patches()[1]).toEqual({ id: A, body: { day_number: 1, position: 1 } })
     expect(idsIn('1')).toEqual([A, B])
@@ -162,7 +163,7 @@ describe('moves from the row menu', () => {
     ])
     expect(idsIn('1')).toEqual([B, A, C, D])
 
-    fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
+    fireEvent.click(await screen.findByRole('button', { name: 'Undo' }))
     await waitFor(() => expect(patches()).toHaveLength(6))
     expect(patches().slice(3)).toEqual([
       { id: B, body: { position: 2 } },
@@ -170,5 +171,79 @@ describe('moves from the row menu', () => {
       { id: A, body: { day_number: 1, position: 1 } },
     ])
     expect(idsIn('1')).toEqual([A, B, C, D])
+  })
+})
+
+describe('Remove from trip (deferred delete with Undo)', () => {
+  beforeEach(() => {
+    fetchMock.mockReset()
+    vi.stubGlobal('fetch', fetchMock)
+  })
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
+
+  function deletes(): string[] {
+    return fetchMock.mock.calls.filter(([, init]) => init?.method === 'DELETE').map(([url]) => String(url))
+  }
+
+  async function remove(id: string, name: string) {
+    const menu = await openMenu(id, name)
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Remove from trip' }))
+    await waitFor(() => expect(screen.queryByRole('menu')).toBeNull())
+  }
+
+  it('hides the place at once and sends nothing until the window ends; Undo brings it back', async () => {
+    fetchMock.mockImplementation(async () => new Response('{}', { status: 200 }))
+    renderBoard([activity(A, 'Time Out Market', 1, 1), activity(B, 'Belém Tower', 1, 2)])
+    await remove(A, 'Time Out Market')
+    expect(idsIn('1')).toEqual([B])
+    expect(await screen.findByText('Removed Time Out Market')).toBeTruthy()
+    expect(deletes()).toEqual([])
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Undo' }))
+    await waitFor(() => expect(idsIn('1')).toEqual([A, B]))
+    await waitFor(() =>
+      expect(screen.getByTestId('live-region').textContent).toBe('Undone. Time Out Market is back on day 1.')
+    )
+    expect(deletes()).toEqual([])
+  })
+
+  it('the next undoable action sends the held DELETE once', async () => {
+    fetchMock.mockImplementation(async () => new Response('{}', { status: 200 }))
+    renderBoard([activity(A, 'Time Out Market', 1, 1), activity(B, 'Belém Tower', 1, 2), activity(C, 'LX Factory', 1, 3)])
+    await remove(A, 'Time Out Market')
+    await remove(B, 'Belém Tower')
+    await waitFor(() => expect(deletes()).toEqual([`/api/activities/${A}`]))
+    expect(idsIn('1')).toEqual([C])
+  })
+
+  it('a failed DELETE puts the place back with the DELAYED line', async () => {
+    fetchMock.mockImplementation(async (_url: string, init?: RequestInit) =>
+      init?.method === 'DELETE'
+        ? new Response('{"error":"Couldn\'t save"}', { status: 500 })
+        : new Response('{}', { status: 200 })
+    )
+    renderBoard([activity(A, 'Time Out Market', 1, 1), activity(B, 'Belém Tower', 1, 2)])
+    await remove(A, 'Time Out Market')
+    expect(idsIn('1')).toEqual([B])
+    // Any next undoable action ends A's window.
+    const menu = await openMenu(B, 'Belém Tower')
+    fireEvent.click(within(menu).getByRole('menuitem', { name: 'Move to Maybe' }))
+    await waitFor(() => expect(deletes()).toHaveLength(1))
+    await waitFor(() => expect(idsIn('1')).toEqual([A]))
+    expect(await screen.findByText(/Couldn't save/)).toBeTruthy()
+  })
+
+  it('offers no confirm dialog', async () => {
+    const confirmSpy = vi.fn(() => true)
+    vi.stubGlobal('confirm', confirmSpy)
+    fetchMock.mockImplementation(async () => new Response('{}', { status: 200 }))
+    renderBoard([activity(A, 'Time Out Market', 1, 1)])
+    await remove(A, 'Time Out Market')
+    expect(confirmSpy).not.toHaveBeenCalled()
+    // Only the non-modal toast appears; nothing asks "Are you sure?".
+    expect(document.querySelector('[aria-modal="true"]')).toBeNull()
+    expect(screen.queryByRole('alertdialog')).toBeNull()
   })
 })

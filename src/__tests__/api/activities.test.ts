@@ -256,24 +256,70 @@ describe('PATCH /api/activities/[id]', () => {
   })
 })
 
+/** The delete (delete → eq → select('id')). */
+function deleteChain(result: Result) {
+  const chain = {
+    delete: vi.fn(() => chain),
+    eq: vi.fn(() => chain),
+    select: vi.fn().mockResolvedValue(result),
+  }
+  return chain
+}
+
+async function del(id = ID) {
+  const { DELETE } = await import('@/app/api/activities/[id]/route')
+  const req = new Request(`http://localhost/api/activities/${id}`, { method: 'DELETE' })
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return DELETE(req as any, { params: Promise.resolve({ id }) })
+}
+
 describe('DELETE /api/activities/[id]', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.resetModules()
   })
 
-  it('returns a generic error message on failure', async () => {
+  it('returns 401 without a user', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
+    const res = await del()
+    expect(res.status).toBe(401)
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 for a non-uuid id without touching the database', async () => {
     signedIn()
-    const chain = {
-      delete: vi.fn(() => chain),
-      eq: vi.fn().mockResolvedValue({ error: { message: 'raw detail' } }),
-    }
+    const res = await del('not-a-uuid')
+    expect(res.status).toBe(400)
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('deletes through the RLS client and returns 200 { success: true }', async () => {
+    signedIn()
+    const chain = deleteChain({ data: [{ id: ID }], error: null })
     mockFrom.mockReturnValueOnce(chain)
-    const { DELETE } = await import('@/app/api/activities/[id]/route')
-    const req = new Request(`http://localhost/api/activities/${ID}`, { method: 'DELETE' })
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const res = await DELETE(req as any, { params: Promise.resolve({ id: ID }) })
+    const res = await del()
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ success: true })
+    expect(mockFrom).toHaveBeenCalledWith('activities')
+    expect(chain.eq).toHaveBeenCalledWith('id', ID)
+    expect(chain.select).toHaveBeenCalledWith('id')
+  })
+
+  it("returns 404 when no row matched (another user's place or already gone)", async () => {
+    signedIn()
+    mockFrom.mockReturnValueOnce(deleteChain({ data: [], error: null }))
+    const res = await del()
+    expect(res.status).toBe(404)
+    expect(await res.json()).toEqual({ error: 'Not found' })
+  })
+
+  it('returns 500 with a generic message on a database error', async () => {
+    signedIn()
+    mockFrom.mockReturnValueOnce(deleteChain({ data: null, error: { message: 'raw detail', code: 'XX000' } }))
+    const res = await del()
     expect(res.status).toBe(500)
-    expect(JSON.stringify(await res.json())).not.toContain('raw detail')
+    const body = await res.json()
+    expect(body).toEqual({ error: "Couldn't save" })
+    expect(JSON.stringify(body)).not.toContain('raw detail')
   })
 })

@@ -73,6 +73,9 @@ export async function PATCH(
   return Response.json(data)
 }
 
+// Remove from trip (16-09). The client holds the delete for the 10 s Undo
+// window and sends it only when the toast closes (D-27 pattern), so this runs
+// once per removal. RLS scopes the delete to the owner; no row → 404.
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -82,10 +85,13 @@ export async function DELETE(
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { error } = await supabase.from('activities').delete().eq('id', id)
+  if (!isUuid(id)) return Response.json(INVALID, { status: 400 })
+
+  const { data, error } = await supabase.from('activities').delete().eq('id', id).select('id')
   if (error) {
     console.error('[activities DELETE] failed', error.code)
-    return Response.json({ error: "Couldn't delete" }, { status: 500 })
+    return Response.json(SAVE_FAILED, { status: 500 })
   }
+  if (!data || data.length === 0) return Response.json(NOT_FOUND, { status: 404 })
   return Response.json({ success: true })
 }
