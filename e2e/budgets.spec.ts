@@ -27,8 +27,12 @@ import type { ScriptBytes } from './helpers/perf'
 //
 // 16-14: the byte count waits for the idle-loaded drag chunk
 // (barabula:dnd-ready), so drag and drop is always inside the JS budget.
+//
+// Revised 7 Oct 2026 (Asmeen, handover Q63, "Raise the limit to 250 KB"):
+// - Route JS gzip limit 200 KB -> 250 KB (256,000 B). The timing limits and
+//   the median of 3 are unchanged.
 
-const JS_BUDGET_BYTES = 204_800 // 200 KB gzipped, MapLibre excluded
+const JS_BUDGET_BYTES = 256_000 // 250 KB gzipped, MapLibre excluded (Q63)
 const BOARD_BUDGET_MS = 2_000 // elementtiming="board", median of RUNS
 const MAP_SLOW4G_BUDGET_MS = 9_500 // barabula:map-load, median of RUNS
 const RUNS = 3
