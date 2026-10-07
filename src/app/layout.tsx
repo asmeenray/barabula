@@ -31,7 +31,10 @@ const atkinson = Atkinson_Hyperlegible_Next({
 
 // Static string, no user input (T-16-13). Sets data-theme before first paint
 // from the device choice (barabula-theme: light | dark) or the OS setting.
-const THEME_SCRIPT = `(function(){try{var t=localStorage.getItem('barabula-theme');var d=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light'}catch(e){document.documentElement.dataset.theme='light'}})()`
+// Also writes the tz cookie (the device's IANA time zone) so the server can
+// work out the user's own "today" for the Trips home (Pitfall 9, 16-12); the
+// server treats it as untrusted and falls back to UTC (T-16-35).
+const THEME_SCRIPT = `(function(){try{document.cookie='tz='+encodeURIComponent(Intl.DateTimeFormat().resolvedOptions().timeZone)+'; path=/; max-age=31536000; samesite=lax'}catch(e){}try{var t=localStorage.getItem('barabula-theme');var d=t==='dark'||(t!=='light'&&window.matchMedia('(prefers-color-scheme: dark)').matches);document.documentElement.dataset.theme=d?'dark':'light'}catch(e){document.documentElement.dataset.theme='light'}})()`
 
 export const metadata: Metadata = {
   title: 'Barabula',

@@ -11,7 +11,7 @@
 // CSS sets the casing.
 
 import { useState } from 'react'
-import { dayDate } from '@/lib/plan/board'
+import { tripInto, tripWhen, tripWho } from '@/lib/pass/trip-values'
 import type { PlanTrip } from '@/lib/plan/types'
 import type { CityPhoto } from '@/lib/photos/manifest'
 import { PassCover, PhotoCredit } from '@/components/pass/PassCover'
@@ -20,60 +20,19 @@ import { PassCover, PhotoCredit } from '@/components/pass/PassCover'
 // The budgets spec reads when the board first paints from it (Q46).
 const BOARD_TIMING = { elementtiming: 'board' } as Record<string, string>
 
-type Pass = {
-  when?: unknown
-  adults?: unknown
-  kids?: unknown
-  interests?: unknown
-  note?: unknown
-}
-
-function passOf(trip: PlanTrip): Pass | null {
-  const pass = trip.extra_data?.pass
-  return pass && typeof pass === 'object' ? (pass as Pass) : null
-}
-
-function count(value: unknown): number | null {
-  return typeof value === 'number' && Number.isInteger(value) && value >= 0 ? value : null
-}
-
 /** "12–15 May", "28 May – 2 Jun", "{n} days" (pass length) or "Open". */
 export function whenValue(trip: PlanTrip): string {
-  const first = dayDate(trip.start_date, 1)
-  const last = dayDate(trip.end_date, 1)
-  if (first && last) {
-    return first.month === last.month
-      ? first.day === last.day
-        ? `${first.day} ${first.month}`
-        : `${first.day}–${last.day} ${first.month}`
-      : `${first.day} ${first.month} – ${last.day} ${last.month}`
-  }
-  const when = passOf(trip)?.when as { kind?: unknown; days?: unknown } | null | undefined
-  const days = when?.kind === 'length' ? count(when.days) : null
-  if (days) return `${days} ${days === 1 ? 'day' : 'days'}`
-  return 'Open'
+  return tripWhen(trip) ?? 'Open'
 }
 
 /** "2 adults · 1 kid", or "—" when the pass has no travellers. */
 export function whoValue(trip: PlanTrip): string {
-  const pass = passOf(trip)
-  const adults = count(pass?.adults)
-  const kids = count(pass?.kids)
-  const parts: string[] = []
-  if (adults) parts.push(`${adults} ${adults === 1 ? 'adult' : 'adults'}`)
-  if (kids) parts.push(`${kids} ${kids === 1 ? 'kid' : 'kids'}`)
-  return parts.length ? parts.join(' · ') : '—'
+  return tripWho(trip) ?? '—'
 }
 
 /** "Food · Views", "+ note" when a note exists, or "—". */
 export function intoValue(trip: PlanTrip): string {
-  const pass = passOf(trip)
-  const interests = Array.isArray(pass?.interests)
-    ? pass.interests.filter((i): i is string => typeof i === 'string' && i.trim() !== '')
-    : []
-  const note = typeof pass?.note === 'string' && pass.note.trim() !== ''
-  if (interests.length === 0) return note ? 'Note' : '—'
-  return interests.join(' · ') + (note ? ' + note' : '')
+  return tripInto(trip) ?? '—'
 }
 
 export function PlanHeader({

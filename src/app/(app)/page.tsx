@@ -1,3 +1,4 @@
+import { cookies } from 'next/headers'
 import { createClient } from '@/lib/supabase/server'
 import { getHomeData, isFirstVisit } from '@/lib/home/data'
 import { BlankPass } from '@/components/pass/BlankPass'
@@ -15,7 +16,9 @@ export default async function HomePage() {
   const {
     data: { user },
   } = await supabase.auth.getUser()
-  const home = await getHomeData(supabase, user)
+  // The tz cookie (head script) gives the user's own today; UTC on the first visit.
+  const tz = (await cookies()).get('tz')?.value
+  const home = await getHomeData(supabase, user, tz)
   const firstVisit = isFirstVisit(!!user, home.tripCount)
 
   return (
