@@ -1,4 +1,4 @@
-import { existsSync, statSync } from 'node:fs'
+import { existsSync, readdirSync, statSync } from 'node:fs'
 import path from 'node:path'
 import sharp from 'sharp'
 import { describe, expect, it } from 'vitest'
@@ -64,11 +64,15 @@ describe('CITY_PHOTOS', () => {
       for (const s of strings({ ...photo, blur: '' })) expect(s).not.toMatch(PLACEHOLDER)
     })
 
-    it('ships every file under public/', () => {
-      for (const url of Object.values(photo.files)) {
-        expect(url).toMatch(new RegExp(`^/images/cities/${photo.slug}-[lmp]\\.(avif|webp)$`))
-        expect(existsSync(fileOf(url)), url).toBe(true)
-      }
+    it('ships exactly the laptop AVIF, phone AVIF and phone WebP under public/', () => {
+      // 16-21 size gate, option E: no portrait crop and no laptop WebP.
+      expect(Object.keys(photo.files).sort()).toEqual(['lAvif', 'mAvif', 'mWebp'])
+      expect(photo.files).toEqual({
+        lAvif: `/images/cities/${photo.slug}-l.avif`,
+        mAvif: `/images/cities/${photo.slug}-m.avif`,
+        mWebp: `/images/cities/${photo.slug}-m.webp`,
+      })
+      for (const url of Object.values(photo.files)) expect(existsSync(fileOf(url)), url).toBe(true)
     })
 
     it('keeps the landscape AVIF crops inside the weight budgets', () => {
@@ -83,6 +87,14 @@ describe('CITY_PHOTOS', () => {
       expect(meta.width).toBeGreaterThan(0)
       expect(meta.width).toBeLessThanOrEqual(10)
     })
+  })
+})
+
+describe('public/images/cities', () => {
+  it('holds only files the manifest uses (no portrait crops, laptop WebPs or originals)', () => {
+    const used = new Set(CITY_PHOTOS.flatMap((p) => Object.values(p.files).map((url) => path.basename(url))))
+    const onDisk = readdirSync(path.join(PUBLIC_DIR, 'images/cities')).filter((f) => !f.startsWith('.'))
+    expect(onDisk.filter((f) => !used.has(f))).toEqual([])
   })
 })
 

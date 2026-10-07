@@ -29,10 +29,10 @@ describe('PassCover', () => {
   it('renders a curated photo as <picture> with an AVIF source and an img', () => {
     const { container } = render(<PassCover variant="nownext" photo={lisbon} cityName="Lisbon" title="Lisbon" />)
     const sources = [...container.querySelectorAll('picture > source')]
-    // Laptop crop first (media query), then the phone crop for everything else.
+    // Laptop AVIF first (media query), then the phone AVIF; the phone WebP is the
+    // img for everything else (no laptop WebP, 16-21 option E).
     expect(sources.map((s) => [s.getAttribute('type'), s.getAttribute('media'), s.getAttribute('srcset')])).toEqual([
       ['image/avif', '(min-width: 1024px)', lisbon.files.lAvif],
-      ['image/webp', '(min-width: 1024px)', lisbon.files.lWebp],
       ['image/avif', null, lisbon.files.mAvif],
     ])
     const img = screen.getByRole('img', { name: lisbon.alt })

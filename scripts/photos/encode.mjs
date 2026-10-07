@@ -3,13 +3,15 @@
 //
 //   node scripts/photos/encode.mjs --src <photo.jpg> --slug lisbon --focal 0.6,0.55 [--keep-avif] [--out public/images/cities]
 //
-// Writes three crops around the focal point (x,y in 0..1 of the source):
-//   {slug}-l  1920x1080  laptop landscape   AVIF ≤ 220 KB
-//   {slug}-m  1080x608   phone landscape    AVIF ≤ 150 KB
-//   {slug}-p  1080x1920  portrait (kept for later full-bleed use)
+// Writes two crops around the focal point (x,y in 0..1 of the source), three files:
+//   {slug}-l.avif  1920x1080  laptop landscape   ≤ 220 KB
+//   {slug}-m.avif  1080x608   phone landscape    ≤ 150 KB
+//   {slug}-m.webp  1080x608   fallback for browsers without AVIF (every width)
+// Asmeen's size-gate answer (16-21, option E): no portrait crop and no laptop
+// WebP, so the curated set stays small; non-AVIF laptops get the 1080 WebP.
 // AVIF comes from ffmpeg + libsvtav1 (all-intra still picture); the CRF goes up
 // until the crop fits its budget, and the script fails if it never does.
-// WebP fallbacks and an 8 px wide blur data URI come from sharp.
+// The WebP fallback and an 8 px wide blur data URI come from sharp.
 // --keep-avif keeps an existing AVIF crop when it is already inside its budget.
 // Prints one JSON line: byte sizes, the CRF used per AVIF crop and the blur.
 //
@@ -24,9 +26,8 @@ import sharp from 'sharp'
 
 const KB = 1024
 const CROPS = [
-  { key: 'l', width: 1920, height: 1080, budget: 220 * KB },
-  { key: 'm', width: 1080, height: 608, budget: 150 * KB },
-  { key: 'p', width: 1080, height: 1920, budget: null },
+  { key: 'l', width: 1920, height: 1080, budget: 220 * KB, webp: false },
+  { key: 'm', width: 1080, height: 608, budget: 150 * KB, webp: true },
 ]
 const CRF_START = 24
 const CRF_STEP = 2
@@ -90,7 +91,7 @@ async function encodeAvif(png, outFile, budget) {
   for (let crf = CRF_START; crf <= CRF_MAX; crf += CRF_STEP) {
     await ffmpegAvif(png, outFile, crf)
     const bytes = statSync(outFile).size
-    if (budget === null || bytes <= budget) return { bytes, crf }
+    if (bytes <= budget) return { bytes, crf }
   }
   fail(`${path.basename(outFile)} stays over ${budget} bytes even at CRF ${CRF_MAX}`)
 }
@@ -131,7 +132,7 @@ async function main() {
     const kept =
       values['keep-avif'] &&
       existsSync(avifFile) &&
-      (crop.budget === null || statSync(avifFile).size <= crop.budget)
+      statSync(avifFile).size <= crop.budget
     const avif = kept ? { bytes: statSync(avifFile).size, crf: 'kept' } : await encodeAvif(png, avifFile, crop.budget)
 
     const avifMeta = await sharp(avifFile).metadata()
@@ -139,12 +140,11 @@ async function main() {
       fail(`${path.basename(avifFile)} is ${avifMeta.width}x${avifMeta.height}, expected ${crop.width}x${crop.height}`)
     }
 
-    const webpFile = `${base}.webp`
-    await sharp(png).webp({ quality: WEBP_QUALITY, effort: 6 }).toFile(webpFile)
-
-    result.files[crop.key] = {
-      avif: { file: avifFile, bytes: avif.bytes, crf: avif.crf, budget: crop.budget },
-      webp: { file: webpFile, bytes: statSync(webpFile).size },
+    result.files[crop.key] = { avif: { file: avifFile, bytes: avif.bytes, crf: avif.crf, budget: crop.budget } }
+    if (crop.webp) {
+      const webpFile = `${base}.webp`
+      await sharp(png).webp({ quality: WEBP_QUALITY, effort: 6 }).toFile(webpFile)
+      result.files[crop.key].webp = { file: webpFile, bytes: statSync(webpFile).size }
     }
   }
 

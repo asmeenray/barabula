@@ -14,6 +14,8 @@ import { CityMapCover } from './CityMapCover'
 
 // The crop is picked by layout, not by srcset width: a 412 px phone at DPR 2.6
 // needs 1081 px and would skip the 1080 phone crop for the 220 KB laptop one.
+// There is no laptop WebP (16-21 size gate, option E): a laptop browser without
+// AVIF gets the 1080 phone WebP, stretched by object-cover.
 const LAPTOP = '(min-width: 1024px)'
 
 type Props = {
@@ -54,7 +56,6 @@ export function CoverImage({ photo, cityName, large = false, priority = false, h
       {!hold && (
         <picture>
           {large && <source type="image/avif" media={LAPTOP} srcSet={files.lAvif} />}
-          {large && <source type="image/webp" media={LAPTOP} srcSet={files.lWebp} />}
           <source type="image/avif" srcSet={files.mAvif} />
           <img
             ref={checkLoaded}

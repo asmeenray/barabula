@@ -27,13 +27,14 @@ export type CityPhoto = {
   licenceUrl: string
   /** The photo's source page (Wikimedia Commons file page). */
   sourceUrl: string
+  /**
+   * Laptop and phone landscape AVIF plus the phone WebP fallback (Asmeen's
+   * size-gate answer, 16-21 option E: no portrait crop, no laptop WebP).
+   */
   files: {
     lAvif: string
     mAvif: string
-    pAvif: string
-    lWebp: string
     mWebp: string
-    pWebp: string
   }
   /** ≤10 px wide data URI, shown as the wrapper background while the photo loads. */
   blur: string
@@ -45,18 +46,15 @@ function filesFor(slug: string): CityPhoto['files'] {
   return {
     lAvif: `${base}-l.avif`,
     mAvif: `${base}-m.avif`,
-    pAvif: `${base}-p.avif`,
-    lWebp: `${base}-l.webp`,
     mWebp: `${base}-m.webp`,
-    pWebp: `${base}-p.webp`,
   }
 }
 
 export const CITY_PHOTOS: readonly CityPhoto[] = [
   {
     // Verified 7 Oct 2026 via the Commons API: Artist "Dale Cruse", LicenseShortName
-    // "CC BY 4.0". The l and p AVIFs are the measured 16-directions sketch files; the
-    // m AVIF, WebPs and blur were encoded from this file's 3840 px Commons rendition.
+    // "CC BY 4.0". The l AVIF is the measured 16-directions sketch file; the m AVIF,
+    // m WebP and blur were encoded from this file's 3840 px Commons rendition.
     slug: 'lisbon',
     city: 'Lisbon',
     names: ['lisbon', 'lisboa'],
