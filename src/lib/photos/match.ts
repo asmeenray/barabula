@@ -4,24 +4,13 @@
 // built from the user's text (T-16-23).
 
 import { CITY_PHOTOS, type CityPhoto } from './manifest'
+import { findCity, normalizeCity } from './normalize'
 
-/** Lowercase, strip accents, cut at the first comma, trim and collapse spaces. */
-export function normalizeCity(value: string): string {
-  return value
-    .split(',')[0]
-    .normalize('NFD')
-    .replace(/\p{M}/gu, '')
-    .toLowerCase()
-    .replace(/\s+/g, ' ')
-    .trim()
-}
+export { normalizeCity }
 
 /** The curated photo for a destination, or null (city-map cover). */
 export function photoFor(destination: string | null | undefined): CityPhoto | null {
-  if (!destination) return null
-  const key = normalizeCity(destination)
-  if (!key) return null
-  return CITY_PHOTOS.find((p) => p.names.includes(key)) ?? null
+  return findCity(CITY_PHOTOS, destination)
 }
 
 /**
