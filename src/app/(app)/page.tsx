@@ -49,6 +49,7 @@ export default async function HomePage() {
           )}
           <BlankPass
             coverPhoto={home.coverCity}
+            coverCaption={home.coverCaption}
             photos={home.cities}
             signedIn={!!user}
             layout={paired ? 'vertical' : 'horizontal'}

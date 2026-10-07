@@ -148,6 +148,32 @@ test.describe('home first visit', () => {
       await expect(page.getByRole('heading', { name: 'Check in to save your trip' })).toBeVisible()
       await expect(page).toHaveURL(/\/$/)
     })
+
+    // "On the cover" (quick 261007-wms): laptop only; typing hides it; the
+    // shortcut fills Where to? with the cover city.
+    test('the On the cover note and its Plan a trip shortcut', async ({ page }) => {
+      await page.goto('/')
+      const shortcut = pass(page).getByRole('button', { name: /^Plan a trip to / })
+      const note = page.locator('[data-cover-note]')
+      if ((page.viewportSize()?.width ?? 0) < 1024) {
+        await expect(page.getByRole('combobox')).toBeVisible()
+        await expect(shortcut).toBeHidden()
+        return
+      }
+      await expect(shortcut).toBeVisible()
+      await page.getByRole('combobox').focus()
+      await page.keyboard.press('l')
+      await expect(note).toHaveCount(0)
+
+      await page.reload()
+      await expect(shortcut).toBeVisible()
+      const city = ((await shortcut.textContent()) ?? '').replace(/^Plan a trip to /, '').trim()
+      expect(city).not.toBe('')
+      await shortcut.click()
+      await expect(page.getByRole('heading', { level: 1, name: city })).toBeVisible()
+      await expect(page.getByRole('button', { name: 'Edit destination' })).toBeVisible()
+      await expect(note).toHaveCount(0)
+    })
   })
 
   test('the signed-in owner, who has trips, does not see the first-visit line', async ({ page }) => {

@@ -4,6 +4,7 @@
 // (Pitfall 9), UTC on the very first visit.
 
 import type { SupabaseClient, User } from '@supabase/supabase-js'
+import { captionFor } from '@/lib/photos/captions'
 import { tripCover } from '@/lib/photos/cover'
 import { CITY_PHOTOS, type CityPhoto, type CoverPhoto } from '@/lib/photos/manifest'
 import { photoFor, randomCity } from '@/lib/photos/match'
@@ -44,6 +45,12 @@ export type HomeTrip = {
 export type HomeData = {
   /** Random curated city for the blank pass cover (D-09). */
   coverCity: CityPhoto
+  /**
+   * "On the cover" caption of coverCity (quick 261007-wms), null when it has
+   * none. Only the shown cover's caption crosses to the client; the caption
+   * list stays on the server and `cities` carries none.
+   */
+  coverCaption: string | null
   /** The curated set, offered first in "Where to?". */
   cities: readonly CityPhoto[]
   /** The signed-in user's own trips; null when logged out or the read failed. */
@@ -130,7 +137,8 @@ export async function getHomeData(
   const shown = [sections.now, sections.next, ...sections.upcoming.slice(0, 3)]
     .map((t) => t?.photo?.slug)
     .filter((s): s is string => !!s)
-  return { coverCity: randomCity(Math.random, shown), cities: CITY_PHOTOS, tripCount, today, ...sections }
+  const coverCity = randomCity(Math.random, shown)
+  return { coverCity, coverCaption: captionFor(coverCity.slug), cities: CITY_PHOTOS, tripCount, today, ...sections }
 }
 
 /** First visit (UI-SPEC §2): logged out, or signed in with no trips yet. */
