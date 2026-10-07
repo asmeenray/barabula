@@ -5,9 +5,11 @@
 // stop's photo or its city-map cover once a city is set. Body: the printed
 // stamp lines, the one-question-at-a-time card and, as soon as one city is
 // set, Start planning (D-10), which creates the trip and opens its empty plan
-// (D-18). No From field and no flights link (D-14).
+// (D-18). No From field and no flights link (D-14). Logged out, Start planning
+// keeps the answers on the device and asks the user to sign in (D-19, D-41);
+// back here without signing in, the kept answers are shown again.
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { CityPhoto } from '@/lib/photos/manifest'
 import { findCity } from '@/lib/photos/normalize'
@@ -15,12 +17,17 @@ import { knownCities } from '@/lib/pass/cities'
 import { firstMissingStep } from '@/lib/pass/describe'
 import { intoLine, passTitle, whenLine, whoLine } from '@/lib/pass/format'
 import type { PassAnswers, PassCity } from '@/lib/pass/types'
+import { loadPending, savePending } from '@/lib/pass/pending'
+import { LAPTOP_QUERY, useMediaQuery } from '@/lib/client/use-media'
 import { useAnnounce } from '@/components/a11y/LiveRegion'
 import { BoardStatusLine } from '@/components/board/BoardStatusLine'
 import { PassCover, PhotoCredit } from './PassCover'
 import { DescribeBox } from './DescribeBox'
 import { QuestionCard, type QuestionStep } from './QuestionCard'
 import { StampLine } from './StampLine'
+
+/** The sign-in sheet / panel (Drawer), loaded the first time a logged-out user starts planning. */
+const SignInPanel = lazy(() => import('./SignInPanel'))
 
 type Props = {
   /** The server's random curated city (getHomeData), shown until a city is chosen. */
@@ -73,6 +80,13 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
   const [failedSlug, setFailedSlug] = useState<string | null>(null)
   // One id per pass, so a retried create returns the same trip (Pitfall 7).
   const clientRef = useRef<string | null>(null)
+  // Logged out (D-19): the sign-in sheet / inline panel, and answers kept from
+  // a sign-in that did not finish.
+  const isLaptop = useMediaQuery(LAPTOP_QUERY)
+  const [signIn, setSignIn] = useState(false)
+  const [interrupted, setInterrupted] = useState(false)
+  const startRef = useRef<HTMLButtonElement>(null)
+  const [focusStart, setFocusStart] = useState(0)
 
   const cities = useMemo<PassCity[]>(
     () => photos.map((p) => ({ name: p.city, names: p.names, code: p.iata })),
@@ -106,6 +120,32 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
       setReachedEnd(true)
       goTo('ready')
     } else goTo((step + 1) as QuestionStep)
+  }
+
+  // Back without signing in: the kept answers fill the pass again (after
+  // hydration, since the server has no device storage).
+  useEffect(() => {
+    if (signedIn) return
+    const kept = loadPending()
+    if (!kept) return
+    clientRef.current = kept.clientRef
+    // Device storage only exists after hydration, so this one restore cannot
+    // be an initial state without a server/client mismatch.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setAnswers(kept.pass)
+    setReachedEnd(true)
+    setStep('ready')
+    setInterrupted(true)
+  }, [signedIn])
+
+  // Closing the inline panel brings Start planning back; focus returns to it.
+  useEffect(() => {
+    if (focusStart) startRef.current?.focus()
+  }, [focusStart])
+
+  function closeSignIn() {
+    setSignIn(false)
+    setFocusStart((n) => n + 1)
   }
 
   // The ready pass takes focus when the user arrives there, like a new question.
@@ -157,12 +197,14 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
 
   async function startPlanning() {
     if (create === 'creating') return
+    clientRef.current ??= crypto.randomUUID()
     if (!signedIn) {
-      // 16-15 replaces this with sign-in that keeps the answers (D-19).
-      router.push('/login')
+      // Kept for 24 h; ResumePendingTrip creates the trip right after sign-in.
+      savePending(answers, clientRef.current)
+      setInterrupted(false)
+      setSignIn(true)
       return
     }
-    clientRef.current ??= crypto.randomUUID()
     setCreate('creating')
     try {
       const res = await fetch('/api/itineraries', {
@@ -218,7 +260,11 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
           </div>
         )}
 
-        {mode === 'describe' ? (
+        {signIn && isLaptop ? (
+          <Suspense fallback={null}>
+            <SignInPanel variant="inline" onClose={closeSignIn} />
+          </Suspense>
+        ) : mode === 'describe' ? (
           <DescribeBox
             text={description}
             onText={setDescription}
@@ -249,8 +295,15 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
           />
         )}
 
-        {stops.length > 0 && (
+        {stops.length > 0 && !(signIn && isLaptop) && (
           <div className="flex flex-col gap-3">
+            {interrupted && !signIn && (
+              <BoardStatusLine
+                message="Sign-in didn't finish. Your answers are kept."
+                retryLabel="Retry sign-in"
+                onRetry={startPlanning}
+              />
+            )}
             {create === 'failed' && (
               <BoardStatusLine
                 message="Couldn't create the trip. Your answers are kept."
@@ -258,6 +311,7 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
               />
             )}
             <button
+              ref={startRef}
               type="button"
               onClick={startPlanning}
               aria-disabled={create === 'creating' || undefined}
@@ -272,6 +326,13 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
 
         {photo && showCredit && <PhotoCredit photo={photo} />}
       </div>
+
+      {/* Phone: sign-in is a bottom sheet over the pass. */}
+      {signIn && !isLaptop && (
+        <Suspense fallback={null}>
+          <SignInPanel variant="sheet" onClose={() => setSignIn(false)} returnFocus={startRef} />
+        </Suspense>
+      )}
     </section>
   )
 }

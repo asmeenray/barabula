@@ -140,10 +140,12 @@ test.describe('home first visit', () => {
         await expect(page.getByRole('heading', { name: heading })).toHaveCount(0)
       }
 
-      // Logged out, Start planning goes to sign-in for now (16-15 keeps the answers).
+      // Logged out, Start planning asks the visitor to sign in and keeps the
+      // answers (16-15, D-19; the full round trip is in signin-resume.spec.ts).
       await pickCity(page, 'Lisbon', 'Lisbon')
       await page.getByRole('button', { name: 'Start planning' }).click()
-      await expect(page).toHaveURL(/\/login$/)
+      await expect(page.getByRole('heading', { name: 'Check in to save your trip' })).toBeVisible()
+      await expect(page).toHaveURL(/\/$/)
     })
   })
 

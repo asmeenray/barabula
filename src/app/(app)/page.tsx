@@ -7,6 +7,7 @@ import { UpcomingList } from '@/components/pass/UpcomingPass'
 import { PastPile } from '@/components/pass/PastPile'
 import { CreateTripTile } from '@/components/pass/CreateTripTile'
 import { WhatBarabulaDoes } from '@/components/pass/WhatBarabulaDoes'
+import { ResumePendingTrip } from '@/components/pass/ResumePendingTrip'
 
 // Home = Trips tab (UI-SPEC §2, D-07, D-08). Server Component: the cover city
 // and the user's "today" are worked out on the server per request (D-09,
@@ -16,6 +17,8 @@ import { WhatBarabulaDoes } from '@/components/pass/WhatBarabulaDoes'
 // row 1 = the two passes side by side as vertical passes; with no Now/Next pass
 // the blank pass spans the row (horizontal). First visit (logged out, or no
 // trips): the pass, one line of guidance and What Barabula does, nothing else.
+// Signed in, a pass kept on the device before sign-in becomes a trip and its
+// plan opens (ResumePendingTrip, D-19).
 export const dynamic = 'force-dynamic'
 
 export default async function HomePage() {
@@ -32,6 +35,7 @@ export default async function HomePage() {
   return (
     <div className="min-h-0 flex-1 overflow-y-auto">
       <div className="mx-auto flex w-full max-w-[1120px] flex-col gap-8 px-4 pt-4 pb-16 lg:gap-12 lg:px-8 lg:pt-8">
+        {user && <ResumePendingTrip />}
         <div className={paired ? 'grid items-start gap-4 lg:grid-cols-2 lg:gap-8' : 'flex flex-col gap-4'}>
           {home.now && <NowNextPass trip={home.now} state="now" priority />}
           <BlankPass
