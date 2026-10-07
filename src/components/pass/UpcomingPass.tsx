@@ -12,7 +12,9 @@ import { useRef, useState } from 'react'
 import Link from 'next/link'
 import { Collapsible } from '@base-ui/react/collapsible'
 import type { HomeTrip } from '@/lib/home/data'
+import { LinkLoadingRow } from '@/components/motion/LoadingRow'
 import { PassCover, PhotoCredit } from './PassCover'
+import { PASS_LOADING } from './NowNextPass'
 import { useVisibleTrips } from './HideWhenPending'
 
 const SHOWN = 3
@@ -50,19 +52,23 @@ export function UpcomingPass({ trip }: { trip: HomeTrip }) {
         onFallback={() => setPhotoFailed(true)}
       />
 
-      <dl className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] border-t-[1.5px] border-dashed border-perf">
-        <Field label="When" value={when} />
-        <Field label="Days" value={String(trip.dayCount)} />
-        <Field label="Places" value={String(trip.placeCount)} />
-        <div className="flex min-w-0 flex-col justify-start gap-1 border-l-[1.5px] border-dashed border-perf py-2.5 pr-4 pl-3 xl:pr-3 xl:pl-2">
-          <dt className="font-label text-xs leading-[1.33] font-semibold tracking-[0.16em] text-muted uppercase">Status</dt>
-          <dd>
-            <span className="inline-flex h-6 items-center rounded-[4px] border border-field px-1.5 font-label text-xs leading-none font-semibold tracking-[0.16em] whitespace-nowrap text-muted uppercase xl:px-1 xl:tracking-[0.08em]">
-              {statusOf(trip)}
-            </span>
-          </dd>
-        </div>
-      </dl>
+      <div className="relative">
+        {/* Leaves the dashed perforation on top visible. */}
+        <LinkLoadingRow className={`${PASS_LOADING} top-[1.5px]`} />
+        <dl className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] border-t-[1.5px] border-dashed border-perf">
+          <Field label="When" value={when} />
+          <Field label="Days" value={String(trip.dayCount)} />
+          <Field label="Places" value={String(trip.placeCount)} />
+          <div className="flex min-w-0 flex-col justify-start gap-1 border-l-[1.5px] border-dashed border-perf py-2.5 pr-4 pl-3 xl:pr-3 xl:pl-2">
+            <dt className="font-label text-xs leading-[1.33] font-semibold tracking-[0.16em] text-muted uppercase">Status</dt>
+            <dd>
+              <span className="inline-flex h-6 items-center rounded-[4px] border border-field px-1.5 font-label text-xs leading-none font-semibold tracking-[0.16em] whitespace-nowrap text-muted uppercase xl:px-1 xl:tracking-[0.08em]">
+                {statusOf(trip)}
+              </span>
+            </dd>
+          </div>
+        </dl>
+      </div>
 
       {trip.photo && !photoFailed && <PhotoCredit photo={trip.photo} className="px-4 pb-3 text-muted" />}
     </Link>

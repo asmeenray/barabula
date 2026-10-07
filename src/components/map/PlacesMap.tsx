@@ -31,6 +31,8 @@ export interface PlacesMapProps {
   onSelect: (id: string) => void
   /** Pixels covered by floating controls (phone: filters on top, the sheet's peek below). */
   inset?: { top: number; bottom: number }
+  /** The map loaded or failed (PlacesMapLazy takes its LOADING MAP… row down). */
+  onSettled?: () => void
 }
 
 type Bounds = [[number, number], [number, number]]
@@ -75,7 +77,7 @@ function reducedMotion(): boolean {
   return typeof window.matchMedia === 'function' && window.matchMedia('(prefers-reduced-motion: reduce)').matches
 }
 
-export default function PlacesMap({ points, colors, selectedId, onSelect, inset }: PlacesMapProps) {
+export default function PlacesMap({ points, colors, selectedId, onSelect, inset, onSettled }: PlacesMapProps) {
   // Follows html data-theme live (D-03): a change swaps the OpenFreeMap style
   // (setStyle); react-map-gl re-adds the Source/Layer children and the pin
   // resolver stays on the map across the swap (A1, checked in e2e/you.spec.ts).
@@ -157,6 +159,7 @@ export default function PlacesMap({ points, colors, selectedId, onSelect, inset 
       return
     }
     setFailed(true)
+    onSettled?.()
   }
 
   function retry() {
@@ -210,6 +213,7 @@ export default function PlacesMap({ points, colors, selectedId, onSelect, inset 
             if (performance.getEntriesByName(PLACES_MAP_LOAD_MARK).length === 0) {
               performance.mark(PLACES_MAP_LOAD_MARK)
             }
+            onSettled?.()
           }}
           onError={handleError}
           interactiveLayerIds={ready ? LAYERS : undefined}

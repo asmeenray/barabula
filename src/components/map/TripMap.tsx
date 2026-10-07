@@ -34,6 +34,8 @@ export interface TripMapProps {
   onPinHover?: (id: string | null) => void
   /** A pin was clicked or tapped. */
   onPinSelect?: (id: string) => void
+  /** The map loaded or failed (TripMapLazy takes its LOADING MAP… row down). */
+  onSettled?: () => void
 }
 
 type Bounds = [[number, number], [number, number]]
@@ -81,6 +83,7 @@ export default function TripMap({
   selectedId = null,
   onPinHover,
   onPinSelect,
+  onSettled,
 }: TripMapProps) {
   // Follows html data-theme live (D-03): a change swaps the OpenFreeMap style
   // (setStyle); react-map-gl re-adds the Source/Layer children and the pin
@@ -174,6 +177,7 @@ export default function TripMap({
       return
     }
     setFailed(true)
+    onSettled?.()
   }
 
   function retry() {
@@ -228,6 +232,7 @@ export default function TripMap({
             if (performance.getEntriesByName(MAP_LOAD_MARK).length === 0) {
               performance.mark(MAP_LOAD_MARK)
             }
+            onSettled?.()
           }}
           onError={handleError}
           onIdle={(e) => countPins(e.target)}

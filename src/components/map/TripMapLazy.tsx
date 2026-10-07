@@ -1,10 +1,11 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { preconnect } from 'react-dom'
 import type { TripMapProps } from './TripMap'
 import { TILE_ORIGIN, warmMap } from './maplibre-loader'
+import { DelayedLoadingRow, MAP_LOADING } from '@/components/motion/LoadingRow'
 
 // ssr: false keeps MapLibre out of the server render and out of the route's
 // first JS; the map mounts after the board has painted.
@@ -25,5 +26,21 @@ export function TripMapLazy(props: TripMapProps) {
     warmMap()
   }, [])
 
-  return <TripMap {...props} />
+  // The chunk, the style and the first tiles: LOADING MAP… until the map has
+  // loaded (or shows its own DELAYED line), only if that takes over 300 ms.
+  const [settled, setSettled] = useState(false)
+  const { onSettled } = props
+
+  return (
+    <>
+      <TripMap
+        {...props}
+        onSettled={() => {
+          setSettled(true)
+          onSettled?.()
+        }}
+      />
+      <DelayedLoadingRow loading={!settled} label="LOADING MAP…" className={MAP_LOADING} />
+    </>
+  )
 }

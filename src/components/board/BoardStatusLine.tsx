@@ -1,6 +1,9 @@
 // Inline status lines (UI-SPEC Interaction States, D-32, D-33). Never a pop-up.
 // DELAYED: accent chip + ink sentence + optional "Retry" text button.
-// LOADING: a static board row here; the split-flap cycle arrives in 16-20.
+// LOADING: the split-flap board row (LoadingRow, 16-20); callers show it
+// through useDelayedFlag / DelayedLoadingRow (after 300 ms, at least 400 ms).
+
+import { LoadingRow } from '@/components/motion/LoadingRow'
 
 interface BoardStatusLineProps {
   message: string
@@ -43,13 +46,7 @@ export function BoardStatusLine({
   )
 }
 
-export function BoardLoadingRow({ label = 'Loading…' }: { label?: string }) {
-  return (
-    <p
-      role="status"
-      className="flex min-h-14 items-center border-b border-board-line px-4 font-mono text-base font-semibold text-board-muted uppercase"
-    >
-      {label}
-    </p>
-  )
+/** The LOADING variant: a board row that split-flaps (static under reduced motion). */
+export function BoardLoadingRow({ label = 'LOADING…' }: { label?: string }) {
+  return <LoadingRow label={label} />
 }

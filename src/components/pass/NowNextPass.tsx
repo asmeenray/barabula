@@ -11,6 +11,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import type { HomeTrip } from '@/lib/home/data'
+import { LinkLoadingRow } from '@/components/motion/LoadingRow'
 import { PassCover, PhotoCredit } from './PassCover'
 import { StampLine } from './StampLine'
 
@@ -22,6 +23,10 @@ type Props = {
 }
 
 const STATE_LABEL = { now: 'Now', next: 'Next trip' } as const
+
+/** LOADING… over a tapped pass's body while its plan opens (D-32; the plan route has no loading.tsx). */
+export const PASS_LOADING =
+  'absolute inset-0 z-[1] flex items-center bg-surface px-4 font-mono text-base font-semibold text-board-muted uppercase lg:px-6'
 
 export function NowNextPass({ trip, state, priority = false }: Props) {
   const [photoFailed, setPhotoFailed] = useState(false)
@@ -59,7 +64,8 @@ export function NowNextPass({ trip, state, priority = false }: Props) {
 
       <Perforation />
 
-      <div className="flex min-w-0 flex-col gap-3 px-4 pt-2 pb-4 lg:px-6 lg:pt-4 lg:pb-6">
+      <div className="relative flex min-w-0 flex-col gap-3 px-4 pt-2 pb-4 lg:px-6 lg:pt-4 lg:pb-6">
+        <LinkLoadingRow className={PASS_LOADING} />
         <div>
           {lines.map((l) => (
             <StampLine key={l.label} label={l.label} value={l.value} editName="" />
