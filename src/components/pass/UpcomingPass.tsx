@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { Collapsible } from '@base-ui/react/collapsible'
 import type { HomeTrip } from '@/lib/home/data'
 import { LinkLoadingRow } from '@/components/motion/LoadingRow'
+import { markTripOpen, TRIP_OPEN } from '@/lib/client/trip-open'
 import { PassCover, PhotoCredit } from './PassCover'
 import { PASS_LOADING } from './NowNextPass'
 import { useVisibleTrips } from './HideWhenPending'
@@ -34,6 +35,9 @@ export function UpcomingPass({ trip }: { trip: HomeTrip }) {
   return (
     <Link
       href={`/itinerary/${trip.id}`}
+      // Moment 4: the cover morphs into the plan header (D-30).
+      transitionTypes={[TRIP_OPEN]}
+      onClick={() => markTripOpen(trip.id)}
       aria-label={name}
       title={trip.title}
       data-pass="upcoming"
@@ -49,6 +53,7 @@ export function UpcomingPass({ trip }: { trip: HomeTrip }) {
         titleAs="h3"
         titleAttrs={{ title: trip.title }}
         oneLine
+        transitionId={trip.id}
         onFallback={() => setPhotoFailed(true)}
       />
 

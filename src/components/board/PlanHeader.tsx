@@ -13,6 +13,8 @@
 // opens that line's question with Save / Cancel: a sheet on phone, inline under
 // the ticket row on laptop. The editor loads on first use (hover/focus warm it).
 // The dt/dd stay outside the buttons, so the values read as before.
+// Moment 4 (16-22, D-30): the strip is the trip-cover-{id} ViewTransition the
+// tapped pass morphs into.
 
 import { lazy, Suspense, useRef, useState } from 'react'
 import { tripInto, tripWhen, tripWho } from '@/lib/pass/trip-values'
@@ -146,6 +148,7 @@ export function PlanHeader({
           titleAs="h1"
           titleAttrs={BOARD_TIMING}
           holdPhoto={holdPhoto}
+          transitionId={trip.id}
           onFallback={() => setPhotoFailed(true)}
         />
         {editButton('to')}

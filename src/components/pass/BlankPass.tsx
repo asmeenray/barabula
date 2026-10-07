@@ -21,6 +21,7 @@ import type { PassAnswers, PassCity } from '@/lib/pass/types'
 import { loadPending, savePending } from '@/lib/pass/pending'
 import { LAPTOP_QUERY, useMediaQuery } from '@/lib/client/use-media'
 import { vibrate } from '@/lib/client/haptics'
+import { markTripOpen, TRIP_OPEN } from '@/lib/client/trip-open'
 import { useMotionFeatures } from '@/components/motion/MotionProvider'
 import { useAnnounce } from '@/components/a11y/LiveRegion'
 import { BoardStatusLine } from '@/components/board/BoardStatusLine'
@@ -86,6 +87,9 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
   const readyRef = useRef<HTMLHeadingElement>(null)
   const [create, setCreate] = useState<CreateState>('idle')
   const [failedSlug, setFailedSlug] = useState<string | null>(null)
+  // Moment 4: once Start planning has made the trip, the cover takes its
+  // trip-cover name and morphs into the new plan's header.
+  const [tripId, setTripId] = useState<string | null>(null)
   // One id per pass, so a retried create returns the same trip (Pitfall 7).
   const clientRef = useRef<string | null>(null)
   // Logged out (D-19): the sign-in sheet / inline panel, and answers kept from
@@ -230,7 +234,9 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
       })
       if (!res.ok) throw new Error(String(res.status))
       const { id } = (await res.json()) as { id: string }
-      router.push(`/itinerary/${id}`)
+      setTripId(id)
+      markTripOpen(id)
+      router.push(`/itinerary/${id}`, { transitionTypes: [TRIP_OPEN] })
     } catch {
       setCreate('failed')
     }
@@ -260,6 +266,7 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
         priority={priority}
         titleAs="h1"
         flapTitle={stops.length > 0}
+        transitionId={tripId}
         onFallback={() => photo && setFailedSlug(photo.slug)}
         className={horizontal ? 'lg:h-auto lg:min-h-[440px]' : 'lg:h-70'}
       />

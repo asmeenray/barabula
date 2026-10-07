@@ -93,6 +93,33 @@ const dropAnimations = (page: Page) =>
     return [el.getAnimations({ subtree: true }).length, root.getAnimations().length]
   })
 
+type VtWindow = Window & { __viewTransitions: number }
+
+/** Counts document.startViewTransition calls (moment 4), installed before the page loads. */
+async function countViewTransitions(page: Page) {
+  await page.addInitScript(() => {
+    const w = window as unknown as VtWindow
+    w.__viewTransitions = 0
+    const start = document.startViewTransition
+    if (typeof start !== 'function') return
+    document.startViewTransition = function (this: Document, ...args: Parameters<Document['startViewTransition']>) {
+      w.__viewTransitions += 1
+      return start.apply(this, args)
+    } as Document['startViewTransition']
+  })
+}
+
+const viewTransitions = (page: Page) => page.evaluate(() => (window as unknown as VtWindow).__viewTransitions)
+
+/** Taps the Lisbon upcoming pass on the home page and waits for its plan. */
+async function openLisbonFromItsPass(page: Page, lisbonId: string) {
+  await page.goto('/')
+  const upcoming = page.getByRole('region', { name: /^Upcoming/ })
+  await upcoming.getByRole('link', { name: /^Lisbon,/ }).click()
+  await expect(page).toHaveURL(new RegExp(`/itinerary/${lisbonId}$`))
+  await expect(page.getByRole('heading', { level: 1, name: 'Lisbon' })).toBeVisible()
+}
+
 const rowMoves = (page: Page) => page.evaluate(() => (window as unknown as AnimWindow).__rowMoves)
 
 /** Adds a place to day 1 through the place form (sheet on phone, inline on laptop); returns the saved id. */
@@ -220,6 +247,16 @@ test.describe('motion', () => {
   })
 })
 
+test('moment 4: the trip opens from its pass through a view transition', async ({ page, browserName }) => {
+  test.skip(browserName !== 'chromium', 'Chromium has document.startViewTransition')
+  const fx = readFixtures()
+  await countViewTransitions(page)
+  await openLisbonFromItsPass(page, fx.lisbonId)
+  expect(await viewTransitions(page)).toBeGreaterThanOrEqual(1)
+  // The header strip is the morph's other end; the board is there and usable after it.
+  await expect(page.locator(`li[data-activity-id="${fx.activityIds['1'][0]}"]`)).toBeVisible()
+})
+
 test('moment 2 on the map: the located place drops its pin, then the map pin takes over', async ({ page }) => {
   const fx = readFixtures()
   await locateAddedPlaces(page)
@@ -317,5 +354,11 @@ test.describe('motion, reduced', () => {
     } finally {
       if (id) await page.request.delete(`/api/activities/${id}`)
     }
+  })
+
+  test('moment 4: the trip still opens from its pass', async ({ page }) => {
+    const fx = readFixtures()
+    await openLisbonFromItsPass(page, fx.lisbonId)
+    await expect(page.locator(`li[data-activity-id="${fx.activityIds['1'][0]}"]`)).toBeVisible()
   })
 })

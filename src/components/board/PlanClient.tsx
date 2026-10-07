@@ -40,6 +40,7 @@ import { DndElements, handleKey, rowKey, targetKey } from './dnd/elements'
 import { BOARD_FLIP, SplitFlap, boardFlipDelay } from '@/components/motion/SplitFlap'
 import type { PlanDndProps } from './dnd/PlanDnd'
 import { vibrate } from '@/lib/client/haptics'
+import { openedFromPass } from '@/lib/client/trip-open'
 
 /** Marked once the board has hydrated and its day tabs respond (logged by the budgets spec, Q46). */
 export const BOARD_READY_MARK = 'barabula:board-ready'
@@ -165,6 +166,12 @@ export function PlanClient({
   )
   const canEdit = useCanEdit()
   const mapReady = useAfterMark(MAP_READY_MARK, PHOTO_HOLD_MAX_MS)
+  // Opened from its pass (moment 4): the header photo is already in the
+  // browser, so it shows at once and the morph ends on the photo, not the
+  // blur; and the list under the header enters 210 ms after the morph starts
+  // (CSS .trip-list-enter; off under reduced motion). React applies no root
+  // transition here, so the live list shows under the morphing cover.
+  const [fromPass] = useState(() => openedFromPass(plan.trip.id))
   // Places without a pin are looked up through the server once the map is up (D-23).
   const { finding, stillOff, geocodeOne } = useGeocode(trip.id, all, canEdit, { start: mapReady, patchLocalExtra })
   const geoFor = (a: PlanActivity): RowGeo => ({
@@ -479,121 +486,124 @@ export function PlanClient({
           <PlanHeader
             trip={trip}
             photo={photo}
-            holdPhoto={!mapReady}
+            holdPhoto={!mapReady && !fromPass}
             cities={cities}
             isLaptop={isLaptop}
             onEdit={editTrip}
           />
 
-          {isEmpty ? (
-            <div className="px-4 pt-12 pb-8">
-              <h2 className="text-[22px] leading-[1.2] font-semibold">Now boarding: {city}</h2>
-              <p className="mt-2 max-w-[60ch] text-base text-board-muted">
-                Your plan is empty. Add the places you want to see, then arrange them by day.
-              </p>
-            </div>
-          ) : (
-            <>
-              {/* Sticky at the top of the board panel: the DELAYED line (D-33) while a
-                  save has failed, then the day tabs (phone only). */}
-              <div className="sticky top-0 z-10 bg-board">
-                {error && (
-                  <BoardStatusLine
-                    message={error.message}
-                    onRetry={error.retry}
-                    retryDisabled={!canEdit}
-                    className="border-b border-board-line px-4 py-2"
-                  />
-                )}
-                {tabs({
-                  className: 'border-b border-board-line px-4 py-2 lg:hidden',
-                  dropRef: (key) => elements.ref(targetKey(bucketKey(key === 'maybe' ? null : key), 'phone')),
-                })}
+          {/* The list under the header (its own box so moment 4 can fade it in). */}
+          <div className={fromPass ? 'trip-list-enter' : undefined}>
+            {isEmpty ? (
+              <div className="px-4 pt-12 pb-8">
+                <h2 className="text-[22px] leading-[1.2] font-semibold">Now boarding: {city}</h2>
+                <p className="mt-2 max-w-[60ch] text-base text-board-muted">
+                  Your plan is empty. Add the places you want to see, then arrange them by day.
+                </p>
               </div>
-
-              {days.map((rows, i) => {
-                const n = i + 1
-                return (
-                  <DaySection
-                    key={n}
-                    day={n}
-                    city={city}
-                    startDate={trip.start_date}
-                    selected={selected === n}
-                    flip={selected === n ? flipToken : 0}
-                    onSelect={() => setSelected(n)}
-                    rows={rows}
-                    openId={openId}
-                    onOpen={setOpenId}
-                    hoveredId={hoveredId}
-                    onHover={isLaptop ? setHoveredId : undefined}
-                    unsaved={unsaved}
-                    onUpdate={updateActivity}
-                    actionsFor={actionsFor}
-                    editorFor={editorFor}
-                    geoFor={geoFor}
-                    elements={elements}
-                    draggable={draggable}
-                    rowKeyOf={rowKeyOf}
-                    litId={lastAddedId}
-                    land={land}
-                    empty={
-                      <>
-                        <p className="font-mono text-base font-semibold uppercase">No stops yet</p>
-                        <p className="mt-1 text-base text-board-muted">Add a place to this day, or drag one here.</p>
-                      </>
-                    }
-                  />
-                )
-              })}
-
-              {/* Laptop: the days are stacked, so "+ DAY" closes the list of days. */}
-              {canAddDay && (
-                <div className="hidden border-b border-board-line px-4 py-2 lg:block">
-                  <button
-                    type="button"
-                    aria-label="Add a day"
-                    aria-disabled={!canEdit || undefined}
-                    onClick={addDay}
-                    className={`flex min-h-11 w-full items-center justify-center rounded-[4px] border border-dashed border-board-line font-mono text-xs font-semibold tracking-[0.08em] text-board-ink uppercase transition-colors duration-150 ease-out ${
-                      canEdit ? 'hover:bg-row-selected' : 'cursor-not-allowed opacity-40'
-                    }`}
-                  >
-                    + Day
-                  </button>
+            ) : (
+              <>
+                {/* Sticky at the top of the board panel: the DELAYED line (D-33) while a
+                    save has failed, then the day tabs (phone only). */}
+                <div className="sticky top-0 z-10 bg-board">
+                  {error && (
+                    <BoardStatusLine
+                      message={error.message}
+                      onRetry={error.retry}
+                      retryDisabled={!canEdit}
+                      className="border-b border-board-line px-4 py-2"
+                    />
+                  )}
+                  {tabs({
+                    className: 'border-b border-board-line px-4 py-2 lg:hidden',
+                    dropRef: (key) => elements.ref(targetKey(bucketKey(key === 'maybe' ? null : key), 'phone')),
+                  })}
                 </div>
-              )}
 
-              <DaySection
-                day="maybe"
-                city={city}
-                startDate={trip.start_date}
-                selected={selected === 'maybe'}
-                flip={selected === 'maybe' ? flipToken : 0}
-                onSelect={() => setSelected('maybe')}
-                rows={maybe}
-                openId={openId}
-                onOpen={setOpenId}
-                hoveredId={hoveredId}
-                onHover={isLaptop ? setHoveredId : undefined}
-                unsaved={unsaved}
-                onUpdate={updateActivity}
-                actionsFor={actionsFor}
-                editorFor={editorFor}
-                geoFor={geoFor}
-                elements={elements}
-                draggable={draggable}
-                rowKeyOf={rowKeyOf}
-                litId={lastAddedId}
-                land={land}
-                empty={
-                  <p className="text-base text-board-muted">
-                    Nothing in Maybe. Move a place here to keep it without planning it.
-                  </p>
-                }
-              />
-            </>
-          )}
+                {days.map((rows, i) => {
+                  const n = i + 1
+                  return (
+                    <DaySection
+                      key={n}
+                      day={n}
+                      city={city}
+                      startDate={trip.start_date}
+                      selected={selected === n}
+                      flip={selected === n ? flipToken : 0}
+                      onSelect={() => setSelected(n)}
+                      rows={rows}
+                      openId={openId}
+                      onOpen={setOpenId}
+                      hoveredId={hoveredId}
+                      onHover={isLaptop ? setHoveredId : undefined}
+                      unsaved={unsaved}
+                      onUpdate={updateActivity}
+                      actionsFor={actionsFor}
+                      editorFor={editorFor}
+                      geoFor={geoFor}
+                      elements={elements}
+                      draggable={draggable}
+                      rowKeyOf={rowKeyOf}
+                      litId={lastAddedId}
+                      land={land}
+                      empty={
+                        <>
+                          <p className="font-mono text-base font-semibold uppercase">No stops yet</p>
+                          <p className="mt-1 text-base text-board-muted">Add a place to this day, or drag one here.</p>
+                        </>
+                      }
+                    />
+                  )
+                })}
+
+                {/* Laptop: the days are stacked, so "+ DAY" closes the list of days. */}
+                {canAddDay && (
+                  <div className="hidden border-b border-board-line px-4 py-2 lg:block">
+                    <button
+                      type="button"
+                      aria-label="Add a day"
+                      aria-disabled={!canEdit || undefined}
+                      onClick={addDay}
+                      className={`flex min-h-11 w-full items-center justify-center rounded-[4px] border border-dashed border-board-line font-mono text-xs font-semibold tracking-[0.08em] text-board-ink uppercase transition-colors duration-150 ease-out ${
+                        canEdit ? 'hover:bg-row-selected' : 'cursor-not-allowed opacity-40'
+                      }`}
+                    >
+                      + Day
+                    </button>
+                  </div>
+                )}
+
+                <DaySection
+                  day="maybe"
+                  city={city}
+                  startDate={trip.start_date}
+                  selected={selected === 'maybe'}
+                  flip={selected === 'maybe' ? flipToken : 0}
+                  onSelect={() => setSelected('maybe')}
+                  rows={maybe}
+                  openId={openId}
+                  onOpen={setOpenId}
+                  hoveredId={hoveredId}
+                  onHover={isLaptop ? setHoveredId : undefined}
+                  unsaved={unsaved}
+                  onUpdate={updateActivity}
+                  actionsFor={actionsFor}
+                  editorFor={editorFor}
+                  geoFor={geoFor}
+                  elements={elements}
+                  draggable={draggable}
+                  rowKeyOf={rowKeyOf}
+                  litId={lastAddedId}
+                  land={land}
+                  empty={
+                    <p className="text-base text-board-muted">
+                      Nothing in Maybe. Move a place here to keep it without planning it.
+                    </p>
+                  }
+                />
+              </>
+            )}
+          </div>
 
           {/* Laptop: the inline add form takes the Add place bar's place (UI-SPEC §9). */}
           {form?.mode === 'add' && isLaptop ? (

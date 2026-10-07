@@ -3,8 +3,13 @@
 // Server-safe (no hooks); the photo itself is the small CoverImage client
 // island. No glass or blur over photos; the only blur is the ≤10 px placeholder
 // while the photo loads. Text on the cover is always white inside a scrim.
+// Moment 4 (16-22, D-30): given a trip id, the cover is a React ViewTransition
+// named trip-cover-{id} (share="morph", default="none"); the plan header strip
+// carries the same name, so opening a trip morphs the pass cover into it.
 
+import { ViewTransition } from 'react'
 import type { CoverPhoto } from '@/lib/photos/manifest'
+import { coverTransitionName } from '@/lib/client/trip-open'
 import { CityMapCover } from './CityMapCover'
 import { CoverImage } from './CoverImage'
 import { SplitFlap } from '@/components/motion/SplitFlap'
@@ -68,6 +73,12 @@ type Props = {
    * visit): a SplitFlap `play` value, falsy on the server render.
    */
   flapTitle?: unknown
+  /**
+   * Moment 4: the trip whose cover this is, for the pass → plan header morph.
+   * null keeps the transition wrapper without a shared name (the blank pass
+   * before its trip exists), so naming it later does not remount the cover.
+   */
+  transitionId?: string | null
   className?: string
 }
 
@@ -86,9 +97,10 @@ export function PassCover({
   titleAttrs,
   oneLine = false,
   flapTitle,
+  transitionId,
   className = '',
 }: Props) {
-  return (
+  const cover = (
     <div className={`relative isolate overflow-hidden bg-surface-2 text-on-photo ${HEIGHT[variant]} ${className}`}>
       {photo ? (
         <CoverImage
@@ -122,6 +134,12 @@ export function PassCover({
         {statusLine && <p className="mt-1 truncate font-mono text-base leading-tight tabular-nums">{statusLine}</p>}
       </div>
     </div>
+  )
+  if (transitionId === undefined) return cover
+  return (
+    <ViewTransition name={transitionId ? coverTransitionName(transitionId) : undefined} share="morph" default="none">
+      {cover}
+    </ViewTransition>
   )
 }
 

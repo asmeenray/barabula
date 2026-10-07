@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import type { HomeTrip } from '@/lib/home/data'
 import { LinkLoadingRow } from '@/components/motion/LoadingRow'
+import { markTripOpen, TRIP_OPEN } from '@/lib/client/trip-open'
 import { PassCover, PhotoCredit } from './PassCover'
 import { StampLine } from './StampLine'
 
@@ -72,6 +73,9 @@ export function NowNextPass({ trip, state, priority = false }: Props) {
   return (
     <Link
       href={`/itinerary/${trip.id}`}
+      // Moment 4: the cover morphs into the plan header (D-30).
+      transitionTypes={[TRIP_OPEN]}
+      onClick={() => markTripOpen(trip.id)}
       aria-label={name}
       title={trip.title}
       data-pass={state}
@@ -88,6 +92,7 @@ export function NowNextPass({ trip, state, priority = false }: Props) {
         priority={priority}
         titleAs="h2"
         flapTitle={flap}
+        transitionId={trip.id}
         onFallback={() => setPhotoFailed(true)}
         className="lg:h-70"
       />

@@ -253,6 +253,44 @@
   pointer-events: none;
 }
 
+/* Moment 4 "trip opens from its pass" (16-22, D-30): the pass cover
+   (trip-cover-{id}, share="morph") glides into the plan header strip over
+   480 ms on --ease-sheet. Both snapshots fill the moving box (cover crop), so
+   the 144/200 px pass and the 96 px strip never stretch. */
+::view-transition-group(*) {
+  animation-duration: 480ms;
+  animation-timing-function: var(--ease-sheet);
+}
+::view-transition-group(.morph) {
+  overflow: clip;
+}
+::view-transition-old(.morph),
+::view-transition-new(.morph) {
+  height: 100%;
+  object-fit: cover;
+  animation-duration: 480ms;
+  animation-timing-function: var(--ease-sheet);
+}
+
+/* The plan list under the header enters 210 ms after the morph starts
+   (enter 210 ms, UI-SPEC Motion "Navigation"). A CSS entry on the live list:
+   React gives this navigation no root transition, so the list is painted
+   under the morphing cover. Opacity only, so nothing the cover's snapshot
+   measures moves. */
+.trip-list-enter {
+  animation: trip-list-in 210ms var(--ease-out) 210ms both;
+}
+@keyframes trip-list-in {
+  from {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .trip-list-enter {
+    animation: none;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   ::view-transition-group(*),
   ::view-transition-old(*),
