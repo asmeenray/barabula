@@ -31,8 +31,10 @@ interface BoardRowProps {
   /** The last change to this row failed to save (D-33). */
   unsaved: boolean
   onUpdate: (id: string, update: ActivityUpdate) => void
-  /** Row menu actions (Move to day…, Move up/down, Maybe, Remove). */
+  /** Row menu actions (Move to day…, Move up/down, Maybe, Edit, Remove). */
   actions: RowActions
+  /** The inline edit form (laptop, 16-11); shown instead of the ticket. */
+  editor?: React.ReactNode
 }
 
 function two(n: number): string {
@@ -55,6 +57,7 @@ export function BoardRow({
   unsaved,
   onUpdate,
   actions,
+  editor = null,
 }: BoardRowProps) {
   const rowRef = useRef<HTMLButtonElement>(null)
   const visited = chip === 'VISITED'
@@ -143,7 +146,7 @@ export function BoardRow({
         className="absolute top-1.5 right-2 bg-surface-2 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 data-popup-open:opacity-100 max-lg:hidden"
       />
 
-      {open && <PlaceTicket activity={a} stop={number} walk={walk} onUpdate={onUpdate} actions={actions} />}
+      {editor ?? (open && <PlaceTicket activity={a} stop={number} walk={walk} onUpdate={onUpdate} actions={actions} />)}
     </li>
   )
 }

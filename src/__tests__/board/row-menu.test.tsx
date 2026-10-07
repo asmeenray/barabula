@@ -29,7 +29,7 @@ describe('RowMenu', () => {
     expect(screen.getByRole('button', { name: 'Actions for Time Out Market' })).toBeTruthy()
   })
 
-  it('lists the actions in order, Edit place disabled until 16-11', async () => {
+  it('lists the actions in order; Edit place is off without an edit handler', async () => {
     setup({ moveUp: vi.fn(), moveDown: vi.fn(), remove: vi.fn() })
     const menu = await openMenu()
     const names = within(menu)
@@ -37,6 +37,21 @@ describe('RowMenu', () => {
       .map((el) => el.textContent?.trim())
     expect(names).toEqual(['Move to day…', 'Move up', 'Move down', 'Move to Maybe', 'Edit place', 'Remove from trip'])
     expect(within(menu).getByRole('menuitem', { name: 'Edit place' }).getAttribute('aria-disabled')).toBe('true')
+  })
+
+  it('Edit place calls edit (16-11)', async () => {
+    const edit = vi.fn()
+    setup({ edit })
+    const menu = await openMenu()
+    const item = within(menu).getByRole('menuitem', { name: 'Edit place' })
+    expect(item.getAttribute('aria-disabled')).not.toBe('true')
+    fireEvent.click(item)
+    expect(edit).toHaveBeenCalledTimes(1)
+  })
+
+  it('a locked (not yet saved) place has its menu off', () => {
+    setup({ locked: true })
+    expect(screen.getByRole('button', { name: 'Actions for Time Out Market' }).getAttribute('aria-disabled')).toBe('true')
   })
 
   it('Move to day… lists every day plus Maybe, current day disabled', async () => {

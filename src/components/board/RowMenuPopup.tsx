@@ -4,7 +4,7 @@
 // so Base UI Menu stays out of the plan route's first-load JS (Q46 budget).
 // The full keyboard and screen-reader path for every move. Order: Move to day… (Day 1…n, Maybe; current one
 // disabled) · Move up · Move down · Move to Maybe (from Maybe: Move to a day…)
-// · Edit place (wired in 16-11) · Remove from trip (danger). {Place} appears
+// · Edit place (16-11) · Remove from trip (danger). {Place} appears
 // only in the trigger's accessible name. Offline (D-34) the whole menu is off.
 
 import { useId } from 'react'
@@ -71,6 +71,7 @@ export default function RowMenuPopup({
   moveUp,
   moveDown,
   remove,
+  edit,
   locked = false,
   className = '',
   defaultOpen = false,
@@ -107,8 +108,7 @@ export default function RowMenuPopup({
                 <span className={LABEL}>Move to Maybe</span>
               </Menu.Item>
             )}
-            {/* Edit place opens the place form in 16-11; shown, not yet active. */}
-            <Menu.Item className={ITEM} disabled>
+            <Menu.Item className={ITEM} disabled={!edit} onClick={edit}>
               <span className={LABEL}>Edit place</span>
             </Menu.Item>
             <Menu.Separator className="my-1 h-px bg-line" />

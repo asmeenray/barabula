@@ -18,6 +18,8 @@ export interface RowActions {
   moveUp?: () => void
   moveDown?: () => void
   remove?: () => void
+  /** Opens the place form in edit mode (16-11). */
+  edit?: () => void
   /** The place is not saved yet (just added): the menu is off until it is. */
   locked?: boolean
 }

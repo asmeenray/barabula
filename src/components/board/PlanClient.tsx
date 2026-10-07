@@ -11,7 +11,7 @@ import { chipFor, dayTitle, nextStopId, stopsLabel } from '@/lib/plan/board'
 import { dayKm, walkCells } from '@/lib/plan/walk'
 import type { PlanActivity, TripPlan } from '@/lib/plan/types'
 import type { CityPhoto } from '@/lib/photos/manifest'
-import { isTempId, usePlan, type ActivityUpdate, type NewPlace } from '@/lib/plan/use-plan'
+import { clockOf, isTempId, usePlan, type ActivityUpdate, type NewPlace } from '@/lib/plan/use-plan'
 import { useCanEdit } from '@/lib/client/use-online'
 import { LAPTOP_QUERY, useMediaQuery } from '@/lib/client/use-media'
 import { useUndo } from '@/components/undo/UndoProvider'
@@ -57,6 +57,24 @@ export function toNewPlace(v: PlaceFormValues): NewPlace {
   }
 }
 
+/** The edit form starts from the place as stored. */
+function editValues(a: PlanActivity): PlaceFormValues {
+  const fixedTime = a.extra_data?.fixed_time === true
+  return {
+    name: a.name,
+    day: a.day_number,
+    location: a.location ?? '',
+    fixedTime,
+    time: fixedTime ? (clockOf(a.time) ?? '') : '',
+    note: a.description ?? '',
+  }
+}
+
+/** The row's own button (the ticket toggle); focus returns here after an edit. */
+function rowButtonOf(id: string): HTMLElement | null {
+  return document.querySelector<HTMLElement>(`li[data-activity-id="${CSS.escape(id)}"] > button[aria-expanded]`)
+}
+
 const MAP_BUTTON =
   'flex min-h-11 items-center justify-center gap-2 rounded-lg border border-field bg-surface text-ink transition-transform duration-150 ease-out active:scale-[0.97]'
 
@@ -65,6 +83,7 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cit
   const {
     activities: all,
     addActivity,
+    editActivity,
     updateActivity,
     moveActivity,
     moveUp,
@@ -124,6 +143,31 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cit
     void addActivity(place)
   }
 
+  function submitEdit(id: string, values: PlaceFormValues) {
+    const place = toNewPlace(values)
+    if (activities.find((a) => a.id === id)?.day_number !== place.day_number) setSelected(place.day_number ?? 'maybe')
+    void editActivity(id, place)
+  }
+
+  const editing = form?.mode === 'edit' ? activities.find((a) => a.id === form.id) ?? null : null
+
+  /** Laptop: the edit form opens inline under its row (UI-SPEC §9). */
+  function editorFor(a: PlanActivity): React.ReactNode {
+    if (!isLaptop || editing?.id !== a.id) return null
+    return (
+      <Suspense fallback={null}>
+        <LazyPlaceForm
+          mode="edit"
+          variant="inline"
+          dayCount={days.length}
+          initial={editValues(a)}
+          onSubmit={(values) => submitEdit(a.id, values)}
+          onClose={closeForm}
+        />
+      </Suspense>
+    )
+  }
+
   function toggleMap(expanded: boolean) {
     toggledRef.current = true
     setMapExpanded(expanded)
@@ -151,6 +195,7 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cit
     moveDown: index < rows.length - 1 ? () => moveDown(a.id) : undefined,
     // No confirm dialog: the place hides at once with a 10 s Undo (D-27 pattern).
     remove: () => removeActivity(a.id),
+    edit: () => openForm({ mode: 'edit', id: a.id }, rowButtonOf(a.id)),
   })
 
   const tabs = (props: { idPrefix?: string; controls?: (key: DayKey) => string; className?: string }) => (
@@ -257,6 +302,7 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cit
                     unsaved={unsaved}
                     onUpdate={updateActivity}
                     actionsFor={actionsFor}
+                    editorFor={editorFor}
                     empty={
                       <>
                         <p className="font-mono text-base font-semibold uppercase">No stops yet</p>
@@ -279,6 +325,7 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cit
                 unsaved={unsaved}
                 onUpdate={updateActivity}
                 actionsFor={actionsFor}
+                editorFor={editorFor}
                 empty={
                   <p className="text-base text-board-muted">
                     Nothing in Maybe. Move a place here to keep it without planning it.
@@ -319,14 +366,28 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cit
       </div>
 
       {/* Phone: the place form is a bottom sheet (Drawer). */}
-      {form && !isLaptop && (
+      {form?.mode === 'add' && !isLaptop && (
         <Suspense fallback={null}>
           <LazyPlaceForm
-            mode={form.mode}
+            mode="add"
             variant="sheet"
             dayCount={days.length}
             initial={{ ...EMPTY_FORM, day: selected === 'maybe' ? null : selected }}
             onSubmit={submitAdd}
+            onClose={closeForm}
+            returnFocus={openerRef}
+          />
+        </Suspense>
+      )}
+      {editing && !isLaptop && (
+        <Suspense fallback={null}>
+          <LazyPlaceForm
+            key={editing.id}
+            mode="edit"
+            variant="sheet"
+            dayCount={days.length}
+            initial={editValues(editing)}
+            onSubmit={(values) => submitEdit(editing.id, values)}
             onClose={closeForm}
             returnFocus={openerRef}
           />
@@ -349,6 +410,8 @@ interface DaySectionProps {
   unsaved: ReadonlySet<string>
   onUpdate: (id: string, update: ActivityUpdate) => void
   actionsFor: (a: PlanActivity, index: number, rows: PlanActivity[]) => RowActions
+  /** The inline edit form for a row (laptop), or null. */
+  editorFor: (a: PlanActivity) => React.ReactNode
   empty: React.ReactNode
 }
 
@@ -364,6 +427,7 @@ function DaySection({
   unsaved,
   onUpdate,
   actionsFor,
+  editorFor,
   empty,
 }: DaySectionProps) {
   const id = dayKeyId(day)
@@ -429,6 +493,7 @@ function DaySection({
                 unsaved={unsaved.has(a.id)}
                 onUpdate={onUpdate}
                 actions={actionsFor(a, i, rows)}
+                editor={editorFor(a)}
               />
             ))}
           </ol>

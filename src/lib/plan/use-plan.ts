@@ -79,6 +79,35 @@ function tempId(): string {
   return `${TEMP_PREFIX}${Date.now().toString(36)}-${tempSeq}`
 }
 
+/** Cached map keys in extra_data; the server drops them when the location changes (Pitfall 6). */
+export const GEO_KEYS = ['lat', 'lng', 'geo_source', 'geo_status', 'geocoded_at'] as const
+
+/** "14:30" from a stored time ("14:30" or "14:30:00"); null for anything else. */
+export function clockOf(time: string | null): string | null {
+  const m = /^(\d{1,2}):(\d{2})/.exec(time?.trim() ?? '')
+  return m ? `${m[1].padStart(2, '0')}:${m[2]}` : null
+}
+
+/**
+ * The PATCH for an edit: only what changed. Duration and tips are never sent
+ * (the form does not edit them). A stored time is left alone unless the
+ * "Set time" switch is on; turning it off only clears the fixed_time flag.
+ */
+export function editPatch(a: PlanActivity, place: NewPlace): ActivityUpdate {
+  const patch: ActivityUpdate = {}
+  if (place.name !== a.name) patch.name = place.name
+  if (place.location !== (a.location?.trim() || null)) patch.location = place.location
+  if (place.description !== (a.description?.trim() || null)) patch.description = place.description
+  const wasFixed = a.extra_data?.fixed_time === true
+  if (place.fixed_time) {
+    if (place.time !== clockOf(a.time)) patch.time = place.time
+    if (!wasFixed) patch.extra_data = { fixed_time: true }
+  } else if (wasFixed) {
+    patch.extra_data = { fixed_time: false }
+  }
+  return patch
+}
+
 /** Undo toast text for an add (UI-SPEC Copywriting "Undo toasts"). */
 export function addedLabel(day: number | null, lastInDay: string | null): string {
   if (day === null) return 'Added to Maybe'
@@ -458,6 +487,50 @@ export function usePlan(initial: TripPlan) {
     [activities, initial.trip.id, create, undo, markUnsaved, settled]
   )
 
+  /** Local-only extra_data change (map lookups, cleared geo keys); nothing is sent. */
+  const patchLocalExtra = useCallback(
+    (id: string, set: Record<string, unknown>, remove: readonly string[] = []) => {
+      setActivities((prev) =>
+        prev.map((a) => {
+          if (a.id !== id) return a
+          const extra: Record<string, unknown> = { ...(a.extra_data ?? {}), ...set }
+          for (const key of remove) delete extra[key]
+          return { ...a, extra_data: extra }
+        })
+      )
+    },
+    []
+  )
+
+  /**
+   * Saves the place form in edit mode (one PATCH of what changed; a new day
+   * appends the place to that day's end). No Undo toast: Discard changes is
+   * the way back before saving. A changed address clears the cached
+   * coordinates here too, so the place is looked up again.
+   */
+  const editActivity = useCallback(
+    async (id: string, place: NewPlace): Promise<{ saved: boolean; locationChanged: boolean }> => {
+      const a = activities.find((x) => x.id === id)
+      if (!a) return { saved: false, locationChanged: false }
+      const update = editPatch(a, place)
+      const changes: Change[] = []
+      if (place.day_number !== a.day_number) {
+        const target = bucketOf(activities, place.day_number, id)
+        const { position, renumber } = placeAt(target, target.length)
+        changes.push(...renumber)
+        update.day_number = place.day_number
+        update.position = position
+      }
+      const locationChanged = update.location !== undefined
+      if (Object.keys(update).length === 0) return { saved: true, locationChanged: false }
+      changes.push({ id, update })
+      if (locationChanged) patchLocalExtra(id, {}, GEO_KEYS)
+      const saved = await applyChanges(changes)
+      return { saved, locationChanged }
+    },
+    [activities, applyChanges, patchLocalExtra]
+  )
+
   const retry = useCallback(async () => {
     // Adds that failed are sent again.
     for (const [temp, body] of [...failedCreates.current.entries()]) {
@@ -482,6 +555,8 @@ export function usePlan(initial: TripPlan) {
   return {
     activities,
     addActivity,
+    editActivity,
+    patchLocalExtra,
     updateActivity,
     moveActivity,
     moveUp,
