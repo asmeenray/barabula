@@ -6,6 +6,8 @@
 // dated; MAYBE last with its count. Scrolls with snap past 5 tabs.
 // While a place is dragged (16-14) the board's tabs are drop targets: the drag
 // layer sets data-drop="ready" on every tab and "over" on the one under it.
+// Undated trips (16-17) get a "+ DAY" button (name "Add a day") at the end of
+// the strip. It sits beside the tablist, not inside it: it is not a tab.
 
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
@@ -35,6 +37,10 @@ interface DayTabsProps {
   className?: string
   /** Registers each tab as a drop target for the drag layer (board tabs only). */
   dropRef?: (key: DayKey) => (el: Element | null) => void
+  /** Shows "+ DAY" (undated trips under 30 days); adds one day. */
+  onAddDay?: () => void
+  /** Offline (D-34): "+ DAY" stays visible but does nothing. */
+  addDayDisabled?: boolean
 }
 
 export function DayTabs({
@@ -47,6 +53,8 @@ export function DayTabs({
   controls = (key) => `day-panel-${dayKeyId(key)}`,
   className,
   dropRef,
+  onAddDay,
+  addDayDisabled = false,
 }: DayTabsProps) {
   const keys: DayKey[] = [...Array.from({ length: dayCount }, (_, i) => i + 1), 'maybe']
   const refs = useRef(new Map<string, HTMLButtonElement>())
@@ -79,12 +87,12 @@ export function DayTabs({
     el?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
   }
 
-  return (
+  const tablist = (
     <div
       role="tablist"
       aria-label="Days"
       onKeyDown={onKeyDown}
-      className={`flex snap-x snap-mandatory scroll-px-4 gap-1.5 overflow-x-auto ${className ?? ''}`}
+      className={`flex snap-x snap-mandatory scroll-px-4 gap-1.5 overflow-x-auto ${onAddDay ? 'min-w-0 flex-1' : (className ?? '')}`}
     >
       {keys.map((key) => {
         const id = dayKeyId(key)
@@ -128,6 +136,24 @@ export function DayTabs({
           </button>
         )
       })}
+    </div>
+  )
+
+  if (!onAddDay) return tablist
+  return (
+    <div className={`flex gap-1.5 ${className ?? ''}`}>
+      {tablist}
+      <button
+        type="button"
+        aria-label="Add a day"
+        aria-disabled={addDayDisabled || undefined}
+        onClick={addDayDisabled ? undefined : onAddDay}
+        className={`flex h-12 min-w-16 shrink-0 items-center justify-center rounded-[4px] border border-dashed border-board-line px-2 font-mono text-base leading-none font-semibold text-board-ink uppercase tabular-nums transition-[background-color,transform] duration-150 ease-out ${
+          addDayDisabled ? 'cursor-not-allowed opacity-40' : 'hover:bg-row-selected active:scale-[0.97]'
+        }`}
+      >
+        + Day
+      </button>
     </div>
   )
 }

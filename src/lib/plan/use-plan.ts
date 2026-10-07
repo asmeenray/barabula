@@ -17,13 +17,24 @@
 // (the server picks the final position) and swaps in the saved row. Its Undo
 // removes the row and DELETEs the created id; a failed POST keeps the row as
 // "Not saved yet" and Retry sends it again.
+// Trip details (16-17, D-20) are edited the same way: applied at once, one
+// PATCH /api/itineraries/{id} and one Undo toast. A smaller day count first
+// moves the places on the removed days to Maybe, inside the same Undo op.
 
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useAnnounce } from '@/components/a11y/LiveRegion'
 import { useUndo } from '@/components/undo/UndoProvider'
 import { sortActivities } from './days'
 import { needsRenumber, positionBetween, renumberDay } from './ordering'
-import type { PlanActivity, TripPlan } from './types'
+import {
+  applyTripUpdate,
+  dayCountAfter,
+  inverseTripUpdate,
+  mergeTripUpdates,
+  movedToMaybeLabel,
+  type TripUpdate,
+} from './trip-patch'
+import type { PlanActivity, PlanTrip, TripPlan } from './types'
 
 /** What the client may change on an activity (mirrors ActivityPatchSchema). */
 export interface ActivityUpdate {
@@ -210,12 +221,33 @@ async function sendUpdate(id: string, update: ActivityUpdate): Promise<boolean> 
   }
 }
 
+export function tripUrl(id: string): string {
+  return `/api/itineraries/${encodeURIComponent(id)}`
+}
+
+async function sendTripUpdate(id: string, update: TripUpdate): Promise<boolean> {
+  try {
+    const res = await fetch(tripUrl(id), {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(update),
+    })
+    return res.ok
+  } catch {
+    return false
+  }
+}
+
 export function usePlan(initial: TripPlan) {
   const undo = useUndo()
   const announce = useAnnounce()
   const [activities, setActivities] = useState<PlanActivity[]>(() => sortActivities(initial.activities))
   const [unsaved, setUnsaved] = useState<ReadonlySet<string>>(() => new Set())
   const [failed, setFailed] = useState(false)
+  const [trip, setTrip] = useState<PlanTrip>(initial.trip)
+  const [dayCount, setDayCount] = useState(initial.dayCount)
+  /** Counts trip saves the server accepted (the page refreshes its cover after a new destination). */
+  const [tripSaves, setTripSaves] = useState(0)
 
   /** Patches that failed to save, per activity id (merged, latest wins). */
   const pending = useRef(new Map<string, ActivityUpdate>())
@@ -231,9 +263,17 @@ export function usePlan(initial: TripPlan) {
   const cancelledCreates = useRef(new Set<string>())
   /** Saved rows per temporary id, so an Undo after the save deletes the real id. */
   const createdRows = useRef(new Map<string, PlanActivity>())
+  /** A trip update that failed to save (merged, latest wins); Retry resends it. */
+  const tripPending = useRef<TripUpdate | undefined>(undefined)
+  /** Last trip save in flight; the next one waits for it. */
+  const tripQueue = useRef<Promise<unknown>>(Promise.resolve())
 
   const settled = useCallback(
-    () => pending.current.size === 0 && failedRemovals.current.size === 0 && failedCreates.current.size === 0,
+    () =>
+      pending.current.size === 0 &&
+      failedRemovals.current.size === 0 &&
+      failedCreates.current.size === 0 &&
+      tripPending.current === undefined,
     []
   )
 
@@ -535,6 +575,100 @@ export function usePlan(initial: TripPlan) {
     [activities, applyChanges, patchLocalExtra]
   )
 
+  /** Sends a trip update after the previous one (and after `after`); returns whether it saved. */
+  const saveTrip = useCallback(
+    (update: TripUpdate, after: Promise<unknown> = Promise.resolve()): Promise<boolean> => {
+      const run = Promise.all([tripQueue.current, after]).then(async () => {
+        const body = mergeTripUpdates(tripPending.current, update)
+        if (Object.keys(body).length === 0) return true
+        const ok = await sendTripUpdate(initial.trip.id, body)
+        tripPending.current = ok ? undefined : body
+        if (ok) setTripSaves((n) => n + 1)
+        return ok
+      })
+      tripQueue.current = run
+      return run
+    },
+    [initial.trip.id]
+  )
+
+  /**
+   * Saves trip details (D-20) at once with one Undo toast. When the board
+   * gets fewer days, every place on a removed day is first appended to Maybe
+   * (plan order); the toast then reads "{n} places moved to Maybe" and its
+   * Undo restores both the places and the old trip values.
+   */
+  const updateTrip = useCallback(
+    (update: TripUpdate): Promise<boolean> => {
+      const before = trip
+      const beforeCount = dayCount
+      const nextCount = dayCountAfter(update, dayCount)
+
+      const changes: Change[] = []
+      const inverse: Change[] = []
+      const shed =
+        nextCount < dayCount
+          ? sortActivities(activities.filter((a) => a.day_number !== null && a.day_number > nextCount))
+          : []
+      if (shed.length) {
+        let bucket = bucketOf(activities, null)
+        for (const a of shed) {
+          const { position, renumber } = placeAt(bucket, bucket.length)
+          changes.push(...renumber, { id: a.id, update: { day_number: null, position } })
+          const renumbered = new Map(renumber.map((r) => [r.id, r.update.position as number]))
+          bucket = [
+            ...bucket.map((b) => (renumbered.has(b.id) ? { ...b, position: renumbered.get(b.id) as number } : b)),
+            { ...a, day_number: null, position },
+          ]
+        }
+        const seen = new Set<string>()
+        for (const c of changes) {
+          if (seen.has(c.id)) continue
+          seen.add(c.id)
+          const b = activities.find((x) => x.id === c.id) as PlanActivity
+          if (c.update.day_number !== undefined) {
+            // A null position can't be sent back; the day's last slot keeps it at the end.
+            const position = b.position ?? (bucketOf(activities, b.day_number).at(-1)?.position ?? 0) + 1
+            inverse.push({ id: c.id, update: { day_number: b.day_number, position } })
+          } else if (b.position !== null) {
+            inverse.push({ id: c.id, update: { position: b.position } })
+          }
+        }
+      }
+
+      const back = inverseTripUpdate(before, update, beforeCount)
+      setTrip((t) => applyTripUpdate(t, update))
+      setDayCount(nextCount)
+      // Places first, then the trip (UI-SPEC §9), so the board never has a day it can't show.
+      const placesSaved = changes.length ? applyChanges(changes) : Promise.resolve(true)
+      const tripSaved = saveTrip(update, placesSaved)
+      const saved = Promise.all([placesSaved, tripSaved]).then(([placesOk, tripOk]) => {
+        if (!tripOk) setFailed(true)
+        else if (settled()) setFailed(false)
+        return placesOk && tripOk
+      })
+
+      undo.run({
+        id: initial.trip.id,
+        label: shed.length ? movedToMaybeLabel(shed.length) : 'Trip details saved',
+        commit: () => {},
+        undo: () => {
+          setTrip((t) => applyTripUpdate(t, back))
+          setDayCount(beforeCount)
+          const tripBack = saveTrip(back)
+          const placesBack = inverse.length ? applyChanges(inverse) : Promise.resolve(true)
+          void Promise.all([tripBack, placesBack]).then(([tripOk]) => {
+            if (!tripOk) setFailed(true)
+            else if (settled()) setFailed(false)
+          })
+          announce('Undone. Trip details are back.')
+        },
+      })
+      return saved
+    },
+    [trip, dayCount, activities, applyChanges, saveTrip, settled, undo, announce, initial.trip.id]
+  )
+
   const retry = useCallback(async () => {
     // Adds that failed are sent again.
     for (const [temp, body] of [...failedCreates.current.entries()]) {
@@ -547,9 +681,12 @@ export function usePlan(initial: TripPlan) {
     for (const id of removals) removeActivity(id)
     const entries = [...pending.current.entries()]
     // Retrying an entry merges it with itself; pass an empty update.
-    const results = await Promise.all(entries.map(([id]) => save(id, {})))
+    const results = await Promise.all([
+      ...entries.map(([id]) => save(id, {})),
+      ...(tripPending.current ? [saveTrip({})] : []),
+    ])
     setFailed(results.some((ok) => !ok) || !settled())
-  }, [save, removeActivity, create, settled])
+  }, [save, saveTrip, removeActivity, create, settled])
 
   const error: PlanError | null = useMemo(
     () => (failed ? { message: SAVE_ERROR, retry: () => void retry() } : null),
@@ -557,6 +694,10 @@ export function usePlan(initial: TripPlan) {
   )
 
   return {
+    trip,
+    dayCount,
+    tripSaves,
+    updateTrip,
     activities,
     addActivity,
     editActivity,

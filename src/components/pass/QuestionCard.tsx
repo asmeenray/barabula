@@ -3,7 +3,8 @@
 // The pass's question card (UI-SPEC §4, D-10): one question at a time inside a
 // Fieldset whose legend is the question, with progress dots, "Question {n} of
 // 4", Back, Skip and the accent step button. The step bodies are exported on
-// their own so the trip-details sheet (16-17) can reuse a single question.
+// their own; with `only` the card shows a single question for the trip-details
+// sheet (16-17, D-20): no dots, Back or Skip, just Cancel and Save.
 // Copy (D-05): headings may use the airline voice; buttons stay plain verbs.
 
 import { useEffect, useId, useRef, useState } from 'react'
@@ -59,11 +60,22 @@ type ShellProps = {
   next: { label: string; name: string; disabled?: boolean; onPress: () => void }
   /** Changes when the user navigates here; focus then moves into the question. */
   focusSignal?: number
+  /** Single-question mode (16-17): no progress header; Cancel + a primary Save. */
+  single?: { onCancel: () => void }
+  /** id for the legend, so a sheet can be named by the question. */
+  legendId?: string
   children: React.ReactNode
 }
 
 /** Fieldset + header (dots, "Question {n} of 4", Back) + body + actions (Skip, step button). */
-export function QuestionShell({ n, legend, tag, onBack, onSkip, next, focusSignal = 0, children }: ShellProps) {
+/** Primary (ink) button: Save on the trip-details sheet (UI-SPEC button hierarchy). */
+function primaryButtonClass(disabled?: boolean): string {
+  return `h-11 min-w-28 rounded-lg bg-ink px-5 font-label text-base font-semibold tracking-[0.08em] text-bg uppercase transition-transform duration-[160ms] ease-[var(--ease-out)] active:scale-[0.97] ${
+    disabled ? 'cursor-not-allowed opacity-40 active:scale-100' : 'hover:bg-[color-mix(in_oklab,var(--ink)_88%,#000)]'
+  }`
+}
+
+export function QuestionShell({ n, legend, tag, onBack, onSkip, next, focusSignal = 0, single, legendId, children }: ShellProps) {
   const ref = useRef<HTMLFieldSetElement>(null)
 
   useEffect(() => {
@@ -77,20 +89,24 @@ export function QuestionShell({ n, legend, tag, onBack, onSkip, next, focusSigna
 
   return (
     <Fieldset.Root ref={ref} className="m-0 min-w-0 border-0 p-0" data-question={n}>
-      <div className="flex min-h-11 items-center gap-3">
-        <ProgressDots n={n} />
-        <span className={`${LABEL} text-muted`}>
-          Question {n} of {QUESTION_COUNT}
-        </span>
-        {onBack && (
-          <button type="button" aria-label="Previous question" onClick={onBack} className={`${TEXT_BUTTON} ml-auto`}>
-            Back
-          </button>
-        )}
-      </div>
+      {!single && (
+        <div className="flex min-h-11 items-center gap-3">
+          <ProgressDots n={n} />
+          <span className={`${LABEL} text-muted`}>
+            Question {n} of {QUESTION_COUNT}
+          </span>
+          {onBack && (
+            <button type="button" aria-label="Previous question" onClick={onBack} className={`${TEXT_BUTTON} ml-auto`}>
+              Back
+            </button>
+          )}
+        </div>
+      )}
 
-      <div className="mt-2 flex items-baseline gap-3">
-        <Fieldset.Legend className="font-read text-[22px] leading-[1.2] font-semibold text-ink">{legend}</Fieldset.Legend>
+      <div className={`${single ? '' : 'mt-2 '}flex items-baseline gap-3`}>
+        <Fieldset.Legend id={legendId} className="font-read text-[22px] leading-[1.2] font-semibold text-ink">
+          {legend}
+        </Fieldset.Legend>
         {tag && (
           <span className={`${LABEL} rounded-[4px] border border-field px-1.5 py-0.5 text-muted`}>{tag}</span>
         )}
@@ -98,22 +114,39 @@ export function QuestionShell({ n, legend, tag, onBack, onSkip, next, focusSigna
 
       <div className="mt-4">{children}</div>
 
-      <div className="mt-4 flex items-center gap-3">
-        {onSkip && (
-          <button type="button" aria-label="Skip this question" onClick={onSkip} className={TEXT_BUTTON}>
-            Skip
+      {single ? (
+        <div className="mt-6 flex items-center gap-4">
+          <button type="button" aria-label="Cancel editing" onClick={single.onCancel} className={`${TEXT_BUTTON} ml-auto`}>
+            Cancel
           </button>
-        )}
-        <button
-          type="button"
-          aria-label={next.name}
-          aria-disabled={next.disabled || undefined}
-          onClick={next.disabled ? undefined : next.onPress}
-          className={stepButtonClass(next.disabled)}
-        >
-          {next.label}
-        </button>
-      </div>
+          <button
+            type="button"
+            aria-label="Save trip details"
+            aria-disabled={next.disabled || undefined}
+            onClick={next.disabled ? undefined : next.onPress}
+            className={primaryButtonClass(next.disabled)}
+          >
+            Save
+          </button>
+        </div>
+      ) : (
+        <div className="mt-4 flex items-center gap-3">
+          {onSkip && (
+            <button type="button" aria-label="Skip this question" onClick={onSkip} className={TEXT_BUTTON}>
+              Skip
+            </button>
+          )}
+          <button
+            type="button"
+            aria-label={next.name}
+            aria-disabled={next.disabled || undefined}
+            onClick={next.disabled ? undefined : next.onPress}
+            className={stepButtonClass(next.disabled)}
+          >
+            {next.label}
+          </button>
+        </div>
+      )}
     </Fieldset.Root>
   )
 }
@@ -571,8 +604,85 @@ type CardProps = {
   onDescribe?: () => void
 }
 
-/** One question at a time (D-10): Where to? → When? → Who's going? → What are you into? */
-export function QuestionCard({ step, answers, cities, onStops, onAnswer, onNext, onBack, focusSignal, onDescribe }: CardProps) {
+/** The line a single-question card edits (16-17, D-20). */
+export type QuestionLine = 'to' | 'when' | 'who' | 'into'
+
+type SingleProps = {
+  only: QuestionLine
+  answers: PassAnswers
+  cities: readonly PassCity[]
+  /** The changed answers for this line; the caller saves and closes. */
+  onSave: (patch: Partial<PassAnswers>) => void
+  onCancel: () => void
+  /** id for the question's legend (names the sheet). */
+  legendId?: string
+}
+
+const LEGENDS: Record<QuestionLine, string> = {
+  to: 'Where to?',
+  when: 'When?',
+  who: "Who's going?",
+  into: 'What are you into?',
+}
+
+const STEP_OF: Record<QuestionLine, QuestionStep> = { to: 1, when: 2, who: 3, into: 4 }
+
+/** One question with Cancel / Save, prefilled from the trip (D-20); same fields and validation copy as the pass. */
+function SingleQuestion({ only, answers, cities, onSave, onCancel, legendId }: SingleProps) {
+  const [stops, setStops] = useState(answers.stops)
+  const [when, setWhen] = useState<PassWhen | undefined>(answers.when ?? undefined)
+  const [who, setWho] = useState<Who>({ adults: answers.adults ?? 1, kids: answers.kids ?? 0 })
+  const [into, setInto] = useState<Into>({ interests: answers.interests, note: answers.note })
+
+  let disabled = false
+  let save: () => void
+  let body: React.ReactNode
+  switch (only) {
+    case 'to':
+      disabled = stops.length === 0
+      save = () => onSave({ stops })
+      body = <WhereToField stops={stops} cities={cities} onStops={setStops} />
+      break
+    case 'when':
+      disabled = when === undefined
+      save = () => when !== undefined && onSave({ when })
+      body = <WhenField value={answers.when} onChange={setWhen} />
+      break
+    case 'who':
+      disabled = who.adults === null || who.adults < 1
+      save = () => onSave({ adults: who.adults, kids: who.kids ?? 0 })
+      body = <WhoField value={who} onChange={setWho} />
+      break
+    case 'into':
+      save = () => onSave({ interests: into.interests, note: into.note?.trim() ? into.note.trim() : null })
+      body = <IntoField value={into} onChange={setInto} />
+      break
+  }
+
+  return (
+    <QuestionShell
+      n={STEP_OF[only]}
+      legend={LEGENDS[only]}
+      legendId={legendId}
+      focusSignal={1}
+      single={{ onCancel }}
+      next={{ label: 'Save', name: 'Save trip details', disabled, onPress: save }}
+    >
+      {body}
+    </QuestionShell>
+  )
+}
+
+/**
+ * One question at a time (D-10): Where to? → When? → Who's going? → What are
+ * you into? With `only`, just that question with Cancel / Save (D-20).
+ */
+export function QuestionCard(props: CardProps | SingleProps) {
+  if ('only' in props) return <SingleQuestion {...props} />
+  return <StepCard {...props} />
+}
+
+function StepCard({ step, answers, cities, onStops, onAnswer, onNext, onBack, focusSignal, onDescribe }: CardProps) {
   const nav = { onBack, onNext, focusSignal }
   switch (step) {
     case 1:

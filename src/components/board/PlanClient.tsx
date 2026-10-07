@@ -9,12 +9,17 @@
 
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import type { ComponentType } from 'react'
+import { useRouter } from 'next/navigation'
 import { groupDays } from '@/lib/plan/days'
 import { chipFor, dayTitle, nextStopId, stopsLabel } from '@/lib/plan/board'
 import { dayKm, walkCells } from '@/lib/plan/walk'
 import { bucketKey, type DropItems } from '@/lib/plan/drop'
 import type { PlanActivity, TripPlan } from '@/lib/plan/types'
 import type { CoverPhoto } from '@/lib/photos/manifest'
+import type { PassAnswers, PassCity } from '@/lib/pass/types'
+import { storedPass } from '@/lib/pass/trip-values'
+import { MAX_TRIP_DAYS } from '@/lib/plan/days'
+import { dayCountAfter, tripUpdateFor, type TripUpdate } from '@/lib/plan/trip-patch'
 import { clockOf, isTempId, usePlan, type ActivityUpdate, type NewPlace } from '@/lib/plan/use-plan'
 import { useCanEdit } from '@/lib/client/use-online'
 import { useGeocode } from '@/lib/plan/use-geocode'
@@ -109,9 +114,21 @@ const DROP_HEADER =
 const MAP_BUTTON =
   'flex min-h-11 items-center justify-center gap-2 rounded-lg border border-field bg-surface text-ink transition-transform duration-150 ease-out active:scale-[0.97]'
 
-export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: CoverPhoto | null }) {
-  const { trip } = plan
+export function PlanClient({
+  plan,
+  photo = null,
+  cities = [],
+}: {
+  plan: TripPlan
+  photo?: CoverPhoto | null
+  /** Curated cities for the trip-details Where to? (16-17). */
+  cities?: readonly PassCity[]
+}) {
   const {
+    trip,
+    dayCount,
+    tripSaves,
+    updateTrip,
     activities: all,
     addActivity,
     editActivity,
@@ -140,7 +157,7 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cov
     find: () => void geocodeOne(a.id, { manual: true }),
   })
   const city = trip.destination || trip.title
-  const grouped = useMemo(() => groupDays(activities, plan.dayCount), [activities, plan.dayCount])
+  const grouped = useMemo(() => groupDays(activities, dayCount), [activities, dayCount])
   // While a place is dragged the board shows the drag order (16-14); null = stored order.
   const [dragOrder, setDragOrder] = useState<DropItems | null>(null)
   const { days, maybe } = useMemo(() => {
@@ -288,6 +305,42 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cov
     edit: () => openForm({ mode: 'edit', id: a.id }, rowButtonOf(a.id)),
   })
 
+  // A new destination changes the cover photo, which the server page picks:
+  // refresh it once the trip save (or its Undo) has landed.
+  const router = useRouter()
+  const refreshedAt = useRef(0)
+  useEffect(() => {
+    if (tripSaves === refreshedAt.current) return
+    refreshedAt.current = tripSaves
+    if (trip.destination !== plan.trip.destination) router.refresh()
+  }, [tripSaves, trip.destination, plan.trip.destination, router])
+
+  /** Trip details saved from the header (D-20); a removed selected day falls back to Maybe or the last day. */
+  function saveTripDetails(update: TripUpdate) {
+    const next = dayCountAfter(update, dayCount)
+    if (typeof selected === 'number' && selected > next) {
+      setSelected(all.some((a) => a.day_number !== null && a.day_number > next) ? 'maybe' : next)
+    }
+    void updateTrip(update)
+  }
+
+  function editTrip(answers: Partial<PassAnswers>) {
+    saveTripDetails(tripUpdateFor(answers, dayCount))
+  }
+
+  // "Not sure yet" trips grow one day at a time (UI-SPEC §7 item 3), up to 30.
+  // A trip with a length keeps WHEN in step ("4 days").
+  const canAddDay = !trip.start_date && dayCount < MAX_TRIP_DAYS
+  function addDay() {
+    if (!canEdit || !canAddDay) return
+    const n = dayCount + 1
+    const when = storedPass(trip)?.when as { kind?: unknown } | null | undefined
+    const update: TripUpdate = { extra_data: { day_count: n } }
+    if (when?.kind === 'length') update.extra_data!.pass = { when: { kind: 'length', days: n } }
+    void updateTrip(update)
+    setSelected(n)
+  }
+
   const tabs = (props: {
     idPrefix?: string
     controls?: (key: DayKey) => string
@@ -300,6 +353,8 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cov
       startDate={trip.start_date}
       selected={selected}
       onSelect={setSelected}
+      onAddDay={canAddDay ? addDay : undefined}
+      addDayDisabled={!canEdit}
       {...props}
     />
   )
@@ -364,7 +419,14 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cov
         }`}
       >
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-board text-board-ink">
-          <PlanHeader trip={trip} photo={photo} holdPhoto={!mapReady} />
+          <PlanHeader
+            trip={trip}
+            photo={photo}
+            holdPhoto={!mapReady}
+            cities={cities}
+            isLaptop={isLaptop}
+            onEdit={editTrip}
+          />
 
           {isEmpty ? (
             <div className="px-4 pt-12 pb-8">
@@ -423,6 +485,23 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cov
                   />
                 )
               })}
+
+              {/* Laptop: the days are stacked, so "+ DAY" closes the list of days. */}
+              {canAddDay && (
+                <div className="hidden border-b border-board-line px-4 py-2 lg:block">
+                  <button
+                    type="button"
+                    aria-label="Add a day"
+                    aria-disabled={!canEdit || undefined}
+                    onClick={addDay}
+                    className={`flex min-h-11 w-full items-center justify-center rounded-[4px] border border-dashed border-board-line font-mono text-xs font-semibold tracking-[0.08em] text-board-ink uppercase transition-colors duration-150 ease-out ${
+                      canEdit ? 'hover:bg-row-selected' : 'cursor-not-allowed opacity-40'
+                    }`}
+                  >
+                    + Day
+                  </button>
+                </div>
+              )}
 
               <DaySection
                 day="maybe"

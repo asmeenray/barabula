@@ -4,6 +4,8 @@ import { isUuid } from '@/lib/uuid'
 import { dayCountFor, sortActivities } from '@/lib/plan/days'
 import type { PlanActivity, PlanTrip, TripPlan } from '@/lib/plan/types'
 import { tripCover } from '@/lib/photos/cover'
+import { CITY_PHOTOS } from '@/lib/photos/manifest'
+import type { PassCity } from '@/lib/pass/types'
 import { PlanClient } from '@/components/board/PlanClient'
 import { TopBar } from '@/components/shell/TopBar'
 
@@ -45,12 +47,14 @@ export default async function TripPlanPage({ params }: { params: Promise<{ id: s
   // Cover photo chosen here on the server (D-06, 16-21): the city photo, else the
   // country photo for the start month and interests; no match gives the city-map cover.
   const photo = tripCover(trip)
+  // The curated list for the trip-details Where to? (16-17); names only, no manifest in client JS.
+  const cities: PassCity[] = CITY_PHOTOS.map((p) => ({ name: p.city, names: p.names, code: p.iata }))
 
   // Inner page: back to Trips, no wordmark; the trip "⋯" menu fills actions in 16-17.
   return (
     <>
       <TopBar variant="inner" back={{ href: '/', label: 'Trips' }} />
-      <PlanClient plan={plan} photo={photo} />
+      <PlanClient plan={plan} photo={photo} cities={cities} />
     </>
   )
 }

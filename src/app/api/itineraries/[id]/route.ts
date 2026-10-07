@@ -1,5 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest } from 'next/server'
+import { readJson } from '@/lib/api/json'
+import { TripPatchSchema } from '@/lib/api/schemas'
+import { isUuid } from '@/lib/uuid'
 
 export async function GET(
   _req: NextRequest,
@@ -29,6 +32,18 @@ export async function GET(
   return Response.json(data)
 }
 
+// Trip details edit (16-17, D-20). Order: session → uuid → JSON only (415,
+// T-16-18) → strict TripPatchSchema (T-16-47) → extra_data merged into what is
+// stored (sibling keys and the pass's client_ref kept) → RLS-scoped update.
+// No row = 404 (missing or not yours); a database error says nothing more than
+// "Couldn't save" (T-16-50).
+const SAVE_FAILED = { error: "Couldn't save" }
+const NOT_FOUND = { error: 'Not found' }
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -37,24 +52,32 @@ export async function PATCH(
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!isUuid(id)) return Response.json({ error: 'Invalid request' }, { status: 400 })
 
-  const body = await req.json()
-  const updates: Record<string, unknown> = {}
-  if (body.title !== undefined) updates.title = body.title
-  if (body.description !== undefined) updates.description = body.description
-  if (body.destination !== undefined) updates.destination = body.destination
-  if (body.start_date !== undefined) updates.start_date = body.start_date
-  if (body.end_date !== undefined) updates.end_date = body.end_date
-  if (body.is_public !== undefined) updates.is_public = Boolean(body.is_public)
-  if (body.extra_data !== undefined) {
-    // Safe merge: read existing extra_data first to avoid overwriting sibling keys
-    const { data: existing } = await supabase
+  const read = await readJson(req)
+  if (!read.ok) return read.response
+  const parsed = TripPatchSchema.safeParse(read.body)
+  if (!parsed.success) return Response.json({ error: 'Invalid request' }, { status: 400 })
+  const { extra_data: extraPatch, ...columns } = parsed.data
+
+  const updates: Record<string, unknown> = { ...columns }
+  if (extraPatch) {
+    // Safe merge: read the stored extra_data first so sibling keys survive.
+    const { data: existing, error: readError } = await supabase
       .from('itineraries')
       .select('extra_data')
       .eq('id', id)
-      .single()
-    const existingExtraData = (existing?.extra_data ?? {}) as Record<string, unknown>
-    updates.extra_data = { ...existingExtraData, ...body.extra_data }
+      .maybeSingle<{ extra_data: unknown }>()
+    if (readError) return Response.json(SAVE_FAILED, { status: 500 })
+    if (!existing) return Response.json(NOT_FOUND, { status: 404 })
+    const stored = isRecord(existing.extra_data) ? existing.extra_data : {}
+    const next: Record<string, unknown> = { ...stored }
+    if (extraPatch.pass) {
+      const pass = isRecord(stored.pass) ? stored.pass : {}
+      next.pass = { ...pass, v: 1, ...extraPatch.pass }
+    }
+    if (extraPatch.day_count !== undefined) next.day_count = extraPatch.day_count
+    updates.extra_data = next
   }
 
   const { data, error } = await supabase
@@ -62,8 +85,9 @@ export async function PATCH(
     .update(updates)
     .eq('id', id)
     .select()
-    .single()
-  if (error) return Response.json({ error: error.message }, { status: 500 })
+    .maybeSingle()
+  if (error) return Response.json(SAVE_FAILED, { status: 500 })
+  if (!data) return Response.json(NOT_FOUND, { status: 404 })
   return Response.json(data)
 }
 
