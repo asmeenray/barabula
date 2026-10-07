@@ -3,7 +3,8 @@
 // countries (Nice, Bordeaux → France). Chosen by coverFor in ./cover.ts.
 //
 // Asmeen approved the 40 countries and every photo on 7 Oct 2026
-// ("Approved as listed"; UAE beach: "Keep it"). Same rules as the cities:
+// ("Approved as listed"; the UAE beach photo was dropped by Asmeen
+// on 7 Oct 2026 because a person is in frame). Same rules as the cities:
 // photographer, licence and source page are the Commons API values for each
 // file (public-domain files link the licence to the file page, which carries
 // the PD statement); CC0, CC BY or public domain only, no BY-SA. Focal points
@@ -746,18 +747,6 @@ export const COUNTRIES: readonly Country[] = [
         sourceUrl: 'https://commons.wikimedia.org/wiki/File:Liwa_%D8%B7%D8%B1%D9%8A%D9%82_%D8%AA%D9%84_%D8%A7%D9%84%D9%85%D8%B1%D8%B9%D8%A8_-_panoramio_-_greeeen2008_(3).jpg',
         files: filesFor('united-arab-emirates', 'countries'),
         blur: 'data:image/webp;base64,UklGRjwAAABXRUJQVlA4IDAAAADQAQCdASoIAAUAAsBMJQBOgCHhipgmAAD33+fgbP6Rxg1+l0NoK8NMmgao+OR0AAA=',
-      },
-      {
-        slug: 'united-arab-emirates-beach',
-        beach: true,
-        focal: { x: 0.5, y: 0.5 },
-        alt: "Dubai Marina beach in evening light, with tall towers behind the sand and a person walking along the water's edge",
-        photographer: 'kishjar? from Moscow, Russia',
-        licence: 'CC BY 4.0',
-        licenceUrl: 'https://creativecommons.org/licenses/by/4.0',
-        sourceUrl: 'https://commons.wikimedia.org/wiki/File:Dubai_Marina_beach_(54865809126).jpg',
-        files: filesFor('united-arab-emirates-beach', 'countries'),
-        blur: 'data:image/webp;base64,UklGRjwAAABXRUJQVlA4IDAAAACwAQCdASoIAAUAAsBMJQBOgCKTPunAAP2/HQglyZG4xYkHJMAvGedtzypulzeQAAA=',
       },
     ],
   },

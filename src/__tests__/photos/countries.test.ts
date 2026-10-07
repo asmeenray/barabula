@@ -28,7 +28,7 @@ describe('COUNTRIES', () => {
     expect(new Set(names).size).toBe(names.length)
     const slugs = PHOTOS.map(([slug]) => slug)
     expect(new Set(slugs).size).toBe(slugs.length)
-    expect(slugs).toHaveLength(69)
+    expect(slugs).toHaveLength(68)
   })
 
   it('normalised names that no curated city uses', () => {
