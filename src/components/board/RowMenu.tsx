@@ -1,14 +1,14 @@
 'use client'
 
-// The row "⋯" menu (UI-SPEC §9, D-22): the full keyboard and screen-reader
-// path for every move. Order: Move to day… (Day 1…n, Maybe; current one
-// disabled) · Move up · Move down · Move to Maybe (from Maybe: Move to a day…)
-// · Edit place (wired in 16-11) · Remove from trip (danger). {Place} appears
-// only in the trigger's accessible name. Offline (D-34) the whole menu is off.
+// The row "⋯" trigger (UI-SPEC §9, D-22). Until first use it is a plain button
+// with the same look and name; pressing it (or Enter / Space / arrow keys)
+// loads RowMenuPopup (Base UI Menu) and opens it. Hover and focus warm the
+// chunk. This keeps Base UI Menu out of the plan route's first-load JS, which
+// the Q46 budget (≤ 200 KB gzip) counts.
 
-import { Menu } from '@base-ui/react/menu'
+import { lazy, Suspense, useState } from 'react'
 import { useCanEdit } from '@/lib/client/use-online'
-import { ChevronRightIcon, MoreHorizontalIcon, Trash2Icon } from '@/components/icons'
+import { MoreHorizontalIcon } from '@/components/icons'
 
 /** What a row's menu can do; handlers left out render their item disabled. */
 export interface RowActions {
@@ -20,119 +20,58 @@ export interface RowActions {
   remove?: () => void
 }
 
-interface RowMenuProps extends RowActions {
+export interface RowMenuProps extends RowActions {
   placeName: string
   /** The row's current day; null = Maybe. */
   day: number | null
   className?: string
 }
 
-const TRIGGER =
+export const ROW_MENU_TRIGGER =
   'inline-flex size-11 shrink-0 items-center justify-center rounded-lg text-ink transition-[background-color,transform] duration-150 ease-out hover:bg-surface-2 active:scale-[0.97] data-disabled:cursor-not-allowed data-disabled:opacity-40 data-disabled:hover:bg-transparent data-popup-open:bg-surface-2'
 
-const POPUP =
-  'min-w-56 max-w-[min(320px,calc(100vw-32px))] origin-[var(--transform-origin)] rounded-xl border border-line bg-surface py-1 text-ink shadow-[0_8px_24px_rgb(11_16_20/0.16)] outline-none transition-[opacity,scale] duration-150 ease-out data-ending-style:scale-[0.98] data-ending-style:opacity-0 data-starting-style:scale-[0.98] data-starting-style:opacity-0 motion-reduce:transition-none'
+const loadPopup = () => import('./RowMenuPopup')
+const RowMenuPopup = lazy(loadPopup)
 
-const ITEM =
-  'flex min-h-11 cursor-default items-center gap-3 px-4 text-base outline-none select-none data-disabled:cursor-not-allowed data-disabled:opacity-40 data-highlighted:bg-surface-2 data-popup-open:bg-surface-2'
-
-/** One line with ellipsis; the full text stays in the DOM (accessible name). */
-const LABEL = 'min-w-0 flex-1 truncate'
-
-function DaySubmenu({
-  label,
-  dayCount,
-  current,
-  includeMaybe,
-  onPick,
-}: {
-  label: string
-  dayCount: number
-  current: number | null
-  includeMaybe: boolean
-  onPick: (day: number | null) => void
-}) {
-  const days = Array.from({ length: Math.max(1, dayCount) }, (_, i) => i + 1)
-  return (
-    <Menu.SubmenuRoot>
-      <Menu.SubmenuTrigger className={ITEM}>
-        <span className={LABEL}>{label}</span>
-        <ChevronRightIcon size={16} className="shrink-0 text-board-muted" />
-      </Menu.SubmenuTrigger>
-      <Menu.Portal>
-        <Menu.Positioner className="z-50 outline-none" sideOffset={4} collisionPadding={16}>
-          {/* Past 8 items the list scrolls inside the menu (UI-SPEC overflow). */}
-          <Menu.Popup className={`${POPUP} max-h-[320px] overflow-y-auto overscroll-contain`}>
-            {days.map((d) => (
-              <Menu.Item key={d} className={ITEM} disabled={d === current} onClick={() => onPick(d)}>
-                <span className={LABEL}>Day {d}</span>
-              </Menu.Item>
-            ))}
-            {includeMaybe && (
-              <Menu.Item className={ITEM} disabled={current === null} onClick={() => onPick(null)}>
-                <span className={LABEL}>Maybe</span>
-              </Menu.Item>
-            )}
-          </Menu.Popup>
-        </Menu.Positioner>
-      </Menu.Portal>
-    </Menu.SubmenuRoot>
-  )
+function preload() {
+  void loadPopup().catch(() => {})
 }
 
-export function RowMenu({
-  placeName,
-  day,
-  dayCount,
-  move,
-  moveUp,
-  moveDown,
-  remove,
-  className = '',
-}: RowMenuProps) {
-  const canEdit = useCanEdit()
-  const inMaybe = day === null
+const OPEN_KEYS = new Set(['Enter', ' ', 'ArrowDown', 'ArrowUp'])
 
+export function RowMenu(props: RowMenuProps) {
+  const canEdit = useCanEdit()
+  const [active, setActive] = useState(false)
+  const label = `Actions for ${props.placeName}`
+
+  const placeholder = (
+    <button
+      type="button"
+      aria-label={label}
+      aria-haspopup="menu"
+      aria-expanded={false}
+      aria-disabled={!canEdit || undefined}
+      data-disabled={!canEdit ? '' : undefined}
+      className={`${ROW_MENU_TRIGGER} ${props.className ?? ''}`}
+      onPointerEnter={preload}
+      onFocus={preload}
+      onClick={() => {
+        if (canEdit) setActive(true)
+      }}
+      onKeyDown={(e) => {
+        if (!canEdit || !OPEN_KEYS.has(e.key)) return
+        e.preventDefault()
+        setActive(true)
+      }}
+    >
+      <MoreHorizontalIcon />
+    </button>
+  )
+
+  if (!active) return placeholder
   return (
-    <Menu.Root disabled={!canEdit}>
-      <Menu.Trigger aria-label={`Actions for ${placeName}`} className={`${TRIGGER} ${className}`}>
-        <MoreHorizontalIcon />
-      </Menu.Trigger>
-      <Menu.Portal>
-        <Menu.Positioner className="z-50 outline-none" side="bottom" align="end" sideOffset={4} collisionPadding={16}>
-          <Menu.Popup className={POPUP}>
-            <DaySubmenu label="Move to day…" dayCount={dayCount} current={day} includeMaybe onPick={move} />
-            <Menu.Item className={ITEM} disabled={!moveUp} onClick={moveUp}>
-              <span className={LABEL}>Move up</span>
-            </Menu.Item>
-            <Menu.Item className={ITEM} disabled={!moveDown} onClick={moveDown}>
-              <span className={LABEL}>Move down</span>
-            </Menu.Item>
-            {inMaybe ? (
-              <DaySubmenu
-                label="Move to a day…"
-                dayCount={dayCount}
-                current={day}
-                includeMaybe={false}
-                onPick={move}
-              />
-            ) : (
-              <Menu.Item className={ITEM} onClick={() => move(null)}>
-                <span className={LABEL}>Move to Maybe</span>
-              </Menu.Item>
-            )}
-            {/* Edit place opens the place form in 16-11; shown, not yet active. */}
-            <Menu.Item className={ITEM} disabled>
-              <span className={LABEL}>Edit place</span>
-            </Menu.Item>
-            <Menu.Separator className="my-1 h-px bg-line" />
-            <Menu.Item className={`${ITEM} text-danger`} disabled={!remove} onClick={remove}>
-              <Trash2Icon className="shrink-0" />
-              <span className={LABEL}>Remove from trip</span>
-            </Menu.Item>
-          </Menu.Popup>
-        </Menu.Positioner>
-      </Menu.Portal>
-    </Menu.Root>
+    <Suspense fallback={placeholder}>
+      <RowMenuPopup {...props} defaultOpen />
+    </Suspense>
   )
 }

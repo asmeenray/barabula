@@ -129,7 +129,8 @@ export function BoardRow({
           {walk === 'start' ? 'Start' : walk === null ? '—' : `~${walk} min`}
         </span>
 
-        <span className="justify-self-end">
+        {/* Laptop: the "⋯" takes the status cell while the row is hovered or focused. */}
+        <span className="justify-self-end lg:group-focus-within:invisible lg:group-hover:invisible">
           <StatusChip chip={chip} />
         </span>
       </button>

@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { useEffect } from 'react'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { UndoProvider, useUndo, UNDO_TIMEOUT_MS, type UndoOp } from '@/components/undo/UndoProvider'
@@ -37,12 +37,21 @@ function setup() {
 
 async function flush() {
   await act(async () => {
-    await Promise.resolve()
-    await Promise.resolve()
+    for (let i = 0; i < 5; i++) await Promise.resolve()
   })
 }
 
+/** run(op), then let the lazily loaded toaster mount and show the toast. */
+async function runOp(o: UndoOp) {
+  act(() => api.run(o))
+  await flush()
+}
+
 describe('UndoProvider', () => {
+  beforeAll(async () => {
+    // The toaster is loaded on first use; warm the module so tests stay synchronous.
+    await import('@/components/undo/UndoToaster')
+  })
   beforeEach(() => {
     vi.useFakeTimers({ shouldAdvanceTime: false })
   })
@@ -53,8 +62,7 @@ describe('UndoProvider', () => {
 
   it('shows one toast with the label and an Undo button', async () => {
     setup()
-    act(() => api.run(op('Time Out Market')))
-    await flush()
+    await runOp(op('Time Out Market'))
     expect(screen.getByText('Moved Time Out Market to day 2')).toBeTruthy()
     expect(screen.getByRole('button', { name: 'Undo' })).toBeTruthy()
   })
@@ -62,7 +70,7 @@ describe('UndoProvider', () => {
   it('commits once after the 10 s toast closes', async () => {
     setup()
     const a = op('A')
-    act(() => api.run(a))
+    await runOp(a)
     act(() => vi.advanceTimersByTime(UNDO_TIMEOUT_MS - 1))
     await flush()
     expect(a.commit).not.toHaveBeenCalled()
@@ -78,7 +86,7 @@ describe('UndoProvider', () => {
   it('Undo runs undo and never commit', async () => {
     setup()
     const a = op('A')
-    act(() => api.run(a))
+    await runOp(a)
     fireEvent.click(screen.getByRole('button', { name: 'Undo' }))
     act(() => vi.advanceTimersByTime(UNDO_TIMEOUT_MS * 2))
     await flush()
@@ -90,8 +98,8 @@ describe('UndoProvider', () => {
     setup()
     const a = op('A')
     const b = op('B')
-    act(() => api.run(a))
-    act(() => api.run(b))
+    await runOp(a)
+    await runOp(b)
     await flush()
     expect(a.commit).toHaveBeenCalledTimes(1)
     expect(b.commit).not.toHaveBeenCalled()
@@ -106,7 +114,7 @@ describe('UndoProvider', () => {
       deferred: true,
       keepaliveRequest: { url: '/api/activities/act-1', method: 'DELETE' },
     })
-    act(() => api.run(a))
+    await runOp(a)
     expect(screen.getByTestId('pending').textContent).toBe('act-1')
 
     act(() => {
@@ -126,7 +134,7 @@ describe('UndoProvider', () => {
   it('pagehide runs commit for an op without a keepalive request', async () => {
     setup()
     const a = op('A')
-    act(() => api.run(a))
+    await runOp(a)
     act(() => {
       window.dispatchEvent(new Event('pagehide'))
     })
@@ -138,8 +146,7 @@ describe('UndoProvider', () => {
     setup()
     const elsewhere = screen.getByRole('button', { name: 'Elsewhere' })
     elsewhere.focus()
-    act(() => api.run(op('A')))
-    await flush()
+    await runOp(op('A'))
     expect(document.activeElement).toBe(elsewhere)
   })
 })
