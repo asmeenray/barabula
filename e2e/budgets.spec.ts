@@ -41,6 +41,10 @@ const JS_BUDGET_BYTES = 256000 // 250 KB gzipped, MapLibre excluded (Q63)
 const BOARD_BUDGET_MS = 2000 // elementtiming="board", median of RUNS
 const MAP_SLOW4G_BUDGET_MS = 9500 // barabula:map-load / places-map-load, median of RUNS
 const LCP_BUDGET_MS = 2500 // largest-contentful-paint on /, median of RUNS
+// Q69 (Asmeen, 7 Oct 2026): the home gets its own JS limit (300 KB); signed-in home
+// LCP is judged on a real phone over 4G, so here it is logged, not asserted. Q70:
+// the Places map uses the plan map's 9.5 s limit.
+const HOME_JS_BUDGET_BYTES = 307200 // 300 KB gzipped (Q69)
 const OPEN_BUDGET_MS = 300 // ticket / card: click mark -> visible mark, median of RUNS
 const RUNS = 3
 
@@ -243,10 +247,15 @@ for (const who of ['logged out', 'signed in'] as const) {
     logBytes(`Home / (${who})`, js)
     runs.forEach((r, i) => console.log(`Home (${who}) run ${i + 1}: LCP ${ms(r.lcpMs)} · ${r.lcpWhat}`))
     const lcpMedian = median(runs.map((r) => r.lcpMs))
-    console.log(`Home (${who}) median of ${RUNS}: LCP ${ms(lcpMedian)} (limit ${LCP_BUDGET_MS})`)
+    const lcpAsserted = who === 'logged out'
+    console.log(
+      `Home (${who}) median of ${RUNS}: LCP ${ms(lcpMedian)} (limit ${LCP_BUDGET_MS}${lcpAsserted ? '' : ', logged only: judged on a real phone, Q69'})`,
+    )
 
-    expect(js.totalBytes, `home (${who}) JS`).toBeLessThanOrEqual(JS_BUDGET_BYTES)
-    expect(lcpMedian, `median home LCP (${who}) of ${RUNS} runs`).toBeLessThanOrEqual(LCP_BUDGET_MS)
+    expect(js.totalBytes, `home (${who}) JS`).toBeLessThanOrEqual(HOME_JS_BUDGET_BYTES)
+    if (lcpAsserted) {
+      expect(lcpMedian, `median home LCP (${who}) of ${RUNS} runs`).toBeLessThanOrEqual(LCP_BUDGET_MS)
+    }
   })
 }
 
