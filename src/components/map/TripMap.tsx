@@ -7,12 +7,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import Map, { Layer, Source } from 'react-map-gl/maplibre'
 import type { ErrorEvent, MapRef } from 'react-map-gl/maplibre'
-import type { StyleSpecification } from 'maplibre-gl'
+import type { ExpressionSpecification, Map as MapLibreMap, StyleSpecification } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
-import { osmCoordsFrom } from '@/lib/geo-cache'
 import type { PlanActivity } from '@/lib/plan/types'
+import { LAPTOP_QUERY, useMediaQuery } from '@/lib/client/use-media'
 import { BoardStatusLine } from '@/components/board/BoardStatusLine'
 import { MAPLIBRE_WORKER_URL, loadMapLib, loadStyle } from './maplibre-loader'
+import { drawPin, loadPinFont, parsePinImageId, pinFeatures, type PinFeature, type PinTheme } from './pinImages'
 
 export const MAP_LOAD_MARK = 'barabula:map-load'
 
@@ -28,34 +29,18 @@ export interface TripMapProps {
 
 type Bounds = [[number, number], [number, number]]
 
-interface Pin {
-  id: string
-  lng: number
-  lat: number
-  day: DayKey
-}
-
-function pinsFrom(activities: PlanActivity[]): Pin[] {
-  const pins: Pin[] = []
-  for (const a of activities) {
-    const coords = osmCoordsFrom(a.extra_data)
-    if (!coords) continue // places without OSM coordinates are not drawn
-    pins.push({ id: a.id, lng: coords.lng, lat: coords.lat, day: a.day_number ?? 'maybe' })
-  }
-  return pins
-}
-
-function boundsOf(pins: Pin[]): Bounds | null {
+function boundsOf(pins: PinFeature[]): Bounds | null {
   if (pins.length === 0) return null
   let minLng = Infinity
   let minLat = Infinity
   let maxLng = -Infinity
   let maxLat = -Infinity
   for (const p of pins) {
-    minLng = Math.min(minLng, p.lng)
-    minLat = Math.min(minLat, p.lat)
-    maxLng = Math.max(maxLng, p.lng)
-    maxLat = Math.max(maxLat, p.lat)
+    const [lng, lat] = p.geometry.coordinates
+    minLng = Math.min(minLng, lng)
+    minLat = Math.min(minLat, lat)
+    maxLng = Math.max(maxLng, lng)
+    maxLat = Math.max(maxLat, lat)
   }
   return [
     [minLng, minLat],
@@ -63,25 +48,38 @@ function boundsOf(pins: Pin[]): Bounds | null {
   ]
 }
 
-function fitTarget(pins: Pin[], day: DayKey): Bounds | null {
-  return boundsOf(pins.filter((p) => p.day === day)) ?? boundsOf(pins)
-}
-
-function readTheme(): { theme: 'light' | 'dark'; accent: string; ring: string } {
-  const root = document.documentElement
-  const css = getComputedStyle(root)
-  return {
-    theme: root.dataset.theme === 'dark' ? 'dark' : 'light',
-    accent: css.getPropertyValue('--accent').trim() || '#F2A900',
-    ring: css.getPropertyValue('--pin-ring').trim() || '#0B1014',
-  }
+function fitTarget(pins: PinFeature[], day: DayKey): Bounds | null {
+  return boundsOf(pins.filter((p) => p.properties.day === day)) ?? boundsOf(pins)
 }
 
 const FIT_OPTIONS = { padding: 48, maxZoom: 15 }
 
+const PINS_LAYER = 'trip-pins'
+
+// Pin images wait for Geist Mono (started once, when the map chunk first mounts).
+let fontReady: Promise<void> | null = null
+
+/** Draws tag pins on demand; MapLibre keeps the resolver across style reloads. */
+function registerPins(map: MapLibreMap) {
+  map.setMissingStyleImageResolver(async (imageId) => {
+    const spec = parsePinImageId(imageId)
+    if (!spec) return
+    await (fontReady ??= loadPinFont())
+    const ratio = Math.max(1, window.devicePixelRatio || 1)
+    if (!map.hasImage(imageId)) map.addImage(imageId, drawPin(spec, ratio), { pixelRatio: ratio })
+  })
+}
+
 export default function TripMap({ activities, selectedDay, id }: TripMapProps) {
-  const [{ theme, accent, ring }] = useState(readTheme)
+  // Theme at mount; live switching lands with the theme setting (16-19).
+  const [theme] = useState<PinTheme>(() => (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'))
+  const isLaptop = useMediaQuery(LAPTOP_QUERY)
   const [failed, setFailed] = useState(false)
+  /** The pin resolver is registered on this map; pin layers can mount. */
+  const [ready, setReady] = useState(false)
+  useEffect(() => {
+    fontReady ??= loadPinFont()
+  }, [])
   const [attempt, setAttempt] = useState(0)
   // Fetched (and slimmed) by maplibre-loader, usually already in flight from
   // the board's warm-up by the time this chunk runs.
@@ -98,22 +96,25 @@ export default function TripMap({ activities, selectedDay, id }: TripMapProps) {
   const mapRef = useRef<MapRef>(null)
   const loadedRef = useRef(false)
 
-  const pins = useMemo(() => pinsFrom(activities), [activities])
-  const dayPins = pins.filter((p) => p.day === selectedDay).length
+  // Maybe places are not pinned on the plan map (they show on Places, 16-18).
+  const pins = useMemo(() => pinFeatures(activities, theme), [activities, theme])
+  const dayPins = pins.filter((p) => p.properties.day === selectedDay).length
   const dayName = selectedDay === 'maybe' ? 'Maybe' : `day ${selectedDay}`
+  const geojson = useMemo(() => ({ type: 'FeatureCollection' as const, features: pins }), [pins])
 
-  const geojson = useMemo(
-    () => ({
-      type: 'FeatureCollection' as const,
-      features: pins.map((p) => ({
-        type: 'Feature' as const,
-        id: p.id,
-        properties: { id: p.id, selected: p.day === selectedDay ? 1 : 0 },
-        geometry: { type: 'Point' as const, coordinates: [p.lng, p.lat] },
-      })),
-    }),
-    [pins, selectedDay]
-  )
+  // Phone shows only the selected day's pins; laptop dims the other days (45%, 0.8).
+  const onDay: ExpressionSpecification = ['==', ['get', 'day'], selectedDay === 'maybe' ? -1 : selectedDay]
+
+  /** Test observability: how many of the selected day's pins are on screen. */
+  function countPins(map: MapLibreMap) {
+    const region = map.getContainer().closest<HTMLElement>('[role=region]')
+    if (!region || !map.getLayer(PINS_LAYER)) return
+    const ids = new Set<unknown>()
+    for (const f of map.queryRenderedFeatures({ layers: [PINS_LAYER] })) {
+      if (f.properties.day === selectedDay) ids.add(f.properties.id)
+    }
+    region.dataset.pinsRendered = String(ids.size)
+  }
 
   // The first fit comes from initialViewState; later day changes refit at once
   // (the animated board flip is moment 3, a later plan).
@@ -139,6 +140,7 @@ export default function TripMap({ activities, selectedDay, id }: TripMapProps) {
 
   function retry() {
     loadedRef.current = false
+    setReady(false)
     firstFit.current = true
     setFailed(false)
     setAttempt((n) => n + 1)
@@ -176,6 +178,8 @@ export default function TripMap({ activities, selectedDay, id }: TripMapProps) {
           attributionControl={{ compact: true }}
           onLoad={(e) => {
             loadedRef.current = true
+            registerPins(e.target)
+            setReady(true)
             // Compact attribution opens itself on load and covers a third of the
             // phone strip; start it folded (the (i) button shows it again).
             e.target
@@ -187,22 +191,27 @@ export default function TripMap({ activities, selectedDay, id }: TripMapProps) {
             }
           }}
           onError={handleError}
+          onIdle={(e) => countPins(e.target)}
         >
-          <Source id="trip-pins" type="geojson" data={geojson}>
-            <Layer
-              id="trip-pins-circle"
-              type="circle"
-              paint={{
-                'circle-color': accent,
-                'circle-radius': ['case', ['==', ['get', 'selected'], 1], 8, 6],
-                'circle-opacity': ['case', ['==', ['get', 'selected'], 1], 1, 0.45],
-                'circle-stroke-color': ring,
-                'circle-stroke-width': 2,
-                'circle-stroke-opacity': ['case', ['==', ['get', 'selected'], 1], 1, 0.45],
-              }}
-              layout={{ 'circle-sort-key': ['get', 'selected'] }}
-            />
-          </Source>
+          {ready && (
+            <Source id="trip-pins" type="geojson" data={geojson}>
+              <Layer
+                id={PINS_LAYER}
+                type="symbol"
+                filter={isLaptop ? true : onDay}
+                layout={{
+                  'icon-image': ['get', 'img'],
+                  'icon-anchor': 'bottom',
+                  'icon-allow-overlap': true,
+                  'icon-ignore-placement': true,
+                  'icon-size': isLaptop ? ['case', onDay, 1, 0.8] : 1,
+                  // The selected day on top, then lower stop numbers over higher ones.
+                  'symbol-sort-key': ['-', ['case', onDay, 200, 0], ['get', 'num']],
+                }}
+                paint={{ 'icon-opacity': isLaptop ? ['case', onDay, 1, 0.45] : 1 }}
+              />
+            </Source>
+          )}
         </Map>
       )}
     </div>
