@@ -24,10 +24,17 @@ const MAX_STOP_LENGTH = 80
 
 // --- shared pieces ---------------------------------------------------------
 
-const LABEL = 'font-label text-xs leading-[1.33] font-semibold tracking-[0.16em] uppercase'
+export const LABEL = 'font-label text-xs leading-[1.33] font-semibold tracking-[0.16em] uppercase'
 export const FIELD =
   'h-12 w-full rounded-lg border-[1.5px] border-field bg-surface-2 px-3 text-base text-ink placeholder:text-muted outline-none focus-visible:border-ink focus-visible:shadow-[0_0_0_3px_color-mix(in_oklab,var(--accent)_40%,transparent)] focus-visible:outline-none'
-const TEXT_BUTTON = 'min-h-11 px-1 font-semibold text-ink underline underline-offset-[3px]'
+export const TEXT_BUTTON = 'min-h-11 px-1 font-semibold text-ink underline underline-offset-[3px]'
+
+/** The accent step button (44 high, right-aligned): Next · Done · Use this. */
+export function stepButtonClass(disabled?: boolean): string {
+  return `ml-auto h-11 rounded-lg bg-accent px-5 font-label text-base font-semibold tracking-[0.08em] text-on-accent uppercase transition-transform duration-[160ms] ease-[var(--ease-out)] active:scale-[0.97] ${
+    disabled ? 'cursor-not-allowed opacity-40 active:scale-100' : 'hover:bg-[color-mix(in_oklab,var(--accent)_88%,#000)]'
+  }`
+}
 
 function ProgressDots({ n }: { n: number }) {
   return (
@@ -102,9 +109,7 @@ export function QuestionShell({ n, legend, tag, onBack, onSkip, next, focusSigna
           aria-label={next.name}
           aria-disabled={next.disabled || undefined}
           onClick={next.disabled ? undefined : next.onPress}
-          className={`ml-auto h-11 rounded-lg bg-accent px-5 font-label text-base font-semibold tracking-[0.08em] text-on-accent uppercase transition-transform duration-[160ms] ease-[var(--ease-out)] active:scale-[0.97] ${
-            next.disabled ? 'cursor-not-allowed opacity-40 active:scale-100' : 'hover:bg-[color-mix(in_oklab,var(--accent)_88%,#000)]'
-          }`}
+          className={stepButtonClass(next.disabled)}
         >
           {next.label}
         </button>
@@ -562,10 +567,12 @@ type CardProps = {
   onNext: () => void
   onBack: () => void
   focusSignal: number
+  /** Shows "Or describe your whole trip" under Where to? (D-11); switches the pass to describe mode. */
+  onDescribe?: () => void
 }
 
 /** One question at a time (D-10): Where to? → When? → Who's going? → What are you into? */
-export function QuestionCard({ step, answers, cities, onStops, onAnswer, onNext, onBack, focusSignal }: CardProps) {
+export function QuestionCard({ step, answers, cities, onStops, onAnswer, onNext, onBack, focusSignal, onDescribe }: CardProps) {
   const nav = { onBack, onNext, focusSignal }
   switch (step) {
     case 1:
@@ -578,6 +585,11 @@ export function QuestionCard({ step, answers, cities, onStops, onAnswer, onNext,
           next={{ label: 'Next', name: 'Next question', disabled: answers.stops.length === 0, onPress: onNext }}
         >
           <WhereToField stops={answers.stops} cities={cities} onStops={onStops} />
+          {onDescribe && (
+            <button type="button" onClick={onDescribe} className={`${TEXT_BUTTON} mt-2`}>
+              Or describe your whole trip
+            </button>
+          )}
         </QuestionShell>
       )
     case 2:

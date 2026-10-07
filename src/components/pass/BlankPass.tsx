@@ -11,11 +11,14 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import type { CityPhoto } from '@/lib/photos/manifest'
 import { findCity } from '@/lib/photos/normalize'
+import { knownCities } from '@/lib/pass/cities'
+import { firstMissingStep } from '@/lib/pass/describe'
 import { intoLine, passTitle, whenLine, whoLine } from '@/lib/pass/format'
 import type { PassAnswers, PassCity } from '@/lib/pass/types'
 import { useAnnounce } from '@/components/a11y/LiveRegion'
 import { BoardStatusLine } from '@/components/board/BoardStatusLine'
 import { PassCover, PhotoCredit } from './PassCover'
+import { DescribeBox } from './DescribeBox'
 import { QuestionCard, type QuestionStep } from './QuestionCard'
 import { StampLine } from './StampLine'
 
@@ -33,13 +36,25 @@ type Props = {
   layout?: 'horizontal' | 'vertical'
   /** The top pass on the page gets the eager, high-priority photo; false when a Now pass sits above. */
   priority?: boolean
+  /** The user's day (YYYY-MM-DD, getHomeData) for reading "12–15 May" in describe mode. */
+  today?: string | null
 }
 
 const EMPTY: PassAnswers = { stops: [], when: null, adults: null, kids: null, interests: [], note: null }
 
 type CreateState = 'idle' | 'creating' | 'failed'
 
-export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', priority = true }: Props) {
+type Answered = Pick<PassAnswers, 'stops' | 'when' | 'adults' | 'kids' | 'interests'>
+
+/** Whether a question still has no answer (a skipped one counts as unanswered). */
+function unanswered(step: QuestionStep, a: PassAnswers): boolean {
+  if (step === 1) return a.stops.length === 0
+  if (step === 2) return a.when === null
+  if (step === 3) return a.adults === null
+  return a.interests.length === 0 && !a.note?.trim()
+}
+
+export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', priority = true, today = null }: Props) {
   const horizontal = layout === 'horizontal'
   const router = useRouter()
   const announce = useAnnounce()
@@ -48,6 +63,11 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
   // Once the last question has been answered, Next after an Edit goes back to the ready pass.
   const [reachedEnd, setReachedEnd] = useState(false)
   const [focusSignal, setFocusSignal] = useState(0)
+  // Describe mode (D-11) replaces the question card; the text is kept when switching back.
+  const [mode, setMode] = useState<'steps' | 'describe'>('steps')
+  const [description, setDescription] = useState('')
+  // After "Use this", Next walks only the questions the description left open.
+  const [described, setDescribed] = useState(false)
   const readyRef = useRef<HTMLHeadingElement>(null)
   const [create, setCreate] = useState<CreateState>('idle')
   const [failedSlug, setFailedSlug] = useState<string | null>(null)
@@ -59,6 +79,7 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
     [photos]
   )
   const codeOf = (stop: string) => findCity(cities, stop)?.code
+  const readable = useMemo(() => knownCities(cities), [cities])
 
   const { stops } = answers
   const first = stops[0]
@@ -73,8 +94,14 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
     setFocusSignal((n) => n + 1)
   }
 
-  function advance() {
+  function advance(current: PassAnswers = answers) {
     if (step === 'ready') return
+    if (described) {
+      const later = ([2, 3, 4] as const).find((s) => s > step && unanswered(s, current))
+      if (later) return goTo(later)
+      setReachedEnd(true)
+      return goTo('ready')
+    }
     if (step === 4 || reachedEnd) {
       setReachedEnd(true)
       goTo('ready')
@@ -104,7 +131,24 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
             ? intoLine(next.interests, next.note) && `Into: ${intoLine(next.interests, next.note)}`
             : null
     if (line) announce(line)
-    advance()
+    advance(next)
+  }
+
+  /** "Use this": the description's answers fill the pass, then the first open question (or the ready pass). */
+  function applyDescription(patch: Answered) {
+    const next = { ...answers, ...patch }
+    setAnswers(next)
+    setDescribed(true)
+    setMode('steps')
+    if (next.stops.length) announce(`To: ${next.stops.join(', then ')}`)
+    const open = firstMissingStep(next)
+    if (open === 'ready') setReachedEnd(true)
+    goTo(open)
+  }
+
+  function stepByStep() {
+    setMode('steps')
+    setFocusSignal((n) => n + 1)
   }
 
   const when = whenLine(answers.when)
@@ -174,7 +218,17 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
           </div>
         )}
 
-        {step === 'ready' ? (
+        {mode === 'describe' ? (
+          <DescribeBox
+            text={description}
+            onText={setDescription}
+            cities={readable}
+            photos={photos}
+            today={today}
+            onUse={applyDescription}
+            onStepByStep={stepByStep}
+          />
+        ) : step === 'ready' ? (
           <div className="py-2">
             <h2 ref={readyRef} tabIndex={-1} className="font-read text-[22px] leading-[1.2] font-semibold text-ink outline-none">
               Your pass is ready.
@@ -188,7 +242,8 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
             cities={cities}
             onStops={setStops}
             onAnswer={answer}
-            onNext={advance}
+            onNext={() => advance()}
+            onDescribe={() => setMode('describe')}
             onBack={() => goTo(Math.max(step - 1, 1) as QuestionStep)}
             focusSignal={focusSignal}
           />

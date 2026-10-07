@@ -40,6 +40,7 @@ export default async function HomePage() {
             signedIn={!!user}
             layout={paired ? 'vertical' : 'horizontal'}
             priority={!home.now}
+            today={home.today}
           />
           {home.next && <NowNextPass trip={home.next} state="next" />}
           {firstVisit && <p className="text-base text-muted">Fill the pass to plan your first trip.</p>}
