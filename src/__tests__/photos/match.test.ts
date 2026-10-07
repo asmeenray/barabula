@@ -66,3 +66,14 @@ describe('randomCity', () => {
     expect(CITY_PHOTOS).toContain(randomCity())
   })
 })
+
+describe('randomCity avoid list', () => {
+  it('never returns a photo already on the page', () => {
+    const first = CITY_PHOTOS[0].slug
+    for (const r of [0, 0.2, 0.5, 0.999999]) expect(randomCity(() => r, [first]).slug).not.toBe(first)
+  })
+
+  it('falls back to every photo when all are avoided', () => {
+    expect(randomCity(() => 0, CITY_PHOTOS.map((p) => p.slug))).toBe(CITY_PHOTOS[0])
+  })
+})

@@ -17,7 +17,11 @@ export function photoFor(destination: string | null | undefined): CityPhoto | nu
  * A random curated city. Call it from server data functions only, never during
  * render (React Compiler purity lint, Pitfall 10).
  */
-export function randomCity(rand: () => number = Math.random): CityPhoto {
-  const i = Math.min(Math.floor(rand() * CITY_PHOTOS.length), CITY_PHOTOS.length - 1)
-  return CITY_PHOTOS[Math.max(i, 0)]
+export function randomCity(rand: () => number = Math.random, avoid: readonly string[] = []): CityPhoto {
+  // Skip photos already on the page (e.g. the NOW pass's city), unless that
+  // would leave nothing to pick.
+  const pool = CITY_PHOTOS.filter((p) => !avoid.includes(p.slug))
+  const list = pool.length ? pool : CITY_PHOTOS
+  const i = Math.min(Math.floor(rand() * list.length), list.length - 1)
+  return list[Math.max(i, 0)]
 }

@@ -127,10 +127,15 @@ export function PlacesFilters({ filters, onChange, trips, types, variant }: Plac
         )}
       </div>
 
-      {/* One row; on a narrow phone it scrolls sideways instead of wrapping over the map. */}
+      {/* One row; on a narrow phone it scrolls sideways instead of wrapping over
+          the map. The right edge fades so the cut-off chip reads as "more this
+          way" (UAT 7 Oct 2026); the extra end padding lets the last chip scroll
+          fully clear of the fade. */}
       <div
         className={`flex items-center gap-2 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden ${
-          variant === 'floating' ? '-mx-4 px-4 py-1' : 'flex-wrap'
+          variant === 'floating'
+            ? '-mx-4 py-1 pr-10 pl-4 [mask-image:linear-gradient(to_right,#000_calc(100%-40px),transparent)]'
+            : 'flex-wrap'
         }`}
       >
         <FilterSelect

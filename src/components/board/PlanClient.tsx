@@ -476,7 +476,7 @@ export function PlanClient({
         )}
       </div>
 
-      {/* The board panel; the phone FAB floats over its bottom-right corner. */}
+      {/* The board panel; on phone Add place is a footer under the list. */}
       <div
         className={`relative flex min-h-0 flex-1 flex-col lg:col-start-1 lg:row-start-1 lg:border-r lg:border-line ${
           mapExpanded ? 'max-lg:hidden' : ''
@@ -638,16 +638,14 @@ export function PlanClient({
             />
           )}
 
-          {/* Phone: clears the Add place FAB under the last row (UI-SPEC §7 item 8). */}
-          <div className="h-24 lg:hidden" aria-hidden />
         </div>
 
-        <AddPlaceButton
-          variant="fab"
-          ref={fabRef}
-          onOpen={() => openForm({ mode: 'add' }, fabRef.current)}
-          className="absolute right-4 bottom-4 z-20 lg:hidden"
-        />
+        {/* Phone: Add place sits in its own footer under the list instead of
+            floating over it, so it never covers a row's status chip (UAT 7 Oct
+            2026, Asmeen). Same accent bar as laptop, in the thumb zone. */}
+        <div className="shrink-0 border-t border-board-line bg-board px-4 pt-2 pb-3 lg:hidden">
+          <AddPlaceButton variant="bar" ref={fabRef} onOpen={() => openForm({ mode: 'add' }, fabRef.current)} />
+        </div>
       </div>
 
       {/* Phone: the place form is a bottom sheet (Drawer). */}

@@ -44,8 +44,11 @@ const TITLE: Record<PassVariant, string> = {
   past: 'text-[22px] leading-[1.2] tracking-[-0.01em]',
 }
 
+// Bottom scrim strengthened after UAT (7 Oct 2026): titles keep >= 3:1 against
+// the brightest 5% of pixels behind them on all 108 curated photos (was 26 below,
+// worst Marrakech 1.9:1). Measured with the phone blank-pass and header crops.
 const SCRIMS =
-  'linear-gradient(to top, rgba(5,8,12,.82), rgba(5,8,12,.05) 55%), linear-gradient(to bottom, rgba(5,8,12,.55), transparent 35%)'
+  'linear-gradient(to top, rgba(5,8,12,.84), rgba(5,8,12,.48) 38%, rgba(5,8,12,.05) 70%), linear-gradient(to bottom, rgba(5,8,12,.55), transparent 35%)'
 
 type Props = {
   photo: CoverPhoto | null
@@ -135,7 +138,7 @@ export function PassCover({
       <div className="absolute inset-x-0 bottom-0 px-4 pb-3">
         <Title
           {...titleAttrs}
-          className={`${oneLine ? 'truncate' : 'line-clamp-2 text-balance break-words'} max-w-[85%] font-mono font-semibold uppercase ${TITLE[variant]}`}
+          className={`${oneLine ? 'truncate' : 'line-clamp-2 text-balance break-words'} max-w-[85%] font-mono font-semibold uppercase [text-shadow:0_1px_12px_rgba(5,8,12,.5)] ${TITLE[variant]}`}
         >
           {flapTitle === undefined ? (
             title

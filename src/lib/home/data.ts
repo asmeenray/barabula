@@ -125,7 +125,12 @@ export async function getHomeData(
     }
   }
 
-  return { coverCity: randomCity(), cities: CITY_PHOTOS, tripCount, today, ...sections }
+  // The blank pass never repeats a photo shown on the home's Now/Next or first
+  // Upcoming pass (UAT 7 Oct 2026: Madrid twice).
+  const shown = [sections.now, sections.next, ...sections.upcoming.slice(0, 3)]
+    .map((t) => t?.photo?.slug)
+    .filter((s): s is string => !!s)
+  return { coverCity: randomCity(Math.random, shown), cities: CITY_PHOTOS, tripCount, today, ...sections }
 }
 
 /** First visit (UI-SPEC §2): logged out, or signed in with no trips yet. */
