@@ -193,6 +193,37 @@ test.describe('motion', () => {
     await expect(page.getByRole('button', { name: 'Edit destination' })).toBeVisible()
   })
 
+  // Flap-tile title (quick 261007-wms, A-1/A-2): laptop only, same board flip.
+  test('laptop: the blank-pass title flips in as two rows of flap tiles', async ({ page }) => {
+    test.skip(isPhone(page), 'laptop only')
+    await watchGlyphs(page)
+    await page.goto('/')
+    const h1 = page.locator('#next-trip-pass h1')
+    await expect(page.getByRole('heading', { level: 1, name: 'Where to next?' })).toBeVisible()
+    await expect.poll(async () => (await glyphLog(page)).includes('blank')).toBe(true)
+    await expect(page.locator('#next-trip-pass [data-glyph]')).toHaveCount(0)
+    await expect(h1.locator('[data-tile-row]')).toHaveCount(2)
+    await expect(h1.locator('[data-tile]')).toHaveCount(12)
+    const tiles = await h1.locator('[data-tile]').evaluateAll((els) =>
+      els.map((el) => {
+        const b = el.getBoundingClientRect()
+        return { w: Math.round(b.width), h: Math.round(b.height), blur: getComputedStyle(el).backdropFilter }
+      })
+    )
+    for (const t of tiles) expect(t).toEqual({ w: 46, h: 64, blur: 'blur(6px)' })
+    await expect(h1).toHaveText('Where to next?')
+  })
+
+  test('phone: the blank-pass title stays plain 36 px text', async ({ page }) => {
+    test.skip(!isPhone(page), 'phone only')
+    await page.goto('/')
+    const h1 = page.locator('#next-trip-pass h1')
+    await expect(h1).toHaveText('Where to next?')
+    await expect(page.locator('#next-trip-pass [data-glyph]')).toHaveCount(0)
+    expect(await h1.locator('[data-tile]').first().evaluate((el) => getComputedStyle(el).display)).toBe('contents')
+    expect(await h1.evaluate((el) => getComputedStyle(el).fontSize)).toBe('36px')
+  })
+
   test('the Now/Next title split-flaps once per visit', async ({ page }) => {
     await watchGlyphs(page)
     await page.goto('/')
@@ -304,6 +335,15 @@ test.describe('motion, reduced', () => {
     await page.waitForTimeout(400)
     expect(await glyphLog(page)).toEqual([])
     await expect(plane(page)).toHaveCount(0)
+  })
+
+  test('laptop: the title tiles are there at once', async ({ page }) => {
+    test.skip(isPhone(page), 'laptop only')
+    await watchGlyphs(page)
+    await page.goto('/')
+    await expect(page.locator('#next-trip-pass h1 [data-tile]')).toHaveCount(12)
+    await page.waitForTimeout(400)
+    expect(await glyphLog(page)).toEqual([])
   })
 
   test('a day switch shows day 2 at once', async ({ page }) => {

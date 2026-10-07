@@ -19,6 +19,7 @@ import { firstMissingStep } from '@/lib/pass/describe'
 import { intoLine, passTitle, whenLine, whoLine } from '@/lib/pass/format'
 import type { PassAnswers, PassCity } from '@/lib/pass/types'
 import { loadPending, savePending } from '@/lib/pass/pending'
+import { TILE_ROW_PX, tileRows } from '@/lib/pass/tiles'
 import { LAPTOP_QUERY, useMediaQuery } from '@/lib/client/use-media'
 import { vibrate } from '@/lib/client/haptics'
 import { markTripOpen, TRIP_OPEN } from '@/lib/client/trip-open'
@@ -143,6 +144,9 @@ export function BlankPass({
   const coverCity = first ?? coverPhoto.city
   const title = first ? passTitle(stops, codeOf) : 'Where to next?'
   const code = stops.length === 1 ? codeOf(first) : undefined
+  // Laptop flap-tile title (quick 261007-wms, A-1) on every laptop blank pass;
+  // a title that needs a third row keeps today's plain title and scrim.
+  const tiles = tileRows(title, horizontal ? TILE_ROW_PX.horizontal : TILE_ROW_PX.vertical)
   const showCredit = photo && failedSlug !== photo.slug
 
   function goTo(next: QuestionStep | 'ready') {
@@ -310,6 +314,7 @@ export function BlankPass({
         titleAs="h1"
         flapTitle={hydrated}
         flapBoard
+        tiles={tiles}
         transitionId={tripId}
         onFallback={() => photo && setFailedSlug(photo.slug)}
         className={horizontal ? 'lg:h-auto lg:min-h-[440px]' : 'lg:h-70'}

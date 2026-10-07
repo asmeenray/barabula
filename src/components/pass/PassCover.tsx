@@ -2,7 +2,9 @@
 // styled city-map cover, with the two fixed scrims and the text slots on top.
 // Server-safe (no hooks); the photo itself is the small CoverImage client
 // island. No glass or blur over photos; the only blur is the ≤10 px placeholder
-// while the photo loads. Text on the cover is always white inside a scrim.
+// while the photo loads, with one exception: the laptop blank-pass title tiles
+// (Asmeen, 7 Oct 2026, hero polish option A), which sit over a lighter laptop
+// scrim. Text on the cover is always white inside a scrim.
 // Moment 4 (16-22, D-30): given a trip id, the cover is a React ViewTransition
 // named trip-cover-{id} (share="morph", default="none"); the plan header strip
 // carries the same name, so opening a trip morphs the pass cover into it.
@@ -50,6 +52,18 @@ const TITLE: Record<PassVariant, string> = {
 const SCRIMS =
   'linear-gradient(to top, rgba(5,8,12,.84), rgba(5,8,12,.48) 38%, rgba(5,8,12,.05) 70%), linear-gradient(to bottom, rgba(5,8,12,.55), transparent 35%)'
 
+// Laptop scrim behind the flap-tile title (A-3, 7 Oct 2026): lighter, since
+// the tiles carry their own dark backing. The status line keeps >= 4.5:1 and
+// the tile letters >= 3:1 on all 108 photos (src/__tests__/photos/cover-contrast.test.ts).
+export const LIGHT_SCRIMS =
+  'linear-gradient(to top, rgba(5,8,12,.55), rgba(5,8,12,.05) 45%), linear-gradient(to bottom, rgba(5,8,12,.45), transparent 30%)'
+
+// The decided pair alone left the status line under 4.5:1 on 20 of the 108
+// photos (worst Switzerland winter, 3.06:1 on the vertical pass). One narrow
+// band under the tile rows only (the bottom 42 px; the rows end 42 px above
+// the cover's bottom edge), at the lowest alpha that passes all 108: .21.
+export const STATUS_BAND = 'linear-gradient(to top, rgba(5,8,12,.21), rgba(5,8,12,.21) 36px, transparent 42px)'
+
 type Props = {
   photo: CoverPhoto | null
   /** Seeds the city-map cover when there is no photo. */
@@ -84,6 +98,13 @@ type Props = {
    * before its trip exists), so naming it later does not remount the cover.
    */
   transitionId?: string | null
+  /**
+   * Laptop flap-tile title (blank pass, quick 261007-wms): the title as at
+   * most two tile rows (tileRows). Adds the lighter laptop scrim and the 18 px
+   * laptop status line; the phone keeps today's title and scrim. null or
+   * absent: today's markup exactly.
+   */
+  tiles?: readonly string[] | null
   className?: string
 }
 
@@ -109,6 +130,7 @@ export function PassCover({
   flapTitle,
   flapBoard = false,
   transitionId,
+  tiles = null,
   className = '',
 }: Props) {
   const cover = (
@@ -126,7 +148,18 @@ export function PassCover({
         <CityMapCover cityName={cityName} />
       )}
 
-      <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ backgroundImage: SCRIMS }} />
+      {tiles ? (
+        <>
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 lg:hidden" style={{ backgroundImage: SCRIMS }} />
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-0 hidden lg:block"
+            style={{ backgroundImage: `${STATUS_BAND}, ${LIGHT_SCRIMS}` }}
+          />
+        </>
+      ) : (
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0" style={{ backgroundImage: SCRIMS }} />
+      )}
 
       {(stateLabel || code) && (
         <div className="absolute inset-x-0 top-0 flex items-start justify-between gap-4 px-4 pt-3 font-label text-xs leading-[1.33] font-semibold tracking-[0.16em] uppercase">
@@ -138,18 +171,27 @@ export function PassCover({
       <div className="absolute inset-x-0 bottom-0 px-4 pb-3">
         <Title
           {...titleAttrs}
-          className={`${oneLine ? 'truncate' : 'line-clamp-2 text-balance break-words'} max-w-[85%] font-mono font-semibold uppercase [text-shadow:0_1px_12px_rgba(5,8,12,.5)] ${TITLE[variant]}`}
+          // Chrome names a row of inline-flex tiles letter by letter ("W h e r e"),
+          // so with tiles the title carries its own name (headings allow one).
+          aria-label={tiles ? title : undefined}
+          className={`${oneLine ? 'truncate' : 'line-clamp-2 text-balance break-words'} max-w-[85%] font-mono font-semibold uppercase [text-shadow:0_1px_12px_rgba(5,8,12,.5)] ${TITLE[variant]}${
+            tiles ? ' lg:line-clamp-none lg:max-w-none lg:text-wrap' : ''
+          }`}
         >
           {flapTitle === undefined ? (
             title
           ) : flapBoard ? (
-            <SplitFlap text={title} play={flapTitle} {...BOARD_TITLE} />
+            <SplitFlap text={title} play={flapTitle} tiles={tiles} {...BOARD_TITLE} />
           ) : (
-            <SplitFlap text={title} play={flapTitle} />
+            <SplitFlap text={title} play={flapTitle} tiles={tiles} />
           )}
         </Title>
         {statusLine && (
-          <p className="mt-1 truncate font-mono text-base leading-tight tabular-nums">
+          <p
+            className={`mt-1 truncate font-mono text-base leading-tight tabular-nums${
+              tiles ? ' lg:mt-2 lg:text-[18px] lg:[text-shadow:0_1px_8px_rgba(5,8,12,.6)]' : ''
+            }`}
+          >
             {flapBoard && flapTitle !== undefined ? (
               <SplitFlap text={statusLine} play={flapTitle} {...BOARD_STATUS} />
             ) : (

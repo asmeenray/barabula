@@ -18,8 +18,15 @@
 // once. A flip runs when `play` is truthy on mount, when it changes to another
 // truthy value, or when the text changes while it is truthy. `play` must be
 // falsy on the server render (flips start on the client only).
+//
+// Tiles mode (quick 261007-wms, laptop only): given `tiles` (the text as at
+// most two rows, src/lib/pass/tiles.ts), each character sits in its own
+// see-through flap tile at rest and while flipping, on the same boxes. Every
+// tile style is behind lg:; below it rows, words and resting tiles are
+// display: contents, so the phone shows today's plain text (and today's
+// glyphs while flipping). Spaces stay real text, so the text reads the same.
 
-import { useEffect, useRef, useState } from 'react'
+import { Fragment, useEffect, useRef, useState } from 'react'
 import { useReducedMotionConfig } from 'motion/react'
 
 export const DRUM = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ '
@@ -77,6 +84,29 @@ type Props = {
   cascade?: number
   className?: string
   title?: string
+  /** Tiles mode: the text as rows (joined by single spaces they must equal the text). */
+  tiles?: readonly string[] | null
+}
+
+// One flap tile at lg (Asmeen's option A): 46 × 64, 4 px radius, dark glass
+// with a 6 px backdrop blur, a 1 px light border and a dark hairline across
+// the middle (rgba(5,8,12,.6), the tile colour at a stronger alpha);
+// Geist Mono 600 50 px white.
+const TILE_LG =
+  "lg:relative lg:inline-flex lg:h-16 lg:w-[46px] lg:shrink-0 lg:items-center lg:justify-center lg:rounded-[4px] lg:border lg:border-[rgba(255,255,255,.12)] lg:bg-[rgba(5,8,12,.42)] lg:font-mono lg:text-[50px] lg:leading-none lg:font-semibold lg:tracking-normal lg:text-white lg:backdrop-blur-[6px] lg:after:pointer-events-none lg:after:absolute lg:after:inset-x-0 lg:after:top-1/2 lg:after:h-px lg:after:bg-[rgba(5,8,12,.6)] lg:after:content-['']"
+const ROW_LG = 'contents lg:flex lg:gap-[18px]'
+const WORD_LG = 'lg:inline-flex lg:gap-1'
+
+/** Rows of words, each word with the index of its first character in the text. */
+function tileWords(rows: readonly string[]): { word: string; start: number }[][] {
+  let at = 0
+  return rows.map((row) =>
+    row.split(' ').map((word) => {
+      const start = at
+      at += word.length + 1
+      return { word, start }
+    })
+  )
 }
 
 export function SplitFlap({
@@ -88,6 +118,7 @@ export function SplitFlap({
   cascade = 0,
   className,
   title,
+  tiles,
 }: Props) {
   const reduced = useReducedMotionConfig() === true
   // Derived from the props of the last render (React's "adjust state when a
@@ -124,7 +155,34 @@ export function SplitFlap({
     return () => cancelAnimationFrame(raf)
   }, [flipping, seen.run, text, delayMs, frameMs, frames, cascade])
 
+  const rows = tiles && tiles.length > 0 && tiles.join(' ') === text ? tileWords(tiles) : null
+
   if (!flipping) {
+    if (rows) {
+      return (
+        <span data-flap="" title={title} className={`${className ?? ''} lg:flex lg:flex-col lg:items-start lg:gap-1`}>
+          {rows.map((words, r) => (
+            <Fragment key={r}>
+              {r > 0 && ' '}
+              <span data-tile-row="" className={ROW_LG}>
+                {words.map(({ word }, w) => (
+                  <Fragment key={w}>
+                    {w > 0 && ' '}
+                    <span className={`contents ${WORD_LG}`}>
+                      {word.split('').map((ch, k) => (
+                        <span key={k} data-tile="" className={`contents ${TILE_LG}`}>
+                          {ch}
+                        </span>
+                      ))}
+                    </span>
+                  </Fragment>
+                ))}
+              </span>
+            </Fragment>
+          ))}
+        </span>
+      )
+    }
     return (
       <span data-flap="" title={title} className={className}>
         {text}
@@ -134,6 +192,51 @@ export function SplitFlap({
 
   const first = flapFrame(text, 0, frames, cascade)
   const total = flapLength(text, frames, cascade) * frameMs
+
+  /** One flipping glyph (sized by its final character); a flap tile at lg in tiles mode. */
+  const glyph = (ch: string, i: number, k: number, tile: boolean) => (
+    <span
+      key={k}
+      data-glyph=""
+      data-tile={tile ? '' : undefined}
+      aria-hidden="true"
+      className={`relative inline-block animate-[flap-glyph_var(--ease-out)_both]${tile ? ` ${TILE_LG}` : ''}`}
+      style={{ animationDuration: `${total}ms`, animationDelay: `${delayMs}ms` }}
+    >
+      <span className="invisible">{ch}</span>
+      <span
+        ref={(el) => {
+          faces.current[i] = el
+        }}
+        className={`absolute inset-0 text-center whitespace-pre${tile ? ' lg:flex lg:items-center lg:justify-center' : ''}`}
+      >
+        {first[i]}
+      </span>
+    </span>
+  )
+
+  if (rows) {
+    return (
+      <span data-flap="" title={title} className={`${className ?? ''} lg:flex lg:flex-col lg:items-start lg:gap-1`}>
+        <span className="sr-only">{text}</span>
+        {rows.map((words, r) => (
+          <Fragment key={r}>
+            {r > 0 && ' '}
+            <span data-tile-row="" aria-hidden="true" className={ROW_LG}>
+              {words.map(({ word, start }, w) => (
+                <Fragment key={w}>
+                  {w > 0 && ' '}
+                  <span className={`whitespace-nowrap ${WORD_LG}`}>
+                    {word.split('').map((ch, k) => glyph(ch, start + k, k, true))}
+                  </span>
+                </Fragment>
+              ))}
+            </span>
+          </Fragment>
+        ))}
+      </span>
+    )
+  }
   // Each word with the index of its first character in the text.
   const words: { word: string; start: number }[] = []
   for (let at = 0; at <= text.length; ) {
@@ -151,28 +254,7 @@ export function SplitFlap({
             {w > 0 && ' '}
             {/* Words never break inside while flipping; lines still wrap at spaces. */}
             <span aria-hidden="true" className="whitespace-nowrap">
-              {word.split('').map((ch, k) => {
-                const i = start + k
-                return (
-                  <span
-                    key={k}
-                    data-glyph=""
-                    aria-hidden="true"
-                    className="relative inline-block animate-[flap-glyph_var(--ease-out)_both]"
-                    style={{ animationDuration: `${total}ms`, animationDelay: `${delayMs}ms` }}
-                  >
-                    <span className="invisible">{ch}</span>
-                    <span
-                      ref={(el) => {
-                        faces.current[i] = el
-                      }}
-                      className="absolute inset-0 text-center whitespace-pre"
-                    >
-                      {first[i]}
-                    </span>
-                  </span>
-                )
-              })}
+              {word.split('').map((ch, k) => glyph(ch, start + k, k, false))}
             </span>
           </span>
         )

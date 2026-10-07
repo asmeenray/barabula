@@ -116,3 +116,81 @@ describe('flapFrame with a cascade (arrival board)', () => {
     expect(flapLength('WHERE TO', 9)).toBe(9)
   })
 })
+
+// Tiles mode (quick 261007-wms, A-1/A-2): the laptop blank-pass title in rows
+// of flap tiles, at rest and while flipping; plain text below lg.
+describe('SplitFlap tiles', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+  })
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  const ROWS = ['Where to', 'next?'] as const
+
+  it('at rest: one tile per character in one row per row, the text as text', () => {
+    const { container } = render(
+      <MotionConfig reducedMotion="never">
+        <SplitFlap text="Where to next?" tiles={ROWS} play={false} />
+      </MotionConfig>
+    )
+    const flap = flapIn(container)
+    expect(flap.querySelectorAll('[data-tile]')).toHaveLength(12)
+    expect(flap.querySelectorAll('[data-glyph]')).toHaveLength(0)
+    expect(flap.querySelectorAll('[data-tile-row]')).toHaveLength(2)
+    expect(flap.textContent).toBe('Where to next?')
+    // Every tile style is laptop only; below lg the tiles are plain text.
+    const tile = flap.querySelector('[data-tile]')!
+    expect(tile).toHaveClass('contents')
+    for (const c of tile.className.split(/\s+/).filter((c) => c && c !== 'contents')) expect(c).toMatch(/^lg:/)
+  })
+
+  it('under reduced motion shows the resting tiles at once', () => {
+    const { container } = render(
+      <MotionConfig reducedMotion="always">
+        <SplitFlap text="Where to next?" tiles={ROWS} play frames={10} frameMs={40} cascade={2} />
+      </MotionConfig>
+    )
+    const flap = flapIn(container)
+    expect(flap.querySelectorAll('[data-tile]')).toHaveLength(12)
+    expect(flap.querySelectorAll('[data-glyph]')).toHaveLength(0)
+    expect(flap.querySelectorAll('[aria-hidden="true"]')).toHaveLength(0)
+  })
+
+  it('while flipping: aria-hidden glyph tiles and an sr-only copy, then the resting tiles', () => {
+    const { container } = render(
+      <MotionConfig reducedMotion="never">
+        <SplitFlap text="Where to next?" tiles={ROWS} play frames={10} frameMs={40} cascade={2} />
+      </MotionConfig>
+    )
+    const flap = flapIn(container)
+    expect(flap.querySelector('.sr-only')).toHaveTextContent(/^Where to next\?$/)
+    const glyphs = flap.querySelectorAll('[data-glyph]')
+    expect(glyphs).toHaveLength(12)
+    glyphs.forEach((g) => {
+      expect(g).toHaveAttribute('data-tile')
+      expect(g.closest('[aria-hidden="true"]')).not.toBeNull()
+    })
+    expect(flap.querySelectorAll('[data-tile-row]')).toHaveLength(2)
+
+    // 10 frames + 13 × 2 cascade frames, × 40 ms, plus a frame to start and one to finish.
+    act(() => {
+      vi.advanceTimersByTime((10 + 13 * 2) * 40 + 100)
+    })
+    const rest = flapIn(container)
+    expect(rest.querySelectorAll('[data-glyph]')).toHaveLength(0)
+    expect(rest.querySelectorAll('[data-tile]')).toHaveLength(12)
+    expect(rest.textContent).toBe('Where to next?')
+  })
+
+  it('ignores rows that do not spell the text (plain flap)', () => {
+    const { container } = render(
+      <MotionConfig reducedMotion="never">
+        <SplitFlap text="Lisbon" tiles={['Porto']} play={false} />
+      </MotionConfig>
+    )
+    expect(flapIn(container).querySelectorAll('[data-tile]')).toHaveLength(0)
+    expect(flapIn(container)).toHaveTextContent(/^Lisbon$/)
+  })
+})
