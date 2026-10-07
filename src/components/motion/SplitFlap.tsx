@@ -9,18 +9,18 @@
 // The container carries the real string in aria-label. While flipping, each
 // glyph is aria-hidden and sized by its final character (an invisible copy),
 // so nothing reflows; the frames are written straight into the glyph faces
-// from one requestAnimationFrame loop (no React state per frame). Under
+// from one requestAnimationFrame loop (no React state per frame). Each glyph
+// also turns in (opacity + rotateX) through the CSS keyframe flap-glyph: the
+// plan route uses this, and Motion's runtime would cost it ~50 KB (Q63). Under
 // reduced motion (MotionConfig reducedMotion="user") the final text shows at
 // once. A flip runs when `play` is truthy on mount, when it changes to another
 // truthy value, or when the text changes while it is truthy. `play` must be
 // falsy on the server render (flips start on the client only).
 
 import { useEffect, useRef, useState } from 'react'
-import { m, useReducedMotionConfig } from 'motion/react'
+import { useReducedMotionConfig } from 'motion/react'
 
 export const DRUM = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ '
-
-const EASE_OUT = [0.23, 1, 0.32, 1] as const
 
 /**
  * Moment 3 "day switch board flip" (D-30): the board head and the first 6
@@ -113,7 +113,7 @@ export function SplitFlap({ text, play = true, delayMs = 0, frameMs = 34, frames
   }
 
   const first = flapFrame(text, 0, frames)
-  const total = (frames * frameMs) / 1000
+  const total = frames * frameMs
   // Each word with the index of its first character in the text.
   const words: { word: string; start: number }[] = []
   for (let at = 0; at <= text.length; ) {
@@ -134,14 +134,12 @@ export function SplitFlap({ text, play = true, delayMs = 0, frameMs = 34, frames
               {word.split('').map((ch, k) => {
                 const i = start + k
                 return (
-                  <m.span
+                  <span
                     key={k}
                     data-glyph=""
                     aria-hidden="true"
-                    className="relative inline-block"
-                    initial={{ opacity: 0.4, rotateX: 70 }}
-                    animate={{ opacity: 1, rotateX: 0 }}
-                    transition={{ duration: total, delay: delayMs / 1000, ease: EASE_OUT }}
+                    className="relative inline-block animate-[flap-glyph_var(--ease-out)_both]"
+                    style={{ animationDuration: `${total}ms`, animationDelay: `${delayMs}ms` }}
                   >
                     <span className="invisible">{ch}</span>
                     <span
@@ -152,7 +150,7 @@ export function SplitFlap({ text, play = true, delayMs = 0, frameMs = 34, frames
                     >
                       {first[i]}
                     </span>
-                  </m.span>
+                  </span>
                 )
               })}
             </span>
@@ -164,22 +162,20 @@ export function SplitFlap({ text, play = true, delayMs = 0, frameMs = 34, frames
 }
 
 /**
- * A board cell that flips in (rotateX 80° → 0, 260 ms) each time `flip`
- * changes to a new truthy value; plain children otherwise and under reduced
- * motion.
+ * A board cell that flips in (rotateX 80° → 0, 260 ms, CSS keyframe flap-cell)
+ * each time `flip` changes to a new truthy value; plain children otherwise and
+ * under reduced motion.
  */
 export function FlipIn({ flip, delayMs = 0, children }: { flip: unknown; delayMs?: number; children: React.ReactNode }) {
   const reduced = useReducedMotionConfig() === true
   if (!flip || reduced) return <>{children}</>
   return (
-    <m.span
+    <span
       key={String(flip)}
-      className="inline-block"
-      initial={{ rotateX: 80, opacity: 0.4 }}
-      animate={{ rotateX: 0, opacity: 1 }}
-      transition={{ duration: BOARD_FLIP.cellMs / 1000, delay: delayMs / 1000, ease: EASE_OUT }}
+      className="inline-block animate-[flap-cell_var(--ease-out)_both]"
+      style={{ animationDuration: `${BOARD_FLIP.cellMs}ms`, animationDelay: `${delayMs}ms` }}
     >
       {children}
-    </m.span>
+    </span>
   )
 }

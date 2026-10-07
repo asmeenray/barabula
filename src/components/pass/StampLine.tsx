@@ -12,6 +12,7 @@
 
 import { m, useReducedMotionConfig } from 'motion/react'
 import { SplitFlap } from '@/components/motion/SplitFlap'
+import { useMotionFeatures } from '@/components/motion/MotionProvider'
 
 type Props = {
   label: string
@@ -30,6 +31,7 @@ const EASE_OUT = [0.23, 1, 0.32, 1] as const
 
 export function StampLine({ label, value, editName, onEdit, print = false }: Props) {
   const reduced = useReducedMotionConfig() === true
+  useMotionFeatures()
   const body = (
     <>
       <span className="font-label text-xs leading-[1.33] font-semibold tracking-[0.16em] text-muted uppercase">

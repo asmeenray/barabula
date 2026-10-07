@@ -170,6 +170,22 @@
   }
 }
 
+/* Split-flap glyph and board cell flips (16-20, D-30). CSS, not Motion, so
+   the plan route carries no animation runtime (budget Q63). Only rendered
+   when reduced motion is off. */
+@keyframes flap-glyph {
+  from {
+    opacity: 0.4;
+    transform: rotateX(70deg);
+  }
+}
+@keyframes flap-cell {
+  from {
+    opacity: 0.4;
+    transform: rotateX(80deg);
+  }
+}
+
 /* View transitions: never block taps; off under reduced motion (Pitfall 8). */
 ::view-transition {
   pointer-events: none;
