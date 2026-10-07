@@ -11,6 +11,7 @@
 
 import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useRouter } from 'next/navigation'
+import dynamic from 'next/dynamic'
 import type { CityPhoto } from '@/lib/photos/manifest'
 import { findCity } from '@/lib/photos/normalize'
 import { knownCities } from '@/lib/pass/cities'
@@ -20,12 +21,18 @@ import type { PassAnswers, PassCity } from '@/lib/pass/types'
 import { loadPending, savePending } from '@/lib/pass/pending'
 import { LAPTOP_QUERY, useMediaQuery } from '@/lib/client/use-media'
 import { vibrate } from '@/lib/client/haptics'
+import { useMotionFeatures } from '@/components/motion/MotionProvider'
 import { useAnnounce } from '@/components/a11y/LiveRegion'
 import { BoardStatusLine } from '@/components/board/BoardStatusLine'
 import { PassCover, PhotoCredit } from './PassCover'
 import { DescribeBox } from './DescribeBox'
 import { QuestionCard, type QuestionStep } from './QuestionCard'
 import { StampLine } from './StampLine'
+
+/** The laptop plane cursor (D-31): its chunk loads only where it is shown. */
+const PlaneCursor = dynamic(() => import('@/components/motion/PlaneCursor'), { ssr: false })
+const FINE_POINTER_QUERY = '(hover: hover) and (pointer: fine)'
+const REDUCED_MOTION_QUERY = '(prefers-reduced-motion: reduce)'
 
 /** The sign-in sheet / panel (Drawer), loaded the first time a logged-out user starts planning. */
 const SignInPanel = lazy(() => import('./SignInPanel'))
@@ -84,6 +91,12 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
   // Logged out (D-19): the sign-in sheet / inline panel, and answers kept from
   // a sign-in that did not finish.
   const isLaptop = useMediaQuery(LAPTOP_QUERY)
+  // Plane cursor: a mouse or trackpad, and no reduced motion.
+  const finePointer = useMediaQuery(FINE_POINTER_QUERY)
+  const reducedMotion = useMediaQuery(REDUCED_MOTION_QUERY)
+  const passRef = useRef<HTMLElement>(null)
+  // Stamp lines rise in with Motion (moment 1): fetch its features now, before the first answer.
+  useMotionFeatures()
   const [signIn, setSignIn] = useState(false)
   const [interrupted, setInterrupted] = useState(false)
   const startRef = useRef<HTMLButtonElement>(null)
@@ -225,6 +238,7 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
 
   return (
     <section
+      ref={passRef}
       // "Fill the pass" (CreateTripTile) scrolls here and focuses Where to?
       id="next-trip-pass"
       aria-label="Next trip"
@@ -331,6 +345,8 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
 
         {photo && showCredit && <PhotoCredit photo={photo} />}
       </div>
+
+      {finePointer && !reducedMotion && <PlaneCursor area={passRef} />}
 
       {/* Phone: sign-in is a bottom sheet over the pass. */}
       {signIn && !isLaptop && (
