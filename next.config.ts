@@ -1,13 +1,13 @@
 import type { NextConfig } from 'next'
 
 const nextConfig: NextConfig = {
-  images: {
-    remotePatterns: [
-      { protocol: 'https', hostname: 'images.unsplash.com' },
-      { protocol: 'https', hostname: 'lh3.googleusercontent.com' },
-      { protocol: 'https', hostname: 'images.pexels.com' },
-      { protocol: 'https', hostname: 'www.pexels.com' },
-    ],
+  // Old UI URLs (deleted in phase 16, D-36) land on Trips. Fixed internal
+  // destinations only. Not permanent, so 16.1 can bring a /chat route back.
+  async redirects() {
+    return [
+      { source: '/dashboard', destination: '/', permanent: false },
+      { source: '/chat', destination: '/', permanent: false },
+    ]
   },
 }
 
