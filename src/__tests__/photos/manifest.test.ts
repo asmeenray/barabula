@@ -5,6 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { CITY_PHOTOS, type CityPhoto } from '@/lib/photos/manifest'
 import { credits, dataCredits } from '@/lib/photos/credits'
 import { COUNTRIES } from '@/lib/photos/countries'
+import { CITY_CAPTIONS, captionFor } from '@/lib/photos/captions'
 
 // Integrity of the curated photo manifest (D-06, D-42, T-16-22): every credit is
 // real and complete, no placeholder text ships, every file exists and the
@@ -135,5 +136,37 @@ describe('dataCredits()', () => {
         licenceUrl: 'https://creativecommons.org/licenses/by/4.0/',
       })
     )
+  })
+})
+
+// "On the cover" captions (quick 261007-wms, A-4): short subjects from the
+// shipped photo's own Commons file title, server-only, city photos only.
+describe('CITY_CAPTIONS', () => {
+  const slugs = new Set(CITY_PHOTOS.map((p) => p.slug))
+
+  it('keys are curated city slugs', () => {
+    for (const slug of Object.keys(CITY_CAPTIONS)) expect(slugs.has(slug), slug).toBe(true)
+  })
+
+  it.each(Object.entries(CITY_CAPTIONS))('%s: a short, real subject that never repeats the city', (slug, caption) => {
+    const city = CITY_PHOTOS.find((p) => p.slug === slug)!.city
+    expect(caption).toBe(caption.trim())
+    expect(caption.length).toBeGreaterThanOrEqual(3)
+    expect(caption.length).toBeLessThanOrEqual(60)
+    expect(caption).not.toMatch(/\.$/)
+    expect(caption).not.toMatch(PLACEHOLDER)
+    expect(caption.toLowerCase()).not.toBe(city.toLowerCase())
+    expect(caption.toLowerCase().endsWith(city.toLowerCase())).toBe(false)
+  })
+
+  it('no city photo carries a caption (captions never ship with the client city list)', () => {
+    for (const p of CITY_PHOTOS) expect(p).not.toHaveProperty('caption')
+  })
+
+  it('captionFor returns the caption, or null for unknown and country slugs', () => {
+    const [slug, caption] = Object.entries(CITY_CAPTIONS)[0]
+    expect(captionFor(slug)).toBe(caption)
+    expect(captionFor('nowhere')).toBeNull()
+    expect(captionFor('portugal')).toBeNull()
   })
 })

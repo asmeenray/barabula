@@ -19,6 +19,7 @@ import { firstMissingStep } from '@/lib/pass/describe'
 import { intoLine, passTitle, whenLine, whoLine } from '@/lib/pass/format'
 import type { PassAnswers, PassCity } from '@/lib/pass/types'
 import { loadPending, savePending } from '@/lib/pass/pending'
+import { TILE_ROW_PX, tileRows } from '@/lib/pass/tiles'
 import { LAPTOP_QUERY, useMediaQuery } from '@/lib/client/use-media'
 import { vibrate } from '@/lib/client/haptics'
 import { markTripOpen, TRIP_OPEN } from '@/lib/client/trip-open'
@@ -29,6 +30,7 @@ import { PassCover, PhotoCredit } from './PassCover'
 import { DescribeBox } from './DescribeBox'
 import { QuestionCard, type QuestionStep } from './QuestionCard'
 import { StampLine } from './StampLine'
+import { CoverNote } from './CoverNote'
 
 const noopSubscribe = () => () => {}
 
@@ -56,6 +58,12 @@ type Props = {
   priority?: boolean
   /** The user's day (YYYY-MM-DD, getHomeData) for reading "12–15 May" in describe mode. */
   today?: string | null
+  /**
+   * "On the cover" caption of coverPhoto (getHomeData, server-only list), or
+   * null. The laptop horizontal pass shows it with a "Plan a trip to {City}"
+   * shortcut until the first input (quick 261007-wms).
+   */
+  coverCaption?: string | null
 }
 
 const EMPTY: PassAnswers = { stops: [], when: null, adults: null, kids: null, interests: [], note: null }
@@ -72,7 +80,15 @@ function unanswered(step: QuestionStep, a: PassAnswers): boolean {
   return a.interests.length === 0 && !a.note?.trim()
 }
 
-export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', priority = true, today = null }: Props) {
+export function BlankPass({
+  coverPhoto,
+  photos,
+  signedIn,
+  layout = 'vertical',
+  priority = true,
+  today = null,
+  coverCaption = null,
+}: Props) {
   const horizontal = layout === 'horizontal'
   const router = useRouter()
   const announce = useAnnounce()
@@ -111,6 +127,9 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
   const [interrupted, setInterrupted] = useState(false)
   const startRef = useRef<HTMLButtonElement>(null)
   const [focusStart, setFocusStart] = useState(0)
+  // The "On the cover" note goes for good on the first input, the shortcut or
+  // any city being set; it never comes back in this page view.
+  const [noteGone, setNoteGone] = useState(false)
 
   const cities = useMemo<PassCity[]>(
     () => photos.map((p) => ({ name: p.city, names: p.names, code: p.iata })),
@@ -125,6 +144,9 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
   const coverCity = first ?? coverPhoto.city
   const title = first ? passTitle(stops, codeOf) : 'Where to next?'
   const code = stops.length === 1 ? codeOf(first) : undefined
+  // Laptop flap-tile title (quick 261007-wms, A-1) on every laptop blank pass;
+  // a title that needs a third row keeps today's plain title and scrim.
+  const tiles = tileRows(title, horizontal ? TILE_ROW_PX.horizontal : TILE_ROW_PX.vertical)
   const showCredit = photo && failedSlug !== photo.slug
 
   function goTo(next: QuestionStep | 'ready') {
@@ -158,6 +180,7 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
       if (!live || !kept) return
       clientRef.current = kept.clientRef
       setAnswers(kept.pass)
+      if (kept.pass.stops.length) setNoteGone(true)
       setReachedEnd(true)
       setStep('ready')
       setInterrupted(true)
@@ -186,7 +209,17 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
     // Moment 1: a short buzz on a city pick (Android, Haptics on; a no-op elsewhere).
     if (next.some((city) => !stops.includes(city))) vibrate(8)
     setAnswers((a) => ({ ...a, stops: next }))
-    if (next.length) announce(`To: ${next.join(', then ')}`)
+    if (next.length) {
+      setNoteGone(true)
+      announce(`To: ${next.join(', then ')}`)
+    }
+  }
+
+  /** "Plan a trip to {City}": the same path as a combobox pick; focus stays inside Where to?. */
+  function planCover() {
+    setNoteGone(true)
+    setStops([coverPhoto.city])
+    setFocusSignal((n) => n + 1)
   }
 
   /** Saves one answer (a skip saves null / empty, which prints nothing), announces its line, moves on. */
@@ -211,7 +244,10 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
     setAnswers(next)
     setDescribed(true)
     setMode('steps')
-    if (next.stops.length) announce(`To: ${next.stops.join(', then ')}`)
+    if (next.stops.length) {
+      setNoteGone(true)
+      announce(`To: ${next.stops.join(', then ')}`)
+    }
     const open = firstMissingStep(next)
     if (open === 'ready') setReachedEnd(true)
     goTo(open)
@@ -278,6 +314,7 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
         titleAs="h1"
         flapTitle={hydrated}
         flapBoard
+        tiles={tiles}
         transitionId={tripId}
         onFallback={() => photo && setFailedSlug(photo.slug)}
         className={horizontal ? 'lg:h-auto lg:min-h-[440px]' : 'lg:h-70'}
@@ -360,6 +397,16 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
               Start planning
             </button>
           </div>
+        )}
+
+        {horizontal && !noteGone && stops.length === 0 && step === 1 && mode === 'steps' && !signIn && (
+          <CoverNote
+            city={coverPhoto.city}
+            caption={coverCaption}
+            reducedMotion={reducedMotion}
+            onPlan={planCover}
+            onDismiss={() => setNoteGone(true)}
+          />
         )}
 
         {photo && showCredit && <PhotoCredit photo={photo} />}

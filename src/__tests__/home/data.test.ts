@@ -2,6 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import type { SupabaseClient, User } from '@supabase/supabase-js'
 import { getHomeData, isFirstVisit } from '@/lib/home/data'
 import { CITY_PHOTOS } from '@/lib/photos/manifest'
+import { captionFor } from '@/lib/photos/captions'
 
 function client(result: { data: unknown; error: unknown }) {
   const chain = { select: vi.fn(), eq: vi.fn().mockResolvedValue(result) }
@@ -134,6 +135,23 @@ describe('getHomeData', () => {
     expect((await getHomeData(supabase, user, 'Asia/Tokyo', late)).today).toBe('2026-05-13')
     expect((await getHomeData(supabase, user, 'Nowhere/Land', late)).today).toBe('2026-05-12')
     expect((await getHomeData(supabase, user, undefined, late)).today).toBe('2026-05-12')
+  })
+
+  it('coverCaption is the shown cover city\'s caption only (null when it has none); cities carry none', async () => {
+    const { supabase } = client({ data: [], error: null })
+    const seen = new Set<string | null>()
+    // Walk every curated city as the cover (Math.random picks index i).
+    for (let i = 0; i < CITY_PHOTOS.length; i++) {
+      const spy = vi.spyOn(Math, 'random').mockReturnValue((i + 0.5) / CITY_PHOTOS.length)
+      const out = await getHomeData(supabase, i % 2 ? user : null, 'UTC', NOW)
+      spy.mockRestore()
+      expect(out.coverCity).toBe(CITY_PHOTOS[i])
+      expect(out.coverCaption).toBe(captionFor(out.coverCity.slug))
+      seen.add(out.coverCaption === null ? null : 'caption')
+      for (const c of out.cities) expect(c).not.toHaveProperty('caption')
+    }
+    // Both cases exist in the curated set.
+    expect(seen).toEqual(new Set([null, 'caption']))
   })
 
   it('a failed read is a null count and no trips, not zero', async () => {

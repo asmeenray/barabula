@@ -147,3 +147,61 @@ describe('PlanHeader cover', () => {
     expect(screen.queryByText(credit)).toBeNull()
   })
 })
+
+// Laptop flap-tile title (quick 261007-wms, A-1/A-3).
+describe('PassCover tiles', () => {
+  const scrims = (c: HTMLElement) =>
+    [...c.querySelectorAll<HTMLElement>('[aria-hidden="true"].pointer-events-none.absolute.inset-0')].filter((el) =>
+      el.style.backgroundImage.includes('linear-gradient')
+    )
+
+  it('renders the tile title, a laptop-only light scrim over today\'s phone scrim and the 18 px laptop status line', () => {
+    const { container } = render(
+      <PassCover
+        variant="blank"
+        photo={lisbon}
+        cityName="Lisbon"
+        title="Where to next?"
+        statusLine="Pick a city to start"
+        titleAs="h1"
+        flapTitle={false}
+        flapBoard
+        tiles={['Where to', 'next?']}
+      />
+    )
+    expect(container.querySelectorAll('[data-tile]')).toHaveLength(12)
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Where to next?')
+    // The tiles would read letter by letter in Chrome's name computation; the title names itself.
+    expect(screen.getByRole('heading', { level: 1 })).toHaveAttribute('aria-label', 'Where to next?')
+    const [phone, laptop] = scrims(container)
+    expect(phone).toHaveClass('lg:hidden')
+    expect(laptop).toHaveClass('hidden', 'lg:block')
+    expect(laptop.style.backgroundImage).toContain('rgba(5, 8, 12, 0.55)')
+    expect(laptop.style.backgroundImage).toContain('rgba(5, 8, 12, 0.05) 45%')
+    expect(laptop.style.backgroundImage).toContain('rgba(5, 8, 12, 0.45)')
+    const status = screen.getByText('Pick a city to start').closest('p')!
+    expect(status).toHaveClass('text-base', 'lg:text-[18px]')
+    // Phone keeps the 36 px title.
+    expect(screen.getByRole('heading', { level: 1 })).toHaveClass('text-[36px]')
+  })
+
+  it('without tiles keeps one scrim, no tiles and the plain status line', () => {
+    const { container } = render(
+      <PassCover
+        variant="blank"
+        photo={lisbon}
+        cityName="Lisbon"
+        title="Where to next?"
+        statusLine="Pick a city to start"
+        flapTitle={false}
+        flapBoard
+      />
+    )
+    expect(container.querySelectorAll('[data-tile]')).toHaveLength(0)
+    expect(container.querySelector('[aria-label]')).toBeNull()
+    const layers = scrims(container)
+    expect(layers).toHaveLength(1)
+    expect(layers[0]).not.toHaveClass('lg:hidden')
+    expect(screen.getByText('Pick a city to start').closest('p')).not.toHaveClass('lg:text-[18px]')
+  })
+})
