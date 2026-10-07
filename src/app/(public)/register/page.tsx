@@ -2,6 +2,23 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { signUp } from './actions'
+import { signInWithGoogle } from '../login/actions'
+import { BoardStatusLine } from '@/components/board/BoardStatusLine'
+import {
+  AUTH_FIELD,
+  AUTH_LABEL,
+  AUTH_PRIMARY,
+  AUTH_QUIET,
+  AUTH_TEXT_LINK,
+  AuthDivider,
+  AuthShell,
+  GoogleMark,
+} from '@/components/auth/AuthShell'
+
+// Create account (UI-SPEC §12): restyled to the phase 16 tokens. The email
+// form keeps its server action, field ids and names, and error display.
+// "Continue with Google" is the same sign-in action as on /login (a Google
+// account needs no separate sign-up).
 
 export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null)
@@ -17,74 +34,61 @@ export default function RegisterPage() {
     }
   }
 
+  async function handleGoogle() {
+    setLoading(true)
+    await signInWithGoogle()
+    // signInWithGoogle() calls redirect(data.url) to Google — browser follows
+  }
+
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white p-8 rounded-lg shadow-sm border border-gray-200 w-full max-w-md">
-        <h1 className="text-2xl font-bold text-gray-900 mb-6">Create account</h1>
+    <AuthShell title="Create account">
+      <button type="button" onClick={handleGoogle} disabled={loading} className={`${AUTH_PRIMARY} mt-6`}>
+        <GoogleMark />
+        Continue with Google
+      </button>
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded text-red-700 text-sm">
-            {error}
-          </div>
-        )}
+      <AuthDivider />
 
-        <form action={handleSubmit} className="space-y-4">
-          <div>
-            <label htmlFor="full_name" className="block text-sm font-medium text-gray-700 mb-1">
-              Full name
-            </label>
-            <input
-              id="full_name"
-              name="full_name"
-              type="text"
-              required
-              autoComplete="name"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-coral/40 focus:border-transparent"
-            />
-          </div>
-          <div>
-            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-              Email
-            </label>
-            <input
-              id="email"
-              name="email"
-              type="email"
-              required
-              autoComplete="email"
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-coral/40 focus:border-transparent"
-            />
-          </div>
-          <div>
-            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1">
-              Password
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              required
-              autoComplete="new-password"
-              minLength={8}
-              className="w-full px-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-coral/40 focus:border-transparent"
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full py-2 px-4 bg-coral text-white rounded-md text-sm font-medium hover:bg-coral-light disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {loading ? 'Creating account...' : 'Create account'}
-          </button>
-        </form>
+      {error && <BoardStatusLine className="mb-4" message={error} />}
 
-        <p className="mt-6 text-center text-sm text-gray-500">
-          Already have an account?{' '}
-          <Link href="/login" className="text-coral hover:underline">
-            Sign in
-          </Link>
-        </p>
-      </div>
-    </div>
+      <form action={handleSubmit} className="flex flex-col gap-4">
+        <div>
+          <label htmlFor="full_name" className={AUTH_LABEL}>
+            Full name
+          </label>
+          <input id="full_name" name="full_name" type="text" required autoComplete="name" className={AUTH_FIELD} />
+        </div>
+        <div>
+          <label htmlFor="email" className={AUTH_LABEL}>
+            Email
+          </label>
+          <input id="email" name="email" type="email" required autoComplete="email" className={AUTH_FIELD} />
+        </div>
+        <div>
+          <label htmlFor="password" className={AUTH_LABEL}>
+            Password
+          </label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            required
+            autoComplete="new-password"
+            minLength={8}
+            className={AUTH_FIELD}
+          />
+        </div>
+        <button type="submit" disabled={loading} className={`${AUTH_QUIET} mt-2`}>
+          {loading ? 'Creating account...' : 'Create account'}
+        </button>
+      </form>
+
+      <p className="mt-8 text-base text-muted">
+        Already have an account?{' '}
+        <Link href="/login" className={AUTH_TEXT_LINK}>
+          Sign in
+        </Link>
+      </p>
+    </AuthShell>
   )
 }

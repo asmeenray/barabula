@@ -2,6 +2,7 @@ import { test, expect, type Page } from '@playwright/test'
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 import { E2E_PASSWORD, OTHER_EMAIL, OWNER_EMAIL, readFixtures } from './helpers/fixtures'
 import { assertLocalUrl, localSupabaseEnv } from './helpers/local-env'
+import { CITY_PHOTOS } from '../src/lib/photos/manifest'
 
 // You tab (16-19, D-29): passenger card, Appearance with live theme switching
 // (D-03, including research assumption A1: trip pins survive a map style
@@ -141,3 +142,40 @@ test.describe('You tab', () => {
   })
 })
 
+test.describe('Credits and sign-in pages', () => {
+  test('/you/credits lists the photo credits from the manifest and the map credits', async ({ page }) => {
+    await page.goto('/you')
+    await page.getByRole('link', { name: 'Credits & attributions' }).click()
+    await expect(page).toHaveURL(/\/you\/credits$/)
+    await expect(page.getByRole('heading', { level: 1, name: 'Credits' })).toBeVisible()
+
+    // The Lisbon line, built from the manifest entry (src/lib/photos/manifest.ts).
+    const lisbon = CITY_PHOTOS.find((p) => p.city === 'Lisbon')
+    if (!lisbon) throw new Error('Lisbon is not in the manifest')
+    const line = page.getByRole('listitem').filter({ hasText: `Lisbon: ${lisbon.photographer}, ${lisbon.licence}` })
+    await expect(line).toHaveCount(1)
+    await expect(line.getByRole('link', { name: 'Source of the Lisbon photo' })).toHaveAttribute('href', lisbon.sourceUrl)
+
+    await expect(page.getByText('Map data © OpenStreetMap contributors')).toBeVisible()
+    await expect(page.getByText('Map tiles: OpenFreeMap © OpenMapTiles')).toBeVisible()
+    await expect(page.getByText('Place lookup: Nominatim (OpenStreetMap)')).toBeVisible()
+    await expect(page.getByRole('link', { name: 'GeoNames' })).toBeVisible()
+    await expect(page.getByText(/^Barabula \d+\.\d+\.\d+$/)).toBeVisible()
+
+    await page.getByRole('link', { name: 'Back to You' }).click()
+    await expect(page).toHaveURL(/\/you$/)
+  })
+
+  test('logged out, /login shows Continue with Google and the email field', async ({ browser }) => {
+    const context = await browser.newContext({ storageState: { cookies: [], origins: [] } })
+    const page = await context.newPage()
+    await page.goto('/login')
+    await expect(page.getByRole('heading', { level: 1, name: 'Sign in' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Continue with Google' })).toBeVisible()
+    await expect(page.getByLabel('Email')).toBeVisible()
+    await page.getByRole('link', { name: 'Create one' }).click()
+    await expect(page.getByRole('heading', { level: 1, name: 'Create account' })).toBeVisible()
+    await expect(page.getByLabel('Full name')).toBeVisible()
+    await context.close()
+  })
+})
