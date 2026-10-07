@@ -31,7 +31,7 @@ import { Maximize2Icon, Minimize2Icon } from '@/components/icons'
 import { AddPlaceButton, LazyPlaceForm } from './AddPlaceButton'
 import type { PlaceFormValues } from './PlaceForm'
 import { BoardHead, ColumnHeads } from './BoardHead'
-import { BoardRow, type RowGeo } from './BoardRow'
+import { BoardRow, type RowGeo, type RowLanding } from './BoardRow'
 import type { RowActions } from './RowMenu'
 import { BoardStatusLine } from './BoardStatusLine'
 import { DayTabs, dayKeyId, type DayKey } from './DayTabs'
@@ -39,6 +39,7 @@ import { PlanHeader } from './PlanHeader'
 import { DndElements, handleKey, rowKey, targetKey } from './dnd/elements'
 import { BOARD_FLIP, SplitFlap, boardFlipDelay } from '@/components/motion/SplitFlap'
 import type { PlanDndProps } from './dnd/PlanDnd'
+import { vibrate } from '@/lib/client/haptics'
 
 /** Marked once the board has hydrated and its day tabs respond (logged by the budgets spec, Q46). */
 export const BOARD_READY_MARK = 'barabula:board-ready'
@@ -54,6 +55,15 @@ const PHOTO_HOLD_MAX_MS = 10_000
 
 /** How long a day flip stays live: the board flip ends by 500 ms (moment 3). */
 const DAY_FLIP_MS = 600
+
+/** How long a just-added row counts as landing (380 ms move; the name flip ends by ~510 ms). */
+const LAND_MS = 1000
+
+/** Where the place form was when it was sent (viewport y of its top), so the new row lands from there. */
+function formTop(): number | null {
+  const form = document.activeElement?.closest('form')
+  return form ? form.getBoundingClientRect().top : null
+}
 
 /** The place form, open in add or edit mode (16-11, D-18). */
 type FormState = { mode: 'add' } | { mode: 'edit'; id: string }
@@ -144,6 +154,8 @@ export function PlanClient({
     removeActivity,
     unsaved,
     error,
+    lastAdded,
+    lastAddedId,
   } = usePlan(plan)
   // A place whose removal is waiting out its Undo window is not shown (16-09).
   const { pendingIds } = useUndo()
@@ -188,6 +200,27 @@ export function PlanClient({
     return () => window.clearTimeout(timer)
   }, [dayFlip.live, dayFlip.token])
   const flipToken = dayFlip.live ? dayFlip.token : 0
+  // Moment 2 "place lands in plan" (D-30): the last add lands for LAND_MS
+  // (move + name flip), derived during render like the day flip above.
+  const [landFrom, setLandFrom] = useState<number | null>(null)
+  const addedKey = lastAdded?.key ?? null
+  const [landing, setLanding] = useState({ key: addedKey, live: false })
+  if (landing.key !== addedKey) setLanding({ key: addedKey, live: addedKey !== null })
+  useEffect(() => {
+    if (!landing.live) return
+    const key = landing.key
+    const timer = window.setTimeout(() => setLanding((l) => (l.key === key ? { ...l, live: false } : l)), LAND_MS)
+    return () => window.clearTimeout(timer)
+  }, [landing.live, landing.key])
+  const land = useMemo<RowLanding | null>(
+    () => (landing.live && landing.key ? { key: landing.key, fromY: landFrom } : null),
+    [landing.live, landing.key, landFrom]
+  )
+  // The saved row keeps its temporary key while it is the last add, so it is
+  // not remounted when the server's id arrives mid-landing.
+  const landedId = lastAdded?.id ?? null
+  const landedKey = lastAdded?.key ?? null
+  const rowKeyOf = (id: string) => (id === landedId && landedKey ? landedKey : id)
   const [mapExpanded, setMapExpanded] = useState(false)
   // One ticket open at a time (UI-SPEC §7 item 7).
   const [openId, setOpenId] = useState<string | null>(null)
@@ -248,6 +281,9 @@ export function PlanClient({
 
   function submitAdd(values: PlaceFormValues) {
     const place = toNewPlace(values)
+    setLandFrom(formTop())
+    // Moment 2: a short buzz as the place lands (Android, Haptics on; a no-op elsewhere).
+    vibrate(12)
     // Phone shows one day: follow the place to its day so it is seen landing.
     setSelected(place.day_number ?? 'maybe')
     void addActivity(place).then((row) => {
@@ -393,6 +429,7 @@ export function PlanClient({
           id={MAP_REGION_ID}
           hoveredId={hoveredId}
           selectedId={openId}
+          landingId={lastAdded?.id ?? null}
           onPinHover={setHoveredId}
           onPinSelect={selectPin}
         />
@@ -497,6 +534,9 @@ export function PlanClient({
                     geoFor={geoFor}
                     elements={elements}
                     draggable={draggable}
+                    rowKeyOf={rowKeyOf}
+                    litId={lastAddedId}
+                    land={land}
                     empty={
                       <>
                         <p className="font-mono text-base font-semibold uppercase">No stops yet</p>
@@ -543,6 +583,9 @@ export function PlanClient({
                 geoFor={geoFor}
                 elements={elements}
                 draggable={draggable}
+                rowKeyOf={rowKeyOf}
+                litId={lastAddedId}
+                land={land}
                 empty={
                   <p className="text-base text-board-muted">
                     Nothing in Maybe. Move a place here to keep it without planning it.
@@ -654,6 +697,12 @@ interface DaySectionProps {
   elements: DndElements
   /** The drag layer has loaded: rows get their grip handle. */
   draggable: boolean
+  /** React key of a row (the last add keeps its temporary id, moment 2). */
+  rowKeyOf: (id: string) => string
+  /** The just-added place while lit (6 s), else null. */
+  litId: string | null
+  /** The landing in progress (moment 2), else null. */
+  land: RowLanding | null
   empty: React.ReactNode
 }
 
@@ -676,6 +725,9 @@ function DaySection({
   geoFor,
   elements,
   draggable,
+  rowKeyOf,
+  litId,
+  land,
   empty,
 }: DaySectionProps) {
   const id = dayKeyId(day)
@@ -738,7 +790,7 @@ function DaySection({
           <ol>
             {rows.map((a, i) => (
               <BoardRow
-                key={a.id}
+                key={rowKeyOf(a.id)}
                 activity={a}
                 number={maybe ? null : i + 1}
                 walk={maybe ? null : walks[i]}
@@ -756,6 +808,8 @@ function DaySection({
                 handleRef={draggable ? elements.ref(handleKey(a.id)) : null}
                 flip={boardFlipDelay(i) === null ? 0 : flip}
                 flipDelay={boardFlipDelay(i) ?? 0}
+                lit={litId === a.id}
+                land={land && land.key === rowKeyOf(a.id) ? land : null}
               />
             ))}
           </ol>

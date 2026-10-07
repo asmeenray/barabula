@@ -20,8 +20,12 @@
 // Trip details (16-17, D-20) are edited the same way: applied at once, one
 // PATCH /api/itineraries/{id} and one Undo toast. A smaller day count first
 // moves the places on the removed days to Maybe, inside the same Undo op.
+// Moment 2 "place lands in plan" (16-22, D-30): the place added last is
+// remembered as lastAdded; its row is lit for 6 s (lastAddedId) and its row key
+// stays the temporary id, so the saved id arriving mid-animation does not
+// remount the row.
 
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useAnnounce } from '@/components/a11y/LiveRegion'
 import { useUndo } from '@/components/undo/UndoProvider'
 import { sortActivities } from './days'
@@ -79,6 +83,19 @@ interface CreateBody {
 }
 
 const TEMP_PREFIX = 'new-'
+
+/** How long a just-added row keeps its lit wash (UI-SPEC Accent item 8). */
+export const LIT_MS = 6000
+
+/** The place added last on this page (moment 2). */
+export interface LastAdded {
+  /** The temporary id it was added with: its row key while it is the last add. */
+  key: string
+  /** Its current id (the temporary one until the server answers). */
+  id: string
+  /** The lit wash is on (the first 6 s). */
+  lit: boolean
+}
 
 /** Rows added on this page that the server has not confirmed yet. */
 export function isTempId(id: string): boolean {
@@ -248,6 +265,17 @@ export function usePlan(initial: TripPlan) {
   const [dayCount, setDayCount] = useState(initial.dayCount)
   /** Counts trip saves the server accepted (the page refreshes its cover after a new destination). */
   const [tripSaves, setTripSaves] = useState(0)
+  const [lastAdded, setLastAdded] = useState<LastAdded | null>(null)
+  // The wash goes off 6 s after the add (a newer add restarts it for that row).
+  const litKey = lastAdded?.lit ? lastAdded.key : null
+  useEffect(() => {
+    if (litKey === null) return
+    const timer = window.setTimeout(
+      () => setLastAdded((l) => (l?.key === litKey ? { ...l, lit: false } : l)),
+      LIT_MS
+    )
+    return () => window.clearTimeout(timer)
+  }, [litKey])
 
   /** Patches that failed to save, per activity id (merged, latest wins). */
   const pending = useRef(new Map<string, ActivityUpdate>())
@@ -453,6 +481,7 @@ export function usePlan(initial: TripPlan) {
         createdRows.current.set(temp, row)
         failedCreates.current.delete(temp)
         markUnsaved(temp, true)
+        setLastAdded((l) => (l?.key === temp ? { ...l, id: row.id } : l))
         setActivities((prev) => sortActivities(prev.map((a) => (a.id === temp ? row : a))))
         if (settled()) setFailed(false)
         return row
@@ -497,6 +526,7 @@ export function usePlan(initial: TripPlan) {
         ...(fixed ? { extra_data: { fixed_time: true } } : {}),
       }
       setActivities((prev) => sortActivities([...prev, row]))
+      setLastAdded({ key: temp, id: temp, lit: true })
       const saved = create(temp, body)
 
       undo.run({
@@ -507,6 +537,7 @@ export function usePlan(initial: TripPlan) {
           // Hide it now; whatever the POST does next, the add is cancelled.
           const wasFailed = failedCreates.current.delete(temp)
           markUnsaved(temp, true)
+          setLastAdded((l) => (l?.key === temp ? null : l))
           setActivities((prev) => prev.filter((a) => a.id !== temp))
           if (settled()) setFailed(false)
           const created = createdRows.current.get(temp)
@@ -709,5 +740,9 @@ export function usePlan(initial: TripPlan) {
     removeActivity,
     unsaved,
     error,
+    /** The place added last (moment 2), or null. */
+    lastAdded,
+    /** The just-added place while its row is lit (6 s), else null. */
+    lastAddedId: lastAdded?.lit ? lastAdded.id : null,
   }
 }

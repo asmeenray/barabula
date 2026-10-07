@@ -1,4 +1,5 @@
-import { useRef } from 'react'
+import { useLayoutEffect, useRef } from 'react'
+import { useReducedMotionConfig } from 'motion/react'
 import type { Chip } from '@/lib/plan/board'
 import type { WalkCell } from '@/lib/plan/walk'
 import type { PlanActivity } from '@/lib/plan/types'
@@ -18,6 +19,11 @@ import { BOARD_FLIP, FlipIn, SplitFlap } from '@/components/motion/SplitFlap'
 // shown on row hover or focus-within; on phone the menu lives in the ticket.
 // Once the drag layer has loaded (16-14) the row gets a grip handle that takes
 // the "#" cell on laptop hover/focus; on phone a long-press on the row drags it.
+// Moment 2 "place lands in plan" (16-22, D-30): a just-added row slides from
+// the place form to its slot (380 ms, --ease-sheet, a manual FLIP with the Web
+// Animations API, no Motion layout code on the plan route), its name
+// split-flaps from 200 ms and it keeps the lit wash for 6 s. Reduced motion:
+// the row fades in over 150 ms and the name shows at once.
 // (No 'use client' here: BoardHead imports BOARD_GRID
 // and must not get a client reference; every user of BoardRow is a client.)
 
@@ -29,6 +35,24 @@ export const BOARD_GRID = 'grid grid-cols-[32px_minmax(0,1fr)_64px_80px] gap-2 p
  * the dark passes do, UI-SPEC Elevation). dnd-kit
  * sets data-dnd-dragging on the row while it is in the air.
  */
+/** Moment 2 timings (UI-SPEC Motion, signature moment 2). */
+export const LAND = {
+  moveMs: 380,
+  flipDelayMs: 200,
+  fadeMs: 150,
+  ease: 'cubic-bezier(0.32, 0.72, 0, 1)', // --ease-sheet
+  fadeEase: 'cubic-bezier(0.23, 1, 0.32, 1)', // --ease-out
+} as const
+
+/** A just-added row's landing: the row key it lands under and where the form was (viewport y, px). */
+export interface RowLanding {
+  key: string
+  fromY: number | null
+}
+
+/** The lit wash (UI-SPEC Accent item 8): accent at 18% over the board. */
+const LIT_WASH = 'bg-[color-mix(in_srgb,var(--accent)_18%,transparent)]'
+
 const DRAG_ROW =
   'max-lg:select-none max-lg:[-webkit-touch-callout:none] data-[dnd-dragging]:scale-[1.02] data-[dnd-dragging]:bg-board data-[dnd-dragging]:shadow-[0_-12px_40px_-12px_rgba(10,20,30,.4)] dark:data-[dnd-dragging]:border dark:data-[dnd-dragging]:border-line dark:data-[dnd-dragging]:shadow-none'
 
@@ -62,6 +86,10 @@ interface BoardRowProps {
   flip?: unknown
   /** This row's place in the flip's stagger (ms). */
   flipDelay?: number
+  /** Just added (moment 2): the lit wash is on. */
+  lit?: boolean
+  /** Just added (moment 2): the row lands from the form's position; null otherwise. */
+  land?: RowLanding | null
 }
 
 /** A place's map lookup state, from useGeocode. */
@@ -107,9 +135,30 @@ export function BoardRow({
   handleRef = null,
   flip = 0,
   flipDelay = 0,
+  lit = false,
+  land = null,
 }: BoardRowProps) {
   const draggable = handleRef !== null
   const rowRef = useRef<HTMLButtonElement>(null)
+  const reduced = useReducedMotionConfig() === true
+
+  // Moment 2: before the first paint of a landing, bring the row into view and
+  // play it in from the form (FLIP: measure the slot, start at the form's y).
+  useLayoutEffect(() => {
+    const li = rowRef.current?.parentElement
+    if (!land || !li || typeof li.animate !== 'function') return
+    li.scrollIntoView({ block: 'nearest' })
+    if (reduced) {
+      li.animate([{ opacity: 0 }, { opacity: 1 }], { duration: LAND.fadeMs, easing: LAND.fadeEase })
+      return
+    }
+    const dy = land.fromY === null ? 0 : land.fromY - li.getBoundingClientRect().top
+    if (Math.abs(dy) < 1) return
+    li.animate([{ transform: `translateY(${dy}px)` }, { transform: 'none' }], {
+      duration: LAND.moveMs,
+      easing: LAND.ease,
+    })
+  }, [land, reduced])
   const visited = chip === 'VISITED'
   // D-25: clock times are shown only for fixed anchors (bookings, timed tickets).
   const fixedTime = a.extra_data?.fixed_time === true && a.time ? clock(a.time) : null
@@ -133,7 +182,10 @@ export function BoardRow({
       ref={itemRef}
       data-activity-id={a.id}
       data-chip={chip}
-      className={`group relative border-b border-board-line ${draggable ? DRAG_ROW : ''}`}
+      data-lit={lit || undefined}
+      className={`group relative scroll-mb-24 border-b border-board-line transition-[background-color] duration-500 ease-out data-[dnd-dragging]:transition-none ${
+        lit ? LIT_WASH : ''
+      } ${draggable ? DRAG_ROW : ''}`}
       onKeyDown={onKeyDown}
       onMouseEnter={onHover && (() => onHover(a.id))}
       onMouseLeave={onHover && (() => onHover(null))}
@@ -175,10 +227,10 @@ export function BoardRow({
             )}
             <SplitFlap
               text={a.name}
-              play={flip}
-              delayMs={flipDelay}
-              frames={BOARD_FLIP.frames}
-              frameMs={BOARD_FLIP.frameMs}
+              play={land ? land.key : flip}
+              delayMs={land ? LAND.flipDelayMs : flipDelay}
+              frames={land ? undefined : BOARD_FLIP.frames}
+              frameMs={land ? undefined : BOARD_FLIP.frameMs}
               className={`line-clamp-2 min-w-0 font-label text-base leading-tight font-semibold tracking-[0.06em] break-words uppercase ${
                 visited ? 'line-through decoration-[1.5px]' : ''
               }`}

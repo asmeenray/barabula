@@ -4,7 +4,7 @@
 // Loaded only through TripMapLazy (ssr: false), so maplibre-gl never runs on
 // the server or in the first JS of the page (Pitfall 3, Pitfall 15).
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import Map, { Layer, Source } from 'react-map-gl/maplibre'
 import type { ErrorEvent, MapRef } from 'react-map-gl/maplibre'
 import type { ExpressionSpecification, Map as MapLibreMap, StyleSpecification } from 'maplibre-gl'
@@ -15,6 +15,10 @@ import { BoardStatusLine } from '@/components/board/BoardStatusLine'
 import { useResolvedTheme } from '@/lib/theme/use-theme'
 import { MAPLIBRE_WORKER_URL, loadMapLib, loadStyle } from './maplibre-loader'
 import { dayRoute, drawPin, loadPinFont, parsePinImageId, pinFeatures, PIN_COLOURS, type PinFeature, type PinTheme } from './pinImages'
+import { drawnTo, drawProgress, landedAfter, landingSegment, PIN_DROP } from './landing'
+
+// Moment 2's marker: its chunk loads on the first drop only.
+const PinDrop = lazy(() => import('./PinDrop'))
 
 export const MAP_LOAD_MARK = 'barabula:map-load'
 
@@ -36,6 +40,24 @@ export interface TripMapProps {
   onPinSelect?: (id: string) => void
   /** The map loaded or failed (TripMapLazy takes its LOADING MAP… row down). */
   onSettled?: () => void
+  /** The place added last on this page (moment 2): its pin drops when it is first located. */
+  landingId?: string | null
+}
+
+/**
+ * Moment 2 on the map (D-30): pin = the marker drops (the symbol pin is hidden),
+ * draw = the route segment to it draws, settle = the symbol pin is back under
+ * the marker for a moment, then the marker goes.
+ */
+interface Drop {
+  id: string
+  coords: [number, number]
+  img: string
+  day: number
+  /** The new route segment, or null (reduced motion, first stop, mid-route stop). */
+  segment: [number, number][] | null
+  stage: 'pin' | 'draw' | 'settle'
+  reduced: boolean
 }
 
 type Bounds = [[number, number], [number, number]]
@@ -66,6 +88,10 @@ const PINS_LAYER = 'trip-pins'
 /** Hovered and selected pins, drawn on top with the 'selected' image. */
 const TOP_LAYER = 'trip-pins-top'
 const PIN_LAYERS = [PINS_LAYER, TOP_LAYER]
+const ROUTE_LAYER = 'trip-route'
+/** Moment 2's route segment (line-gradient over line-progress). */
+const DRAW_LAYER = 'trip-route-draw'
+const DRAW_CASING = 'trip-route-draw-casing'
 
 // Pin images wait for Geist Mono (started once, when the map chunk first mounts).
 let fontReady: Promise<unknown> | null = null
@@ -90,6 +116,7 @@ export default function TripMap({
   onPinHover,
   onPinSelect,
   onSettled,
+  landingId = null,
 }: TripMapProps) {
   // Follows html data-theme live (D-03): a change swaps the OpenFreeMap style
   // (setStyle); react-map-gl re-adds the Source/Layer children and the pin
@@ -130,17 +157,54 @@ export default function TripMap({
   const onTop: ExpressionSpecification = ['in', ['get', 'id'], ['literal', top]]
   const selectedPin = selectedId !== null && pins.some((p) => p.properties.id === selectedId) ? selectedId : undefined
 
+  // Moment 2 "place lands in plan" (D-30): the first time the last-added
+  // place has a pin (now, or when its lookup resolves), it drops. Derived
+  // during render, so the symbol pin never shows before the drop.
+  const landingPin = ready && landingId ? pins.find((p) => p.properties.id === landingId) : undefined
+  const [dropped, setDropped] = useState<string | null>(null)
+  const [drop, setDrop] = useState<Drop | null>(null)
+  if (landingPin && dropped !== landingPin.properties.id) {
+    const reduced = reducedMotion()
+    setDropped(landingPin.properties.id)
+    setDrop({
+      id: landingPin.properties.id,
+      coords: landingPin.geometry.coordinates,
+      img: landingPin.properties.img,
+      day: landingPin.properties.day,
+      segment: reduced ? null : landingSegment(pins, landingPin.properties.id),
+      stage: 'pin',
+      reduced,
+    })
+  }
+  // The pin under the marker stays hidden until the marker has landed and the segment drawn.
+  const hiddenPin = drop && drop.stage !== 'settle' ? drop.id : ''
+  const drawing = drop?.segment && drop.day === selectedDay ? drop : null
+
   // The selected day's route through its located stops (unlocated ones skipped).
-  // lineMetrics is on for the moment-2 line-progress draw (16-22); static here.
+  // While a new pin drops, its segment is left out; the draw layer adds it.
+  const routeWithout = drawing && drawing.stage !== 'settle' ? drawing.id : null
   const route = useMemo(() => {
-    const line = dayRoute(pins, selectedDay)
+    const line = dayRoute(routeWithout ? pins.filter((p) => p.properties.id !== routeWithout) : pins, selectedDay)
     return {
       type: 'FeatureCollection' as const,
       features: line.length
         ? [{ type: 'Feature' as const, properties: {}, geometry: { type: 'LineString' as const, coordinates: line } }]
         : [],
     }
-  }, [pins, selectedDay])
+  }, [pins, selectedDay, routeWithout])
+  const segmentLine = drawing?.segment ?? null
+  const segment = useMemo(
+    () =>
+      segmentLine
+        ? {
+            type: 'FeatureCollection' as const,
+            features: [
+              { type: 'Feature' as const, properties: {}, geometry: { type: 'LineString' as const, coordinates: segmentLine } },
+            ],
+          }
+        : null,
+    [segmentLine]
+  )
   const lineLayout = { 'line-join': 'round', 'line-cap': 'round' } as const
   // Pins never hide each other; map labels under a pin give way to it.
   const pinLayout = { 'icon-anchor': 'bottom', 'icon-allow-overlap': true } as const
@@ -166,19 +230,63 @@ export default function TripMap({
   // The first fit comes from initialViewState. A day switch fits the new day
   // over 600 ms (moment 3, D-30; at once under reduced motion); other pin
   // changes (visited, edits) refit at once.
+  // A drop (moment 2) eases to the day the same way.
   const firstFit = useRef(true)
   const fittedDay = useRef(selectedDay)
+  const dropIdRef = useRef<string | null>(null)
+  const fittedDrop = useRef<string | null>(null)
+  useLayoutEffect(() => {
+    dropIdRef.current = drop?.id ?? null
+  }, [drop?.id])
   useEffect(() => {
     const dayChanged = fittedDay.current !== selectedDay
     fittedDay.current = selectedDay
+    const dropped = dropIdRef.current !== null && dropIdRef.current !== fittedDrop.current
+    fittedDrop.current = dropIdRef.current
     if (firstFit.current) {
       firstFit.current = false
       return
     }
     const target = fitTarget(pins, selectedDay)
-    const duration = dayChanged && !reducedMotion() ? DAY_FIT_MS : 0
+    const duration = (dayChanged || dropped) && !reducedMotion() ? DAY_FIT_MS : 0
     if (target && loadedRef.current) mapRef.current?.fitBounds(target, { ...FIT_OPTIONS, duration })
   }, [pins, selectedDay])
+
+  // Moment 2 stages: the marker drops, the segment draws (line-gradient step
+  // moved along line-progress, written straight to the map each frame), the
+  // symbol pin comes back under the marker, then the marker goes.
+  useEffect(() => {
+    if (!drop) return
+    const id = drop.id
+    const next = (stage: Drop['stage'] | null) => setDrop((d) => (d?.id !== id ? d : stage ? { ...d, stage } : null))
+    if (drop.stage === 'pin') {
+      const timer = window.setTimeout(() => next(drop.segment ? 'draw' : 'settle'), landedAfter(drop.reduced))
+      return () => window.clearTimeout(timer)
+    }
+    if (drop.stage === 'settle') {
+      const timer = window.setTimeout(() => next(null), PIN_DROP.settleMs)
+      return () => window.clearTimeout(timer)
+    }
+    const map = mapRef.current?.getMap()
+    const colours = PIN_COLOURS[theme]
+    let raf = 0
+    let start = -1
+    const paint = (p: number) => {
+      if (!map) return
+      if (map.getLayer(DRAW_LAYER)) map.setPaintProperty(DRAW_LAYER, 'line-gradient', drawnTo(p, colours.accent))
+      if (map.getLayer(DRAW_CASING)) map.setPaintProperty(DRAW_CASING, 'line-gradient', drawnTo(p, colours.ring))
+    }
+    const tick = (now: number) => {
+      if (start < 0) start = now
+      const p = drawProgress(now - start)
+      paint(p)
+      if (p >= 1) next('settle')
+      else raf = requestAnimationFrame(tick)
+    }
+    raf = requestAnimationFrame(tick)
+    // A hidden tab gets no frames; the segment is finished when it comes back.
+    return () => cancelAnimationFrame(raf)
+  }, [drop, theme])
 
   function handleError(e: ErrorEvent) {
     // Tile hiccups after the map is up are not fatal; the next pan retries.
@@ -267,7 +375,7 @@ export default function TripMap({
                 />
               )}
               <Layer
-                id="trip-route"
+                id={ROUTE_LAYER}
                 type="line"
                 layout={lineLayout}
                 paint={{ 'line-color': PIN_COLOURS[theme].accent, 'line-width': 4 }}
@@ -279,7 +387,7 @@ export default function TripMap({
               <Layer
                 id={PINS_LAYER}
                 type="symbol"
-                filter={['all', isLaptop ? true : onDay, ['!', onTop]]}
+                filter={['all', isLaptop ? true : onDay, ['!', onTop], ['!=', ['get', 'id'], hiddenPin]]}
                 layout={{
                   ...pinLayout,
                   'icon-image': ['get', 'img'],
@@ -292,10 +400,42 @@ export default function TripMap({
               <Layer
                 id={TOP_LAYER}
                 type="symbol"
-                filter={isLaptop ? onTop : ['all', onDay, onTop]}
+                filter={['all', isLaptop ? true : onDay, onTop, ['!=', ['get', 'id'], hiddenPin]]}
                 layout={{ ...pinLayout, 'icon-image': ['get', 'sel'] }}
               />
             </Source>
+          )}
+          {/* Moment 2's segment, after the pins in the tree (so its beforeId layers exist) but drawn under them. */}
+          {ready && segment && (
+            <Source id="trip-route-draw" type="geojson" lineMetrics data={segment}>
+              {theme === 'light' && (
+                <Layer
+                  id={DRAW_CASING}
+                  type="line"
+                  beforeId={ROUTE_LAYER}
+                  layout={lineLayout}
+                  paint={{
+                    'line-width': 7,
+                    'line-gradient': drawnTo(drawing?.stage === 'settle' ? 1 : 0, PIN_COLOURS.light.ring),
+                  }}
+                />
+              )}
+              <Layer
+                id={DRAW_LAYER}
+                type="line"
+                beforeId={PINS_LAYER}
+                layout={lineLayout}
+                paint={{
+                  'line-width': 4,
+                  'line-gradient': drawnTo(drawing?.stage === 'settle' ? 1 : 0, PIN_COLOURS[theme].accent),
+                }}
+              />
+            </Source>
+          )}
+          {ready && drop && (
+            <Suspense fallback={null}>
+              <PinDrop lng={drop.coords[0]} lat={drop.coords[1]} image={drop.img} reduced={drop.reduced} />
+            </Suspense>
           )}
         </Map>
       )}

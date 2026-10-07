@@ -1,10 +1,12 @@
-import { test, expect, type Page } from '@playwright/test'
+import { test, expect, type Locator, type Page } from '@playwright/test'
 import { readFixtures } from './helpers/fixtures'
 
-// Motion (16-20, D-30…D-32): the split-flap moments run and settle on the real
-// text, reduced motion turns them into plain changes, and the laptop plane
-// cursor sits beside the real cursor (never hides it). Phone (Pixel 7) and
-// laptop projects, signed in as the fixture owner, local stack only.
+// Motion (16-20, 16-22, D-30…D-32): the split-flap moments run and settle on
+// the real text, reduced motion turns them into plain changes, and the laptop
+// plane cursor sits beside the real cursor (never hides it). Moment 2: a new
+// place lands lit (and fades in under reduced motion). Phone (Pixel 7) and
+// laptop projects, signed in as the fixture owner, local stack only. The e2e
+// server runs with NOMINATIM_DISABLED=1, so no pin is located and dropped here.
 
 type GlyphWindow = Window & { __glyphs: string[] }
 
@@ -54,6 +56,64 @@ async function switchToDay2(page: Page) {
 }
 
 const plane = (page: Page) => page.locator('[data-plane-cursor]')
+
+type AnimWindow = Window & { __rowMoves: string[] }
+
+/** Logs the transform keyframes of every element.animate() call on a plan row (moment 2's FLIP). */
+async function watchRowAnimations(page: Page) {
+  await page.addInitScript(() => {
+    const w = window as unknown as AnimWindow
+    w.__rowMoves = []
+    const animate = Element.prototype.animate
+    Element.prototype.animate = function (this: Element, keyframes, options) {
+      if (this.matches('li[data-activity-id]') && Array.isArray(keyframes)) {
+        w.__rowMoves.push(keyframes.map((k) => String((k as Keyframe).transform ?? (k as Keyframe).opacity)).join(' > '))
+      }
+      return animate.call(this, keyframes, options)
+    }
+  })
+}
+
+/**
+ * The e2e geocoder is off (NOMINATIM_DISABLED); answer the single-place
+ * lookup in the browser instead, with a point in central Lisbon near day 1.
+ */
+async function locateAddedPlaces(page: Page) {
+  await page.route('**/api/activities/*/geocode', (route) =>
+    route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ status: 'hit', lat: 38.7139, lng: -9.1394 }) })
+  )
+}
+
+/** Moment 2's marker: [inner element animations, marker root animations], or null while there is none. */
+const dropAnimations = (page: Page) =>
+  page.evaluate(() => {
+    const el = document.querySelector('[data-pin-drop]')
+    const root = el?.closest('.maplibregl-marker')
+    if (!el || !root) return null
+    return [el.getAnimations({ subtree: true }).length, root.getAnimations().length]
+  })
+
+const rowMoves = (page: Page) => page.evaluate(() => (window as unknown as AnimWindow).__rowMoves)
+
+/** Adds a place to day 1 through the place form (sheet on phone, inline on laptop); returns the saved id. */
+async function addToDay1(page: Page, name: string, address?: string): Promise<string> {
+  await page.locator('button:visible', { hasText: /^Add place$/ }).click()
+  const form: Locator = isPhone(page)
+    ? page.getByRole('dialog', { name: 'Add a place' })
+    : page.getByRole('group', { name: 'Add a place' })
+  await expect(form).toBeVisible()
+  await form.getByLabel('Place name').fill(name)
+  if (address) await form.getByLabel(/Address or area/).fill(address)
+  await form.getByRole('combobox', { name: 'Day' }).click()
+  await page.getByRole('option', { name: 'Day 1', exact: true }).click()
+  const created = page.waitForResponse(
+    (r) => r.request().method() === 'POST' && new URL(r.url()).pathname === '/api/activities'
+  )
+  await form.getByRole('button', { name: 'Add place' }).click()
+  const res = await created
+  expect(res.status()).toBe(201)
+  return ((await res.json()) as { id: string }).id
+}
 
 test.describe('motion', () => {
   test('laptop: the plane flies beside the cursor over the blank pass, never instead of it', async ({ page }) => {
@@ -133,6 +193,59 @@ test.describe('motion', () => {
     await expect(page.locator('[data-day="2"] [data-glyph]')).toHaveCount(0, { timeout: 2_000 })
     await expect(page.locator(`[data-activity-id="${fx.activityIds['2'][0]}"]`)).toBeVisible()
   })
+
+  test('moment 2: a new place lands from the form, lit, with the toast', async ({ page }) => {
+    const fx = readFixtures()
+    await watchRowAnimations(page)
+    await watchGlyphs(page)
+    await page.goto(`/itinerary/${fx.lisbonId}`)
+    await expect(page.getByRole('heading', { level: 1, name: 'Lisbon' })).toBeVisible()
+    let id: string | null = null
+    try {
+      id = await addToDay1(page, 'Moment Test')
+      const row = page.locator(`li[data-activity-id="${id}"]`)
+      await expect(row).toBeVisible()
+      await expect(row).toHaveAttribute('data-lit', 'true')
+      // The lit wash: accent at 18% (a translucent yellow), not the plain board.
+      const bg = await row.evaluate((el) => getComputedStyle(el).backgroundColor)
+      expect(bg).not.toBe('rgba(0, 0, 0, 0)')
+      await expect(page.getByRole('status', { name: 'Notifications' })).toContainText('Added to day 1')
+      // It moved in from the form (a translateY FLIP), and its name split-flapped on day 1.
+      expect((await rowMoves(page)).some((m) => /^translateY\(-?[\d.]+px\) > none$/.test(m))).toBe(true)
+      expect(await glyphLog(page)).toContain('1')
+      await expect(row).toHaveText(/Moment Test/i)
+    } finally {
+      if (id) await page.request.delete(`/api/activities/${id}`)
+    }
+  })
+})
+
+test('moment 2 on the map: the located place drops its pin, then the map pin takes over', async ({ page }) => {
+  const fx = readFixtures()
+  await locateAddedPlaces(page)
+  await page.goto(`/itinerary/${fx.lisbonId}`)
+  const map = page.locator('#trip-map')
+  await expect.poll(() => map.getAttribute('data-pins-rendered'), { timeout: 30_000 }).toBe('4')
+  let id: string | null = null
+  try {
+    id = await addToDay1(page, 'Moment Pin', 'Rossio')
+    // The drop runs on the inner elements; MapLibre's marker root is never animated.
+    await expect
+      .poll(
+        async () => {
+          const counts = await dropAnimations(page)
+          return counts !== null && counts[0] > 0 && counts[1] === 0
+        },
+        { timeout: 10_000, intervals: [50] }
+      )
+      .toBe(true)
+    await expect(page.locator('[data-pin-drop="drop"]')).toHaveCount(1)
+    // Then the marker goes and the day's symbol pins count the new one.
+    await expect(page.locator('[data-pin-drop]')).toHaveCount(0, { timeout: 5_000 })
+    await expect.poll(() => map.getAttribute('data-pins-rendered'), { timeout: 15_000 }).toBe('5')
+  } finally {
+    if (id) await page.request.delete(`/api/activities/${id}`)
+  }
 })
 
 test.describe('motion, reduced', () => {
@@ -165,5 +278,44 @@ test.describe('motion, reduced', () => {
     await expect(page.locator(`[data-activity-id="${fx.activityIds['2'][0]}"]`)).toBeVisible()
     await page.waitForTimeout(400)
     expect(await glyphLog(page)).toEqual([])
+  })
+
+  test('moment 2: a new place shows at once and only fades in', async ({ page }) => {
+    const fx = readFixtures()
+    await watchRowAnimations(page)
+    await watchGlyphs(page)
+    await page.goto(`/itinerary/${fx.lisbonId}`)
+    await expect(page.getByRole('heading', { level: 1, name: 'Lisbon' })).toBeVisible()
+    let id: string | null = null
+    try {
+      id = await addToDay1(page, 'Moment Test')
+      const row = page.locator(`li[data-activity-id="${id}"]`)
+      await expect(row).toBeVisible()
+      await expect(row).toHaveAttribute('data-lit', 'true')
+      await page.waitForTimeout(200)
+      expect(await row.evaluate((el) => el.getAnimations({ subtree: true }).length)).toBe(0)
+      expect((await rowMoves(page)).every((m) => !m.includes('translateY'))).toBe(true)
+      expect(await glyphLog(page)).toEqual([])
+    } finally {
+      if (id) await page.request.delete(`/api/activities/${id}`)
+    }
+  })
+
+  test('moment 2 on the map: the pin only fades in', async ({ page }) => {
+    const fx = readFixtures()
+    await locateAddedPlaces(page)
+    await page.goto(`/itinerary/${fx.lisbonId}`)
+    const map = page.locator('#trip-map')
+    await expect.poll(() => map.getAttribute('data-pins-rendered'), { timeout: 30_000 }).toBe('4')
+    let id: string | null = null
+    try {
+      id = await addToDay1(page, 'Moment Pin', 'Rossio')
+      await expect(page.locator('[data-pin-drop="fade"]')).toHaveCount(1, { timeout: 10_000 })
+      await expect(page.locator('.pin-drop-ring')).toHaveCount(0)
+      await expect(page.locator('[data-pin-drop]')).toHaveCount(0, { timeout: 5_000 })
+      await expect.poll(() => map.getAttribute('data-pins-rendered'), { timeout: 15_000 }).toBe('5')
+    } finally {
+      if (id) await page.request.delete(`/api/activities/${id}`)
+    }
   })
 })
