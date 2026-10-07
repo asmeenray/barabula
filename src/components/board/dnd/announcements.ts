@@ -15,7 +15,10 @@ export type DragMoment = 'start' | 'over' | 'end' | 'cancel'
 
 /** The part of a dnd-kit drag event the announcements read. */
 export interface AnnounceEvent {
-  operation: { source: { id: string | number } | null }
+  operation: {
+    source: { id: string | number } | null
+    target?: { id: string | number; type?: unknown } | null
+  }
   canceled?: boolean
 }
 
@@ -25,14 +28,14 @@ export const DRAG_INSTRUCTIONS =
 
 export function buildAnnouncements(
   nameOf: (id: string) => string,
-  locate: (id: string, when: DragMoment) => DropLocation | null
+  locate: (id: string, when: DragMoment, event: AnnounceEvent) => DropLocation | null
 ) {
   /** The place's name and location for this moment, or null to stay quiet. */
   function read(event: AnnounceEvent, when: DragMoment): { name: string; at: DropLocation } | null {
     const source = event.operation.source
     if (!source) return null
     const id = String(source.id)
-    const at = locate(id, when)
+    const at = locate(id, when, event)
     return at ? { name: nameOf(id), at } : null
   }
 

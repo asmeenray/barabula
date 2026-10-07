@@ -4,11 +4,15 @@
 // phone = map strip above the board, one day at a time behind day tabs, with
 // an Expand map button; laptop (lg) = 440 px list with every day stacked under
 // clickable day header rows, map filling the rest.
+// Drag and drop (16-14, D-22) loads on idle once the map is up and only while
+// the owner can edit; the row "⋯" menu does every move before (and without) it.
 
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import type { ComponentType } from 'react'
 import { groupDays } from '@/lib/plan/days'
 import { chipFor, dayTitle, nextStopId, stopsLabel } from '@/lib/plan/board'
 import { dayKm, walkCells } from '@/lib/plan/walk'
+import { bucketKey, type DropItems } from '@/lib/plan/drop'
 import type { PlanActivity, TripPlan } from '@/lib/plan/types'
 import type { CityPhoto } from '@/lib/photos/manifest'
 import { clockOf, isTempId, usePlan, type ActivityUpdate, type NewPlace } from '@/lib/plan/use-plan'
@@ -27,6 +31,8 @@ import type { RowActions } from './RowMenu'
 import { BoardStatusLine } from './BoardStatusLine'
 import { DayTabs, dayKeyId, type DayKey } from './DayTabs'
 import { PlanHeader } from './PlanHeader'
+import { DndElements, handleKey, rowKey, targetKey } from './dnd/elements'
+import type { PlanDndProps } from './dnd/PlanDnd'
 
 /** Marked once the board has hydrated and its day tabs respond (logged by the budgets spec, Q46). */
 export const BOARD_READY_MARK = 'barabula:board-ready'
@@ -42,6 +48,26 @@ const PHOTO_HOLD_MAX_MS = 10_000
 
 /** The place form, open in add or edit mode (16-11, D-18). */
 type FormState = { mode: 'add' } | { mode: 'edit'; id: string }
+
+/** Loads the drag layer when the browser is idle (setTimeout where requestIdleCallback is missing). */
+function whenIdle(run: () => void): () => void {
+  if (typeof window.requestIdleCallback === 'function') {
+    const handle = window.requestIdleCallback(run, { timeout: 2000 })
+    return () => window.cancelIdleCallback(handle)
+  }
+  const timer = window.setTimeout(run, 200)
+  return () => window.clearTimeout(timer)
+}
+
+/** The board's order as drag buckets: 'd1'…'dN' and 'maybe'. */
+function toItems(days: PlanActivity[][], maybe: PlanActivity[]): DropItems {
+  const items: DropItems = {}
+  days.forEach((rows, i) => {
+    items[bucketKey(i + 1)] = rows.map((a) => a.id)
+  })
+  items.maybe = maybe.map((a) => a.id)
+  return items
+}
 
 const EMPTY_FORM: PlaceFormValues = { name: '', day: 1, location: '', fixedTime: false, time: '', note: '' }
 
@@ -75,6 +101,10 @@ function editValues(a: PlanActivity): PlaceFormValues {
 function rowButtonOf(id: string): HTMLElement | null {
   return document.querySelector<HTMLElement>(`li[data-activity-id="${CSS.escape(id)}"] > button[aria-expanded]`)
 }
+
+/** Laptop day header as a drop target (16-14): dashed while a drag is on; a solid ink ring and a wash under the place. */
+const DROP_HEADER =
+  'data-[drop=ready]:outline-1 data-[drop=ready]:-outline-offset-4 data-[drop=ready]:outline-current data-[drop=ready]:outline-dashed data-[drop=over]:outline-2 data-[drop=over]:-outline-offset-4 data-[drop=over]:outline-board-ink data-[drop=over]:outline-solid data-[drop=over]:bg-row-selected data-[drop=over]:text-board-ink'
 
 const MAP_BUTTON =
   'flex min-h-11 items-center justify-center gap-2 rounded-lg border border-field bg-surface text-ink transition-transform duration-150 ease-out active:scale-[0.97]'
@@ -110,7 +140,16 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cit
     find: () => void geocodeOne(a.id, { manual: true }),
   })
   const city = trip.destination || trip.title
-  const { days, maybe } = useMemo(() => groupDays(activities, plan.dayCount), [activities, plan.dayCount])
+  const grouped = useMemo(() => groupDays(activities, plan.dayCount), [activities, plan.dayCount])
+  // While a place is dragged the board shows the drag order (16-14); null = stored order.
+  const [dragOrder, setDragOrder] = useState<DropItems | null>(null)
+  const { days, maybe } = useMemo(() => {
+    if (!dragOrder) return grouped
+    const byId = new Map(activities.map((a) => [a.id, a]))
+    const pick = (ids: string[] | undefined) =>
+      (ids ?? []).map((id) => byId.get(id)).filter((a): a is PlanActivity => a !== undefined)
+    return { days: grouped.days.map((_, i) => pick(dragOrder[bucketKey(i + 1)])), maybe: pick(dragOrder.maybe) }
+  }, [dragOrder, grouped, activities])
   const [selected, setSelected] = useState<DayKey>(1)
   const [mapExpanded, setMapExpanded] = useState(false)
   // One ticket open at a time (UI-SPEC §7 item 7).
@@ -123,6 +162,29 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cit
   const fabRef = useRef<HTMLButtonElement>(null)
   const barRef = useRef<HTMLButtonElement>(null)
   const [form, setForm] = useState<FormState | null>(null)
+  // Drag layer (16-14): the board's elements are registered here from the first
+  // render; PlanDnd binds dnd-kit to them once it has loaded.
+  const [elements] = useState(() => new DndElements())
+  const [PlanDnd, setPlanDnd] = useState<ComponentType<PlanDndProps> | null>(null)
+
+  // Load it on idle after the plan is interactive and the map is up (so it never
+  // competes with the map on a slow phone), and only while the owner can edit.
+  useEffect(() => {
+    if (PlanDnd || !canEdit || !mapReady) return
+    let cancelled = false
+    const cancelIdle = whenIdle(() => {
+      import('./dnd/PlanDnd')
+        .then((m) => {
+          if (!cancelled) setPlanDnd(() => m.default)
+        })
+        .catch(() => {})
+    })
+    return () => {
+      cancelled = true
+      cancelIdle()
+    }
+  }, [PlanDnd, canEdit, mapReady])
+  const draggable = PlanDnd !== null
   /** The control that opened the form; focus goes back to it on close. */
   const openerRef = useRef<HTMLElement | null>(null)
   const refocusRef = useRef(false)
@@ -212,7 +274,12 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cit
     edit: () => openForm({ mode: 'edit', id: a.id }, rowButtonOf(a.id)),
   })
 
-  const tabs = (props: { idPrefix?: string; controls?: (key: DayKey) => string; className?: string }) => (
+  const tabs = (props: {
+    idPrefix?: string
+    controls?: (key: DayKey) => string
+    className?: string
+    dropRef?: (key: DayKey) => (el: Element | null) => void
+  }) => (
     <DayTabs
       dayCount={days.length}
       maybeCount={maybe.length}
@@ -297,7 +364,10 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cit
                     className="border-b border-board-line px-4 py-2"
                   />
                 )}
-                {tabs({ className: 'border-b border-board-line px-4 py-2 lg:hidden' })}
+                {tabs({
+                  className: 'border-b border-board-line px-4 py-2 lg:hidden',
+                  dropRef: (key) => elements.ref(targetKey(bucketKey(key === 'maybe' ? null : key), 'phone')),
+                })}
               </div>
 
               {days.map((rows, i) => {
@@ -318,6 +388,8 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cit
                     actionsFor={actionsFor}
                     editorFor={editorFor}
                     geoFor={geoFor}
+                    elements={elements}
+                    draggable={draggable}
                     empty={
                       <>
                         <p className="font-mono text-base font-semibold uppercase">No stops yet</p>
@@ -342,6 +414,8 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cit
                 actionsFor={actionsFor}
                 editorFor={editorFor}
                 geoFor={geoFor}
+                elements={elements}
+                draggable={draggable}
                 empty={
                   <p className="text-base text-board-muted">
                     Nothing in Maybe. Move a place here to keep it without planning it.
@@ -367,6 +441,21 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cit
             <div className="sticky bottom-0 z-10 bg-board px-4 pt-2 pb-4 max-lg:hidden">
               <AddPlaceButton variant="bar" onOpen={() => openForm({ mode: 'add' }, barRef.current)} ref={barRef} />
             </div>
+          )}
+
+          {PlanDnd && !isEmpty && (
+            <PlanDnd
+              items={dragOrder ?? toItems(grouped.days, grouped.maybe)}
+              layout={isLaptop ? 'laptop' : 'phone'}
+              visible={bucketKey(selected === 'maybe' ? null : selected)}
+              elements={elements}
+              nameOf={(id) => activities.find((a) => a.id === id)?.name ?? ''}
+              positions={Object.fromEntries(activities.map((a) => [a.id, a.position]))}
+              enabled={canEdit}
+              locked={isTempId}
+              onOrder={setDragOrder}
+              onDrop={(id, day, index) => moveActivity(id, day, index, { announce: false })}
+            />
           )}
 
           {/* Phone: clears the Add place FAB under the last row (UI-SPEC §7 item 8). */}
@@ -429,6 +518,10 @@ interface DaySectionProps {
   /** The inline edit form for a row (laptop), or null. */
   editorFor: (a: PlanActivity) => React.ReactNode
   geoFor: (a: PlanActivity) => RowGeo
+  /** Board elements for the drag layer (16-14). */
+  elements: DndElements
+  /** The drag layer has loaded: rows get their grip handle. */
+  draggable: boolean
   empty: React.ReactNode
 }
 
@@ -446,6 +539,8 @@ function DaySection({
   actionsFor,
   editorFor,
   geoFor,
+  elements,
+  draggable,
   empty,
 }: DaySectionProps) {
   const id = dayKeyId(day)
@@ -476,10 +571,11 @@ function DaySection({
 
       {/* Laptop: a day header row that selects the day and refits the map. */}
       <button
+        ref={elements.ref(targetKey(bucketKey(maybe ? null : (day as number)), 'laptop'))}
         type="button"
         aria-pressed={selected}
         onClick={onSelect}
-        className={`hidden min-h-11 w-full items-center justify-between gap-3 border-b px-4 py-2.5 text-left transition-colors duration-150 ease-out lg:flex ${
+        className={`hidden min-h-11 w-full items-center justify-between gap-3 border-b px-4 py-2.5 text-left transition-colors duration-150 ease-out lg:flex ${DROP_HEADER} ${
           selected
             ? 'border-board-ink bg-board-ink text-board'
             : 'border-board-line bg-surface-2 text-board-ink hover:bg-row-selected'
@@ -513,6 +609,8 @@ function DaySection({
                 actions={actionsFor(a, i, rows)}
                 editor={editorFor(a)}
                 geo={geoFor(a)}
+                itemRef={elements.ref(rowKey(a.id))}
+                handleRef={draggable ? elements.ref(handleKey(a.id)) : null}
               />
             ))}
           </ol>

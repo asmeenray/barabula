@@ -67,6 +67,27 @@ describe('UndoProvider', () => {
     expect(screen.getByRole('button', { name: 'Undo' })).toBeTruthy()
   })
 
+  it('reads the toast out politely by default', async () => {
+    setup()
+    await runOp(op('A'))
+    const viewport = screen.getByLabelText('Notifications')
+    expect(viewport.getAttribute('role')).toBe('status')
+    expect(viewport.getAttribute('aria-live')).toBe('polite')
+  })
+
+  it('keeps a toast silent with announce: false, then reads the next one again (Pitfall 11)', async () => {
+    setup()
+    await runOp(op('A', { announce: false }))
+    expect(screen.getByText('Moved A to day 2')).toBeTruthy()
+    const viewport = screen.getByLabelText('Notifications')
+    expect(viewport.getAttribute('aria-live')).toBe('off')
+    expect(viewport.getAttribute('role')).toBe('region')
+
+    await runOp(op('B'))
+    expect(screen.getByLabelText('Notifications').getAttribute('aria-live')).toBe('polite')
+    expect(screen.getByLabelText('Notifications').getAttribute('role')).toBe('status')
+  })
+
   it('commits once after the 10 s toast closes', async () => {
     setup()
     const a = op('A')

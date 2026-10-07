@@ -24,6 +24,9 @@ import type { ScriptBytes } from './helpers/perf'
 //   the same limits. All 3 runs are logged. A busy machine swings single runs
 //   by more than a second.
 // - Route JS stays one exact check (the bytes do not vary between runs).
+//
+// 16-14: the byte count waits for the idle-loaded drag chunk
+// (barabula:dnd-ready), so drag and drop is always inside the JS budget.
 
 const JS_BUDGET_BYTES = 204_800 // 200 KB gzipped, MapLibre excluded
 const BOARD_BUDGET_MS = 2_000 // elementtiming="board", median of RUNS
@@ -72,6 +75,8 @@ async function measure(browser: Browser, url: string, baseURL: string, withBytes
 
     if (!withBytes) return { boardMs: boardMs as number, mapMs, hydratedMs }
 
+    // The drag layer (16-14) loads on idle after the map; count its chunk too.
+    await expect.poll(() => markTime(page, 'barabula:dnd-ready'), { timeout: 30_000 }).toBeDefined()
     const js = await scriptBytes(page)
     const mapLines: string[] = []
     let mapBytes = 0

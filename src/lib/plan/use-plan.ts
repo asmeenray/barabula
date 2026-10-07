@@ -8,7 +8,8 @@
 // land out of order on the server.
 // Moves (16-09, D-22) are one PATCH { day_number, position } with the position
 // halfway between the new neighbours, and one Undo toast; the toast is the
-// announcement (Pitfall 11), so only Undo writes to the live region.
+// announcement (Pitfall 11), so only Undo writes to the live region. Drag
+// drops (16-14) use the same moveActivity with a silent toast.
 // Remove from trip hides the row at once and holds the DELETE until the Undo
 // toast closes (D-27 pattern); if it then fails, the row comes back with the
 // DELAYED line, so a failure never loses data.
@@ -297,9 +298,11 @@ export function usePlan(initial: TripPlan) {
   /**
    * Moves a place to a day (1…n) or to Maybe (null), at `toIndex` in that
    * bucket (appended when omitted). One Undo toast puts it back exactly.
+   * announce: false keeps the toast silent for screen readers; a drag passes
+   * it because dnd-kit already announced the drop (16-14, Pitfall 11).
    */
   const moveActivity = useCallback(
-    (id: string, toDay: number | null, toIndex?: number) => {
+    (id: string, toDay: number | null, toIndex?: number, opts?: { announce?: boolean }) => {
       const a = activities.find((x) => x.id === id)
       if (!a) return
       const sameBucket = a.day_number === toDay
@@ -324,6 +327,7 @@ export function usePlan(initial: TripPlan) {
       undo.run({
         id,
         label: toDay === null ? `Moved ${a.name} to Maybe` : `Moved ${a.name} to day ${toDay}`,
+        announce: opts?.announce,
         commit: () => {},
         undo: () => {
           void applyChanges(inverse)

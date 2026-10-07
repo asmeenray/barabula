@@ -4,6 +4,8 @@
 // roving tabindex and manual activation: ArrowLeft/ArrowRight/Home/End move
 // focus, Enter/Space select (native button click). "D{n}" + "TUE 12" when
 // dated; MAYBE last with its count. Scrolls with snap past 5 tabs.
+// While a place is dragged (16-14) the board's tabs are drop targets: the drag
+// layer sets data-drop="ready" on every tab and "over" on the one under it.
 
 import { useEffect, useRef, useState } from 'react'
 import type { KeyboardEvent } from 'react'
@@ -11,6 +13,10 @@ import { dayDate } from '@/lib/plan/board'
 import type { DayKey } from '@/components/map/TripMap'
 
 export type { DayKey }
+
+/** Drop-target states set by the drag layer: dashed ink while a drag is on, a wash under the place. */
+const DROP_TAB =
+  'data-[drop=ready]:border-dashed data-[drop=ready]:border-board-ink data-[drop=over]:border-solid data-[drop=over]:border-board-ink data-[drop=over]:outline-1 data-[drop=over]:outline-board-ink data-[drop=over]:outline-solid data-[drop=over]:bg-row-selected data-[drop=over]:text-board-ink'
 
 export function dayKeyId(key: DayKey): string {
   return key === 'maybe' ? 'maybe' : String(key)
@@ -27,6 +33,8 @@ interface DayTabsProps {
   /** Panel id per tab; defaults to the board's day panels. */
   controls?: (key: DayKey) => string
   className?: string
+  /** Registers each tab as a drop target for the drag layer (board tabs only). */
+  dropRef?: (key: DayKey) => (el: Element | null) => void
 }
 
 export function DayTabs({
@@ -38,6 +46,7 @@ export function DayTabs({
   idPrefix = 'day-tab',
   controls = (key) => `day-panel-${dayKeyId(key)}`,
   className,
+  dropRef,
 }: DayTabsProps) {
   const keys: DayKey[] = [...Array.from({ length: dayCount }, (_, i) => i + 1), 'maybe']
   const refs = useRef(new Map<string, HTMLButtonElement>())
@@ -87,6 +96,7 @@ export function DayTabs({
             ref={(el) => {
               if (el) refs.current.set(id, el)
               else refs.current.delete(id)
+              dropRef?.(key)(el)
             }}
             id={`${idPrefix}-${id}`}
             type="button"
@@ -96,7 +106,7 @@ export function DayTabs({
             tabIndex={key === focusKey ? 0 : -1}
             onFocus={() => setFocusKey(key)}
             onClick={() => onSelect(key)}
-            className={`flex h-12 min-w-16 flex-1 shrink-0 snap-start flex-col items-start justify-center rounded-[4px] border px-2 text-left transition-colors duration-150 ease-out ${
+            className={`flex h-12 min-w-16 flex-1 shrink-0 snap-start flex-col items-start justify-center rounded-[4px] border px-2 text-left transition-colors duration-150 ease-out ${DROP_TAB} ${
               isSelected ? 'border-board-ink bg-board-ink text-board' : 'border-board-line text-board-muted'
             }`}
           >

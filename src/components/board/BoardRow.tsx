@@ -4,6 +4,7 @@ import type { WalkCell } from '@/lib/plan/walk'
 import type { PlanActivity } from '@/lib/plan/types'
 import type { ActivityUpdate } from '@/lib/plan/use-plan'
 import { PlaceTicket, TICKET_CLICK_MARK, ticketId } from './PlaceTicket'
+import { GripVerticalIcon } from '@/components/icons'
 import { RowMenu, type RowActions } from './RowMenu'
 import { StatusChip } from './StatusChip'
 
@@ -14,10 +15,21 @@ import { StatusChip } from './StatusChip'
 // 7); the parent keeps one ticket open at a time. Escape closes it and puts
 // focus back on the row. Laptop rows also get a trailing "⋯" menu (16-09),
 // shown on row hover or focus-within; on phone the menu lives in the ticket.
+// Once the drag layer has loaded (16-14) the row gets a grip handle that takes
+// the "#" cell on laptop hover/focus; on phone a long-press on the row drags it.
 // (No 'use client' here: BoardHead imports BOARD_GRID
 // and must not get a client reference; every user of BoardRow is a client.)
 
 export const BOARD_GRID = 'grid grid-cols-[32px_minmax(0,1fr)_64px_80px] gap-2 px-4'
+
+/**
+ * A draggable row: no long-press callout or text selection on phone; lifted
+ * while dragged (scale 1.02 + the sheet shadow; dark: a 1 px line, no shadow, as
+ * the dark passes do, UI-SPEC Elevation). dnd-kit
+ * sets data-dnd-dragging on the row while it is in the air.
+ */
+const DRAG_ROW =
+  'max-lg:select-none max-lg:[-webkit-touch-callout:none] data-[dnd-dragging]:scale-[1.02] data-[dnd-dragging]:bg-board data-[dnd-dragging]:shadow-[0_-12px_40px_-12px_rgba(10,20,30,.4)] dark:data-[dnd-dragging]:border dark:data-[dnd-dragging]:border-line dark:data-[dnd-dragging]:shadow-none'
 
 interface BoardRowProps {
   activity: PlanActivity
@@ -37,6 +49,10 @@ interface BoardRowProps {
   editor?: React.ReactNode
   /** Map lookup state for this place (16-11, D-23, D-24). */
   geo?: RowGeo
+  /** Registers the row element (the li) for the drag layer (16-14). */
+  itemRef?: (el: Element | null) => void
+  /** Set once the drag layer has loaded: registers the grip handle and shows it. */
+  handleRef?: ((el: Element | null) => void) | null
 }
 
 /** A place's map lookup state, from useGeocode. */
@@ -76,7 +92,10 @@ export function BoardRow({
   actions,
   editor = null,
   geo,
+  itemRef,
+  handleRef = null,
 }: BoardRowProps) {
+  const draggable = handleRef !== null
   const rowRef = useRef<HTMLButtonElement>(null)
   const visited = chip === 'VISITED'
   // D-25: clock times are shown only for fixed anchors (bookings, timed tickets).
@@ -98,11 +117,24 @@ export function BoardRow({
 
   return (
     <li
+      ref={itemRef}
       data-activity-id={a.id}
       data-chip={chip}
-      className="group relative border-b border-board-line"
+      className={`group relative border-b border-board-line ${draggable ? DRAG_ROW : ''}`}
       onKeyDown={onKeyDown}
     >
+      {/* Laptop drag handle: replaces the "#" number on row hover or focus (UI-SPEC §8).
+          First in the DOM so Tab goes grip → row → "⋯". Hidden on phone (long-press the row). */}
+      {draggable && (
+        <button
+          ref={handleRef}
+          type="button"
+          aria-label={`Drag ${a.name} to reorder`}
+          className="absolute top-1.5 left-2 z-[1] inline-flex size-11 cursor-grab touch-none items-center justify-center rounded-lg text-board-muted opacity-0 transition-opacity duration-150 ease-out group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 active:cursor-grabbing max-lg:hidden"
+        >
+          <GripVerticalIcon />
+        </button>
+      )}
       <button
         ref={rowRef}
         type="button"
@@ -113,7 +145,11 @@ export function BoardRow({
           open ? 'bg-row-selected' : 'lg:group-hover:bg-surface-2'
         }`}
       >
-        <span className="font-mono text-base leading-tight font-semibold text-board-muted tabular-nums">
+        <span
+          className={`font-mono text-base leading-tight font-semibold text-board-muted tabular-nums ${
+            draggable ? 'lg:group-focus-within:invisible lg:group-hover:invisible' : ''
+          }`}
+        >
           {number === null ? '—' : two(number)}
         </span>
 

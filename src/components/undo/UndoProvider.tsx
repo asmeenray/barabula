@@ -10,7 +10,8 @@
 //   with fetch keepalive so it survives the unload.
 // The toast itself (Base UI Toast, UndoToaster) loads on the first op, so it
 // stays out of the plan route's first-load JS (Q46 budget). Focus is never
-// moved to the toast; the toast text is the announcement.
+// moved to the toast; the toast text is the announcement, unless the op says
+// announce: false (a drag: dnd-kit's own announcement already said it, Pitfall 11).
 
 import { createContext, lazy, Suspense, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
 
@@ -30,6 +31,8 @@ export interface UndoOp {
   deferred?: boolean
   /** Sent with fetch keepalive instead of commit() when the page is being unloaded. */
   keepaliveRequest?: { url: string; method: string }
+  /** false: the toast is shown but not read out (something else already announced it). Default true. */
+  announce?: boolean
 }
 
 interface UndoApi {
@@ -42,6 +45,8 @@ interface UndoApi {
 export interface UndoToastState {
   key: number
   label: string
+  /** Read out by the polite live region (false for a drag, Pitfall 11). */
+  announce: boolean
 }
 
 const EMPTY: ReadonlySet<string> = new Set()
@@ -108,7 +113,7 @@ export function UndoProvider({ children }: { children: React.ReactNode }) {
       pending.current = entry
       if (op.deferred) setPendingIds((prev) => new Set(prev).add(op.id))
       setUsed(true)
-      setToast({ key: entry.key, label: op.label })
+      setToast({ key: entry.key, label: op.label, announce: op.announce !== false })
     },
     [settle]
   )
