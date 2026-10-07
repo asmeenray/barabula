@@ -108,6 +108,25 @@ describe('getHomeData', () => {
     expect((await getHomeData(supabase, user, 'UTC', NOW)).next).toMatchObject({ title: 'LIS → PRG' })
   })
 
+  it('a city outside the curated set gets its country photo and no code (16-21)', async () => {
+    const { supabase } = client({
+      data: [
+        row({
+          id: 'bdx',
+          title: 'Bordeaux',
+          destination: 'Bordeaux',
+          start_date: '2026-07-10',
+          end_date: '2026-07-12',
+          extra_data: { pass: { stops: ['Bordeaux'], interests: ['Beaches'] } },
+        }),
+      ],
+      error: null,
+    })
+    const trip = (await getHomeData(supabase, user, 'UTC', NOW)).next
+    expect(trip?.photo?.slug).toBe('france-beach')
+    expect(trip?.code).toBeUndefined()
+  })
+
   it('an invalid zone falls back to UTC', async () => {
     const { supabase } = client({ data: [], error: null })
     // 23:30 UTC on 12 May; Tokyo is already 13 May.

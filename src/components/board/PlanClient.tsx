@@ -14,7 +14,7 @@ import { chipFor, dayTitle, nextStopId, stopsLabel } from '@/lib/plan/board'
 import { dayKm, walkCells } from '@/lib/plan/walk'
 import { bucketKey, type DropItems } from '@/lib/plan/drop'
 import type { PlanActivity, TripPlan } from '@/lib/plan/types'
-import type { CityPhoto } from '@/lib/photos/manifest'
+import type { CoverPhoto } from '@/lib/photos/manifest'
 import { clockOf, isTempId, usePlan, type ActivityUpdate, type NewPlace } from '@/lib/plan/use-plan'
 import { useCanEdit } from '@/lib/client/use-online'
 import { useGeocode } from '@/lib/plan/use-geocode'
@@ -109,7 +109,7 @@ const DROP_HEADER =
 const MAP_BUTTON =
   'flex min-h-11 items-center justify-center gap-2 rounded-lg border border-field bg-surface text-ink transition-transform duration-150 ease-out active:scale-[0.97]'
 
-export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: CityPhoto | null }) {
+export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: CoverPhoto | null }) {
   const { trip } = plan
   const {
     activities: all,

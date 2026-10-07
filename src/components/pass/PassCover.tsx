@@ -4,7 +4,7 @@
 // island. No glass or blur over photos; the only blur is the ≤10 px placeholder
 // while the photo loads. Text on the cover is always white inside a scrim.
 
-import type { CityPhoto } from '@/lib/photos/manifest'
+import type { CoverPhoto } from '@/lib/photos/manifest'
 import { CityMapCover } from './CityMapCover'
 import { CoverImage } from './CoverImage'
 
@@ -42,7 +42,7 @@ const SCRIMS =
   'linear-gradient(to top, rgba(5,8,12,.82), rgba(5,8,12,.05) 55%), linear-gradient(to bottom, rgba(5,8,12,.55), transparent 35%)'
 
 type Props = {
-  photo: CityPhoto | null
+  photo: CoverPhoto | null
   /** Seeds the city-map cover when there is no photo. */
   cityName: string
   title: string
@@ -119,7 +119,7 @@ export function PassCover({
 }
 
 /** "Photo: {photographer}, {licence}" for the pass body; never on the photo itself. */
-export function PhotoCredit({ photo, className = 'text-muted' }: { photo: CityPhoto; className?: string }) {
+export function PhotoCredit({ photo, className = 'text-muted' }: { photo: CoverPhoto; className?: string }) {
   return (
     <p className={`font-read text-xs leading-[1.33] ${className}`}>
       Photo: {photo.photographer}, {photo.licence}

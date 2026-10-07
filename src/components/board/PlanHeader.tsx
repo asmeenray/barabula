@@ -4,8 +4,8 @@
 // photo, or the styled city-map cover) with the city in white inside the scrim,
 // then the ticket row WHEN · WHO · INTO and, under it, the photo credit when a
 // photo shows (the strip has no pass body). The photo is chosen on the server
-// page with photoFor(trip.destination) and passed down, so the manifest stays
-// out of client JS. On the plan the photo download waits for the map (PlanClient
+// page with tripCover(trip) (city photo, else country photo) and passed down, so
+// the manifests stay out of client JS. Only city photos carry an IATA code. On the plan the photo download waits for the map (PlanClient
 // passes holdPhoto) so it never slows the map on a slow phone. Read-only here;
 // the cells become question sheet triggers in 16-17. Values are sentence case;
 // CSS sets the casing.
@@ -13,7 +13,7 @@
 import { useState } from 'react'
 import { tripInto, tripWhen, tripWho } from '@/lib/pass/trip-values'
 import type { PlanTrip } from '@/lib/plan/types'
-import type { CityPhoto } from '@/lib/photos/manifest'
+import type { CoverPhoto } from '@/lib/photos/manifest'
 import { PassCover, PhotoCredit } from '@/components/pass/PassCover'
 
 // Element Timing attribute (not in React's DOM types, passed through as-is).
@@ -41,7 +41,7 @@ export function PlanHeader({
   holdPhoto = false,
 }: {
   trip: PlanTrip
-  photo: CityPhoto | null
+  photo: CoverPhoto | null
   holdPhoto?: boolean
 }) {
   const city = trip.destination || trip.title

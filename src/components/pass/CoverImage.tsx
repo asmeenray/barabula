@@ -9,7 +9,7 @@
 // hold keeps only the blur (no request yet), e.g. until the plan's map is ready.
 
 import { useState } from 'react'
-import type { CityPhoto } from '@/lib/photos/manifest'
+import type { CoverPhoto } from '@/lib/photos/manifest'
 import { CityMapCover } from './CityMapCover'
 
 // The crop is picked by layout, not by srcset width: a 412 px phone at DPR 2.6
@@ -19,7 +19,7 @@ import { CityMapCover } from './CityMapCover'
 const LAPTOP = '(min-width: 1024px)'
 
 type Props = {
-  photo: CityPhoto
+  photo: CoverPhoto
   cityName: string
   /** Use the 1920 laptop crop at ≥1024 px (big passes); otherwise the 1080 crop everywhere. */
   large?: boolean

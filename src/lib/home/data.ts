@@ -4,7 +4,8 @@
 // (Pitfall 9), UTC on the very first visit.
 
 import type { SupabaseClient, User } from '@supabase/supabase-js'
-import { CITY_PHOTOS, type CityPhoto } from '@/lib/photos/manifest'
+import { tripCover } from '@/lib/photos/cover'
+import { CITY_PHOTOS, type CityPhoto, type CoverPhoto } from '@/lib/photos/manifest'
 import { photoFor, randomCity } from '@/lib/photos/match'
 import { findCity } from '@/lib/photos/normalize'
 import { dayCountFor } from '@/lib/plan/days'
@@ -22,7 +23,8 @@ export type HomeTrip = {
   title: string
   /** Seeds the city-map cover when there is no photo. */
   city: string
-  photo: CityPhoto | null
+  /** City photo, else the country photo (16-21), else null for the city-map cover. */
+  photo: CoverPhoto | null
   /** IATA code for a single-stop trip whose curated city has a real one. */
   code?: string
   /** "12–15 May" from the dates; null when undated. */
@@ -75,7 +77,7 @@ const codeOf = (stop: string) => findCity(CITY_PHOTOS, stop)?.iata
 function toHomeTrip(row: Row, today: string): HomeTrip {
   const activities = row.activities ?? []
   const city = row.destination || row.title
-  const photo = photoFor(city)
+  const photo = tripCover(row)
   const stops = tripStops(row)
   const multi = stops.length > 1
   return {
@@ -83,7 +85,7 @@ function toHomeTrip(row: Row, today: string): HomeTrip {
     title: multi ? passTitle(stops, codeOf) : row.title || city,
     city,
     photo,
-    code: multi ? undefined : photo?.iata,
+    code: multi ? undefined : photoFor(city)?.iata,
     dates: tripDates(row),
     when: tripWhen(row),
     who: tripWho(row),
