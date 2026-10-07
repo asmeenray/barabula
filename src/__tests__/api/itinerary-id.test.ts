@@ -268,3 +268,59 @@ describe('PATCH /api/itineraries/[id]', () => {
     expect(body).toEqual({ error: "Couldn't save" })
   })
 })
+
+describe('DELETE /api/itineraries/[id]', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.resetModules()
+  })
+
+  const del = () => new Request(`http://localhost/api/itineraries/${TRIP}`, { method: 'DELETE' })
+
+  it('returns 401 when not authenticated', async () => {
+    mockGetUser.mockResolvedValue({ data: { user: null }, error: null })
+    const { DELETE } = await import('@/app/api/itineraries/[id]/route')
+    const res = await DELETE(del() as any, ctx())
+    expect(res.status).toBe(401)
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('returns 400 for a non-uuid id', async () => {
+    signedIn()
+    const { DELETE } = await import('@/app/api/itineraries/[id]/route')
+    const res = await DELETE(del() as any, ctx('itin-1'))
+    expect(res.status).toBe(400)
+    expect(mockFrom).not.toHaveBeenCalled()
+  })
+
+  it('deletes through the RLS client and returns success', async () => {
+    signedIn()
+    const q = query({ data: [{ id: TRIP }], error: null })
+    mockFrom.mockReturnValueOnce(q)
+    const { DELETE } = await import('@/app/api/itineraries/[id]/route')
+    const res = await DELETE(del() as any, ctx())
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({ success: true })
+    expect(mockFrom).toHaveBeenCalledWith('itineraries')
+    expect(q.delete).toHaveBeenCalled()
+    expect(q.eq).toHaveBeenCalledWith('id', TRIP)
+    expect(q.select).toHaveBeenCalledWith('id')
+  })
+
+  it('returns 404 when nothing was deleted (RLS or missing)', async () => {
+    signedIn()
+    mockFrom.mockReturnValueOnce(query({ data: [], error: null }))
+    const { DELETE } = await import('@/app/api/itineraries/[id]/route')
+    const res = await DELETE(del() as any, ctx())
+    expect(res.status).toBe(404)
+  })
+
+  it('returns a generic 500 on a database error', async () => {
+    signedIn()
+    mockFrom.mockReturnValueOnce(query({ data: null, error: { message: 'secret detail' } }))
+    const { DELETE } = await import('@/app/api/itineraries/[id]/route')
+    const res = await DELETE(del() as any, ctx())
+    expect(res.status).toBe(500)
+    expect(await res.json()).toEqual({ error: "Couldn't delete" })
+  })
+})

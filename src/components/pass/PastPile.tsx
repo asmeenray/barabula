@@ -12,6 +12,7 @@ import { useRef, useState, type ReactNode } from 'react'
 import Link from 'next/link'
 import type { HomeTrip } from '@/lib/home/data'
 import { ChevronDownIcon } from '@/components/icons'
+import { useVisibleTrips } from './HideWhenPending'
 
 const PILE = 3
 const LATEST = 6
@@ -59,7 +60,9 @@ export function PastStub({ trip }: { trip: HomeTrip }) {
   )
 }
 
-export function PastPile({ trips }: { trips: HomeTrip[] }) {
+export function PastPile({ trips: allPast }: { trips: HomeTrip[] }) {
+  // A trip being deleted (10 s Undo, D-27) leaves the pile and its count.
+  const trips = useVisibleTrips(allPast)
   const [open, setOpen] = useState(false)
   const [all, setAll] = useState(false)
   const firstMore = useRef<HTMLLIElement>(null)

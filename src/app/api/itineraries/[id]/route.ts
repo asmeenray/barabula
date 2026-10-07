@@ -28,7 +28,7 @@ export async function GET(
     .select('*, activities(*)')
     .eq('id', id)
     .single()
-  if (error) return Response.json({ error: error.message }, { status: 404 })
+  if (error) return Response.json({ error: 'Not found' }, { status: 404 })
   return Response.json(data)
 }
 
@@ -91,6 +91,11 @@ export async function PATCH(
   return Response.json(data)
 }
 
+// Delete trip (16-17, D-27). The client sends this only when the 10 s Undo
+// window ends (or with keepalive when the page is left). Uuid only; the RLS
+// user client deletes, and select('id') tells "deleted" from "nothing to
+// delete" (missing or not yours → 404, T-16-48). Activities go with the trip
+// by their ON DELETE CASCADE foreign key. Generic error text (T-16-50).
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -99,11 +104,14 @@ export async function DELETE(
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 })
+  if (!isUuid(id)) return Response.json({ error: 'Invalid request' }, { status: 400 })
 
-  const { error } = await supabase
+  const { data, error } = await supabase
     .from('itineraries')
     .delete()
     .eq('id', id)
-  if (error) return Response.json({ error: error.message }, { status: 500 })
+    .select('id')
+  if (error) return Response.json({ error: "Couldn't delete" }, { status: 500 })
+  if (!data || data.length === 0) return Response.json(NOT_FOUND, { status: 404 })
   return Response.json({ success: true })
 }

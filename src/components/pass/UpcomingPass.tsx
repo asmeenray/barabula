@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { Collapsible } from '@base-ui/react/collapsible'
 import type { HomeTrip } from '@/lib/home/data'
 import { PassCover, PhotoCredit } from './PassCover'
+import { useVisibleTrips } from './HideWhenPending'
 
 const SHOWN = 3
 
@@ -82,7 +83,9 @@ function Field({ label, value }: { label: string; value: string }) {
 }
 
 /** The Upcoming section: heading + count, the first 3 passes, then "All upcoming ({n})". */
-export function UpcomingList({ trips }: { trips: HomeTrip[] }) {
+export function UpcomingList({ trips: all }: { trips: HomeTrip[] }) {
+  // A trip being deleted (10 s Undo, D-27) leaves the list and its counts.
+  const trips = useVisibleTrips(all)
   const [open, setOpen] = useState(false)
   const firstHidden = useRef<HTMLDivElement>(null)
   if (trips.length === 0) return null

@@ -8,6 +8,7 @@ import { CITY_PHOTOS } from '@/lib/photos/manifest'
 import type { PassCity } from '@/lib/pass/types'
 import { PlanClient } from '@/components/board/PlanClient'
 import { TopBar } from '@/components/shell/TopBar'
+import { TripMenu } from '@/components/board/TripMenu'
 
 // Server-rendered trip plan (RESEARCH Pattern 4).
 // No loading.tsx and no Suspense fallback in this segment: the trip-open view
@@ -50,10 +51,14 @@ export default async function TripPlanPage({ params }: { params: Promise<{ id: s
   // The curated list for the trip-details Where to? (16-17); names only, no manifest in client JS.
   const cities: PassCity[] = CITY_PHOTOS.map((p) => ({ name: p.city, names: p.names, code: p.iata }))
 
-  // Inner page: back to Trips, no wordmark; the trip "⋯" menu fills actions in 16-17.
+  // Inner page: back to Trips, no wordmark; the trip "⋯" menu (Delete trip, D-27) on the right.
   return (
     <>
-      <TopBar variant="inner" back={{ href: '/', label: 'Trips' }} />
+      <TopBar
+        variant="inner"
+        back={{ href: '/', label: 'Trips' }}
+        actions={<TripMenu tripId={trip.id} city={trip.destination || trip.title} />}
+      />
       <PlanClient plan={plan} photo={photo} cities={cities} />
     </>
   )
