@@ -3,7 +3,8 @@ import path from 'node:path'
 import sharp from 'sharp'
 import { describe, expect, it } from 'vitest'
 import { CITY_PHOTOS, type CityPhoto } from '@/lib/photos/manifest'
-import { credits } from '@/lib/photos/credits'
+import { credits, dataCredits } from '@/lib/photos/credits'
+import { COUNTRIES } from '@/lib/photos/countries'
 
 // Integrity of the curated photo manifest (D-06, D-42, T-16-22): every credit is
 // real and complete, no placeholder text ships, every file exists and the
@@ -99,10 +100,18 @@ describe('public/images/cities', () => {
 })
 
 describe('credits()', () => {
-  it('returns one row per manifest entry with the manifest values', () => {
+  it('returns one row per city photo (first, in manifest order) and per country photo', () => {
     const rows = credits()
-    expect(rows).toHaveLength(CITY_PHOTOS.length)
-    rows.forEach((row, i) => {
+    const countryPhotos = COUNTRIES.flatMap((c) => c.photos)
+    expect(rows).toHaveLength(CITY_PHOTOS.length + countryPhotos.length)
+    rows.slice(CITY_PHOTOS.length).forEach((row, i) => {
+      expect(row.sourceUrl).toBe(countryPhotos[i].sourceUrl)
+      expect(row.photographer).toBe(countryPhotos[i].photographer)
+    })
+    expect(rows.find((r) => r.sourceUrl === COUNTRIES.find((c) => c.iso === 'NO')!.photos[1].sourceUrl)?.city).toBe(
+      'Norway, summer'
+    )
+    rows.slice(0, CITY_PHOTOS.length).forEach((row, i) => {
       const p = CITY_PHOTOS[i]
       expect(row).toEqual({
         city: p.city,
@@ -113,5 +122,18 @@ describe('credits()', () => {
       })
       expect(row.city.trim()).not.toBe('')
     })
+  })
+})
+
+describe('dataCredits()', () => {
+  it('credits GeoNames under CC BY 4.0 with a link (16-21)', () => {
+    expect(dataCredits()).toContainEqual(
+      expect.objectContaining({
+        name: 'GeoNames',
+        url: 'https://www.geonames.org',
+        licence: 'CC BY 4.0',
+        licenceUrl: 'https://creativecommons.org/licenses/by/4.0/',
+      })
+    )
   })
 })
