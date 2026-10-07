@@ -31,13 +31,15 @@ type Props = {
    * cover 280 (16-12). Phone is always vertical.
    */
   layout?: 'horizontal' | 'vertical'
+  /** The top pass on the page gets the eager, high-priority photo; false when a Now pass sits above. */
+  priority?: boolean
 }
 
 const EMPTY: PassAnswers = { stops: [], when: null, adults: null, kids: null, interests: [], note: null }
 
 type CreateState = 'idle' | 'creating' | 'failed'
 
-export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical' }: Props) {
+export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', priority = true }: Props) {
   const horizontal = layout === 'horizontal'
   const router = useRouter()
   const announce = useAnnounce()
@@ -149,7 +151,7 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical' }:
         stateLabel="Next trip"
         code={code}
         statusLine={first ? undefined : 'Pick a city to start'}
-        priority
+        priority={priority}
         titleAs="h1"
         onFallback={() => photo && setFailedSlug(photo.slug)}
         className={horizontal ? 'lg:h-auto lg:min-h-[440px]' : 'lg:h-70'}

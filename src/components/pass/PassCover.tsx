@@ -60,6 +60,8 @@ type Props = {
   titleAs?: 'h1' | 'h2' | 'h3' | 'p'
   /** Extra attributes for the title element (e.g. elementtiming). */
   titleAttrs?: Record<string, string>
+  /** One line with ellipsis (trip titles in lists); otherwise up to 2 lines. */
+  oneLine?: boolean
   className?: string
 }
 
@@ -76,6 +78,7 @@ export function PassCover({
   onFallback,
   titleAs: Title = 'h2',
   titleAttrs,
+  oneLine = false,
   className = '',
 }: Props) {
   return (
@@ -105,7 +108,7 @@ export function PassCover({
       <div className="absolute inset-x-0 bottom-0 px-4 pb-3">
         <Title
           {...titleAttrs}
-          className={`line-clamp-2 max-w-[85%] font-mono font-semibold text-balance break-words uppercase ${TITLE[variant]}`}
+          className={`${oneLine ? 'truncate' : 'line-clamp-2 text-balance break-words'} max-w-[85%] font-mono font-semibold uppercase ${TITLE[variant]}`}
         >
           {title}
         </Title>
