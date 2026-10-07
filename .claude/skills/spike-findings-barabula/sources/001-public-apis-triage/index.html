@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Public APIs triage</title>
+<style>
+  :root { --bg:#F4F5F7; --paper:#fff; --ink:#16202B; --muted:#5B6672; --line:#DDE2E7; --tag:#F2A900; --navy:#285185; --use:#2E8B57; --later:#B45309; --have:#285185; --skip:#8A939C; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#0E1318; --paper:#161D24; --ink:#E8EDF2; --muted:#9AA6B2; --line:#26313B; --tag:#FFC233; --navy:#8FB3E8; --use:#4ADE80; --later:#FBBF24; --have:#8FB3E8; --skip:#77818B; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 1040px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { font: 600 28px/1.2 ui-monospace, Menlo, monospace; text-transform: uppercase; margin: 0 0 4px; }
+  .muted { color: var(--muted); }
+  .stats { display:flex; flex-wrap:wrap; gap: 8px 24px; margin: 12px 0 16px; font: 12px ui-monospace, Menlo, monospace; }
+  .stats b { font-size: 22px; display:block; }
+  .bar { display:flex; flex-wrap:wrap; gap:8px; align-items:center; margin-bottom: 12px; }
+  .bar button, .bar input { font: inherit; font-size: 16px; min-height: 40px; padding: 6px 12px; border-radius: 10px; border:1px solid var(--line); background: var(--paper); color: var(--ink); }
+  .bar button { cursor:pointer; }
+  .bar button[aria-pressed="true"] { background: var(--navy); border-color: var(--navy); color: #fff; }
+  .bar input { flex: 1 1 200px; }
+  .wrap { overflow-x:auto; background: var(--paper); border:1px solid var(--line); border-radius: 14px; }
+  table { width:100%; border-collapse: collapse; font-size: 16px; min-width: 860px; }
+  th, td { text-align:left; padding: 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font: 600 12px ui-monospace, Menlo, monospace; text-transform: uppercase; color: var(--muted); position: sticky; top: 0; background: var(--paper); }
+  .v { font: 600 12px ui-monospace, Menlo, monospace; text-transform: uppercase; white-space: nowrap; }
+  .v.use { color: var(--use); } .v.later { color: var(--later); } .v.have { color: var(--have); } .v.skip { color: var(--skip); }
+  .notlist { font-size: 12px; color: var(--muted); display:block; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Public APIs triage</h1>
+  <p class="muted">Spike 001. Every row of github.com/public-apis/public-apis was parsed; the travel-relevant categories were screened by hand; the survivors were checked against their own terms pages and, where possible, called live in spikes 002–004. Rows marked "not in the list" are better alternatives found on the way.</p>
+  <div class="stats" id="stats"></div>
+  <div class="bar" id="bar"></div>
+  <div class="wrap"><table><thead><tr><th>API</th><th>Need</th><th>Verdict</th><th>Phase</th><th>Why</th><th>Terms</th><th>Evidence</th></tr></thead><tbody id="rows"></tbody></table></div>
+</main>
+<script>
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+let data, filter = 'all', q = '';
+const label = { use: 'Use', later: 'Later', have: 'Have', skip: 'Skip' };
+function render() {
+  const rows = data.items.filter((x) => (filter === 'all' || x.verdict === filter) && (!q || (x.name + x.need + x.why).toLowerCase().includes(q)));
+  document.getElementById('rows').innerHTML = rows.map((x) => `<tr><td><b>${esc(x.name)}</b>${x.inList ? '' : '<span class="notlist">not in the list</span>'}</td><td>${esc(x.need)}</td><td class="v ${x.verdict}">${label[x.verdict]}</td><td>${esc(x.phase)}</td><td>${esc(x.why)}</td><td>${esc(x.terms)}</td><td>${esc(x.test)}</td></tr>`).join('');
+}
+(async () => {
+  data = await (await fetch('triage.json')).json();
+  const links = await (await fetch('link-check.json')).json();
+  const apis = await (await fetch('apis.json')).json();
+  const okLinks = links.filter((l) => !l.err && l.status >= 200 && l.status < 300).length;
+  const counts = data.items.reduce((a, x) => ((a[x.verdict] = (a[x.verdict] || 0) + 1), a), {});
+  document.getElementById('stats').innerHTML = [
+    [apis.length.toLocaleString('en-GB'), 'rows parsed'], [new Set(apis.map((a) => a.cat)).size, 'categories'], [links.length, 'screened (10 categories)'],
+    [`${Math.round((100 * okLinks) / links.length)}%`, 'doc links load'], [counts.use || 0, 'use'], [counts.later || 0, 'later'], [counts.skip || 0, 'skip'],
+  ].map(([n, l]) => `<div><b>${n}</b>${l}</div>`).join('');
+  document.getElementById('bar').innerHTML = ['all', 'use', 'later', 'have', 'skip'].map((f) => `<button type="button" data-f="${f}" aria-pressed="${f === filter}">${f === 'all' ? 'All' : label[f]}</button>`).join('') + '<input id="q" type="search" placeholder="Filter by name or need" aria-label="Filter">';
+  document.getElementById('bar').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; filter = b.dataset.f; document.querySelectorAll('#bar button').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); render(); };
+  document.getElementById('q').oninput = (e) => { q = e.target.value.toLowerCase(); render(); };
+  render();
+})();
+</script>
+</body>
+</html>

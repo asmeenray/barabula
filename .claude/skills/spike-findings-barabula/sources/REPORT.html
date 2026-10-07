@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>Free APIs and Open Design</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo+Narrow:wght@600&family=Atkinson+Hyperlegible+Next:wght@400;600&family=Geist+Mono:wght@400;600&display=swap">
+<style>
+/* Layout: a single reading column of "passes" on an airport apron, opened by a departure board that holds the whole answer. */
+:root {
+  --bg: #EEF1F4; --surface: #FFFFFF; --board: #FFFFFF; --ink: #0B1014; --muted: #56606B; --line: #D9DEE4;
+  --surface-2: #EEF1F4; --accent: #F2A900; --on-accent: #16202B; --good: #23704A; --warn: #9A5B00; --bad: #A12A2A; --link: #285185;
+  --font-read: "Atkinson Hyperlegible Next", "Atkinson Hyperlegible", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-label: "Archivo Narrow", "Arial Narrow", "Roboto Condensed", system-ui, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #080D10; --surface: #151B21; --board: #000000; --ink: #E6E8EB; --muted: #8B96A3; --line: #232B33;
+  --surface-2: #1E262E; --accent: #FFC233; --on-accent: #0E141B; --good: #5CC48A; --warn: #F2B35B; --bad: #F08A8A; --link: #8FB3E8; color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #080D10; --surface: #151B21; --board: #000000; --ink: #E6E8EB; --muted: #8B96A3; --line: #232B33;
+  --surface-2: #1E262E; --accent: #FFC233; --on-accent: #0E141B; --good: #5CC48A; --warn: #F2B35B; --bad: #F08A8A; --link: #8FB3E8; color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 400 1rem/1.6 var(--font-read); padding-inline: 16px; padding-block: 32px 64px; }
+.page { max-width: 880px; margin: 0 auto; display: grid; gap: 24px; }
+a { color: var(--link); text-underline-offset: 2px; }
+a:focus-visible, button:focus-visible, input:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+h1, h2, h3 { text-wrap: balance; margin: 0; }
+h1 { font: 600 clamp(2rem, 5vw, 2.75rem)/1.05 var(--font-mono); text-transform: uppercase; letter-spacing: -0.02em; }
+h2 { font: 600 1.375rem/1.25 var(--font-read); }
+h3 { font: 600 1rem/1.3 var(--font-read); }
+p { margin: 0; max-width: 68ch; }
+.eyebrow, .label { font: 600 0.8125rem/1.2 var(--font-label); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); }
+.muted { color: var(--muted); }
+.mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+
+header.top { display: grid; gap: 12px; }
+.lede { font-size: 1.125rem; }
+
+.pass { background: var(--surface); border-radius: 16px; padding: 24px; display: grid; gap: 16px; min-width: 0; }
+.pass > header { display: grid; gap: 4px; padding-bottom: 12px; border-bottom: 2px dashed var(--line); }
+
+/* Departure board */
+.board { background: var(--board); border-radius: 16px; overflow: hidden; border: 1px solid var(--line); }
+.board-head { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; align-items: baseline; padding: 16px 20px 12px; }
+.board-head .title { font: 600 1.125rem/1.2 var(--font-mono); text-transform: uppercase; letter-spacing: 0.02em; }
+.board-scroll { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; }
+.board table { min-width: 640px; }
+.board th { font: 600 0.75rem/1.2 var(--font-label); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); text-align: left; padding: 8px 20px; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.board td { padding: 12px 20px; border-bottom: 1px solid var(--line); vertical-align: top; font-size: 0.9375rem; }
+.board tr:last-child td { border-bottom: 0; }
+.board td.need { font: 600 0.9375rem/1.3 var(--font-label); text-transform: uppercase; letter-spacing: 0.03em; }
+.board td.pick { font-family: var(--font-mono); font-size: 0.875rem; }
+.board td.pick small { display: block; font-family: var(--font-read); color: var(--muted); font-size: 0.8125rem; margin-top: 2px; }
+.board td.gate { font: 600 0.875rem var(--font-mono); white-space: nowrap; }
+.status { display: inline-block; font: 600 0.75rem/1 var(--font-mono); text-transform: uppercase; letter-spacing: 0.04em; padding: 6px 8px; border-radius: 6px; white-space: nowrap; border: 1px solid var(--line); color: var(--ink); }
+.status.use { background: var(--accent); color: var(--on-accent); border-color: var(--accent); }
+.status.later { color: var(--warn); border-color: currentColor; }
+.status.have { color: var(--muted); }
+.status.skip { color: var(--bad); border-color: currentColor; }
+
+/* Spike results */
+.spikes { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.spike { border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+.spike .row { display: flex; justify-content: space-between; gap: 8px; align-items: center; }
+.spike .num { font: 600 0.8125rem var(--font-mono); color: var(--muted); }
+.verdict { font: 600 0.75rem var(--font-mono); text-transform: uppercase; letter-spacing: 0.04em; }
+.verdict.ok { color: var(--good); } .verdict.part { color: var(--warn); } .verdict.no { color: var(--bad); }
+.spike ul { margin: 0; padding-left: 18px; display: grid; gap: 4px; font-size: 0.9375rem; }
+
+ul.clean { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
+ul.clean li::marker { color: var(--muted); }
+
+.split { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
+.split > div { background: var(--surface-2); border-radius: 12px; padding: 16px; display: grid; gap: 8px; align-content: start; min-width: 0; }
+
+ol.qs { margin: 0; padding-left: 0; list-style: none; display: grid; gap: 12px; counter-reset: q; }
+ol.qs li { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: baseline; }
+ol.qs .qn { font: 600 0.8125rem var(--font-mono); background: var(--surface-2); padding: 4px 8px; border-radius: 6px; }
+
+/* Shortlist */
+.filters { display: flex; flex-wrap: wrap; gap: 8px; }
+.filters button { font: 600 0.8125rem var(--font-label); text-transform: uppercase; letter-spacing: 0.05em; min-height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; }
+.filters button[aria-pressed="true"] { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+.list-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 12px; }
+.list { min-width: 760px; font-size: 0.875rem; }
+.list th { font: 600 0.75rem var(--font-label); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); text-align: left; padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.list td { padding: 10px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+.list tr:last-child td { border-bottom: 0; }
+.list .nm { font-weight: 600; }
+.list .nm small { display: block; font-weight: 400; color: var(--muted); }
+
+.credits { font-family: var(--font-mono); font-size: 0.8125rem; background: var(--surface-2); border-radius: 12px; padding: 16px; display: grid; gap: 4px; overflow-x: auto; }
+footer.foot { font-size: 0.875rem; color: var(--muted); display: grid; gap: 8px; }
+
+@media (max-width: 520px) { .pass { padding: 18px; } .board-head { padding: 14px 16px 10px; } .board th, .board td { padding-inline: 14px; } }
+@media (prefers-reduced-motion: no-preference) { .filters button { transition: background-color .15s, color .15s; } }
+</style>
+
+<div class="page">
+  <header class="top">
+    <span class="eyebrow">Barabula · Spike report · 6 Oct 2026</span>
+    <h1>Free APIs and Open Design</h1>
+    <p class="lede">I parsed all 2,048 entries in <a href="https://github.com/public-apis/public-apis">public-apis</a>, checked the travel-relevant ones against their own terms pages, and called the best ones live from a test server. <strong>Nine are worth building on.</strong> They cover weather, holidays, exchange rates, city intros, walking times and the city picker. <strong>Open Design: skip it for now.</strong></p>
+  </header>
+
+  <section class="board" aria-labelledby="board-title">
+    <div class="board-head"><span class="title" id="board-title">Departures: what to build with</span><span class="label">Phase = roadmap phase</span></div>
+    <div class="board-scroll">
+      <table>
+        <thead><tr><th>Need</th><th>Pick</th><th>Phase</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td class="need">Weather on trip days</td><td class="pick">Open-Meteo<small>Switch to MET Norway before charging money (free, commercial OK)</small></td><td class="gate">16.1</td><td><span class="status use">Use</span></td></tr>
+          <tr><td class="need">Typical weather &amp; city climate tags</td><td class="pick">Meteostat (stored)<small>Monthly normals for the curated cities; ERA5 as a cross-check</small></td><td class="gate">16</td><td><span class="status use">Use</span></td></tr>
+          <tr><td class="need">Holidays during the trip</td><td class="pick">date-holidays<small>Offline library, any year. India needs a short extra list</small></td><td class="gate">16.1</td><td><span class="status use">Use</span></td></tr>
+          <tr><td class="need">Exchange rate</td><td class="pick">Frankfurter + currency-api<small>ECB rates, CDN fallback for the 300+ others</small></td><td class="gate">16.1</td><td><span class="status use">Use</span></td></tr>
+          <tr><td class="need">City intro</td><td class="pick">Wikivoyage<small>Wikipedia as fallback; CC BY-SA credit under the text</small></td><td class="gate">16.1</td><td><span class="status use">Use</span></td></tr>
+          <tr><td class="need">"Where to?" city picker</td><td class="pick">GeoNames cities15000<small>25K cities in Postgres; Nominatim forbids type-ahead</small></td><td class="gate">16</td><td><span class="status use">Use</span></td></tr>
+          <tr><td class="need">Walking time between stops</td><td class="pick">FOSSGIS OSRM foot<small>Fine at hobby scale; Geoapify when traffic grows</small></td><td class="gate">19</td><td><span class="status use">Use</span></td></tr>
+          <tr><td class="need">Travel advice</td><td class="pick">GOV.UK FCDO API<small>Alert level and emergency numbers per country</small></td><td class="gate">19</td><td><span class="status later">Later</span></td></tr>
+          <tr><td class="need">Places, details, photos</td><td class="pick">FSQ OS · Foursquare · Pexels<small>Already decided. Foursquare's free tier is now 500 calls a month</small></td><td class="gate">16.2</td><td><span class="status have">Have</span></td></tr>
+          <tr><td class="need">UI design tool</td><td class="pick">Open Design<small>Adds nothing over Impeccable + sketches; telemetry on by default</small></td><td class="gate">—</td><td><span class="status skip">Skip</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="pass" aria-labelledby="s-spikes">
+    <header><span class="label">Five spikes</span><h2 id="s-spikes">What the tests proved</h2></header>
+    <div class="spikes">
+      <article class="spike"><div class="row"><span class="num">001 · Triage</span><span class="verdict ok">Validated</span></div><h3>The list is an index, not a source of truth</h3><ul><li>453 entries screened in 10 relevant categories</li><li>87% of doc links load; 10% are dead</li><li>Nothing in it says whether commercial use or storage is allowed, and that decided most verdicts</li></ul></article>
+      <article class="spike"><div class="row"><span class="num">002 · Weather</span><span class="verdict ok">Validated</span></div><h3>Forecast or "typical" for every trip day</h3><ul><li>7 cities × 3 trip shapes + edge cases: 220 calls, 0 errors, p50 35–43 ms</li><li>Open-Meteo and MET differ by 2.9 °C on Lisbon highs (0.7–1.3 °C elsewhere)</li><li>Meteostat vs ERA5, Lisbon: within 0.4–1.4 °C a month</li></ul></article>
+      <article class="spike"><div class="row"><span class="num">003 · Trip card</span><span class="verdict ok">Validated</span></div><h3>"Know before you go" in under 0.5 s, no keys</h3><ul><li>8 trips; card ready in 91–474 ms</li><li>Offline holidays found Eid in Morocco, Songkran, Golden Week</li><li>Time gap must use trip dates: London–Mumbai is 5.5 h in January, not today's 4.5 h</li></ul></article>
+      <article class="spike"><div class="row"><span class="num">004 · Walking</span><span class="verdict part">Partial</span></div><h3>Easy to get, limited by policy</h3><ul><li>14 legs, 4 cities; estimate's median error 14%</li><li>Lisbon castle → Graça: estimate 5 min, routed 14 min</li><li>OSRM's demo "foot" profile is really the car profile</li></ul></article>
+      <article class="spike"><div class="row"><span class="num">005 · Open Design</span><span class="verdict no">Skip</span></div><h3>No gain over the current loop</h3><ul><li>HTML mockups plus a "rebuild in Next.js" prompt</li><li>Telemetry on by default; one channel always on</li><li>Runs Claude Code with permissions bypassed</li></ul></article>
+    </div>
+  </section>
+
+  <section class="pass" aria-labelledby="s-traps">
+    <header><span class="label">Out of date in the list</span><h2 id="s-traps">Traps to avoid</h2></header>
+    <ul class="clean">
+      <li><strong>REST Countries</strong>: v3.1 is deprecated. v5 needs a key, and its free plan is "for prototyping, evaluation, and non-commercial use", with a 3-day cache limit. Ship country facts as static data instead.</li>
+      <li><strong>caldays</strong> returns 2026 holidays whatever year you ask for, with no error.</li>
+      <li><strong>Nager.Date</strong> has no India, Thailand or UAE, and "for commercial purposes we require active sponsorship".</li>
+      <li><strong>Frankfurter</strong> has only about 30 currencies: no Moroccan dirham, Vietnamese dong or UAE dirham.</li>
+      <li><strong>Open-Meteo</strong> is free only for non-commercial use, and long requests count as many calls. A 10-year request costs about 261 calls, which hit the per-minute limit within a few cities.</li>
+      <li><strong>Pirate Weather</strong> now needs a key; <strong>APIXU</strong>, <strong>Teleport</strong> and <strong>WorldTimeAPI</strong> are gone; <strong>Eventbrite</strong> search shut in 2019.</li>
+      <li><strong>Link-preview and search-scraping APIs</strong> (Microlink, Scrappa, Serply) fetch other sites' pages, which breaks the no-scraping rule.</li>
+    </ul>
+  </section>
+
+  <section class="pass" aria-labelledby="s-weather">
+    <header><span class="label">The one plan that changes at phase 20</span><h2 id="s-weather">Weather: now, and after Barabula charges money</h2></header>
+    <div class="split">
+      <div><span class="label">Now (free app)</span><p>Open-Meteo for the forecast (16 days) and for "typical" days further out. Ask for each past year separately (10 small calls, at most 3 at a time), not 10 years in one call. Cache forecasts for 1 hour and typical values for 30 days.</p></div>
+      <div><span class="label">From phase 20</span><p>MET Norway for the forecast (free and commercial; about 9.5 days). "Typical" comes from normals already stored in our database (Meteostat or ERA5 fetched while still free). The other option is Open-Meteo's paid Professional plan, because its cheaper plan excludes historical and climate data.</p></div>
+    </div>
+  </section>
+
+  <section class="pass" aria-labelledby="s-od">
+    <header><span class="label">nexu-io/open-design · reviewed read-only</span><h2 id="s-od">Open Design: what it is, and why not now</h2></header>
+    <p>An Electron desktop app, about 400 MB, that drives your coding agent (Claude Code, Codex and 24 others) to produce HTML mockups, decks, images and video from a brief and a design system. It's an open-source copy of Anthropic's Claude Design. It doesn't produce React. Its "Next.js export" is a prompt asking the agent to rebuild the HTML.</p>
+    <ul class="clean">
+      <li><strong>Nothing new where it matters.</strong> Barabula already has the same loop (GSD sketches → UI-SPEC → Impeccable → Claude Code), and Impeccable works on the real running app.</li>
+      <li><strong>Privacy and safety cost.</strong> Its privacy policy says usage telemetry is on by default, and a "safety and reliability" channel is always on. Open bug #8560 turns telemetry back on after you opt out. It runs Claude Code with <span class="mono">bypassPermissions</span>, and open bug #4594 reports projects that aren't isolated.</li>
+      <li><strong>Young and commercial.</strong> 38 releases in 5 months, 532 open issues, an upsell funnel, and rewards for starring the repo.</li>
+      <li><strong>If you want a canvas tool,</strong> try Claude Design first. If you still want Open Design, run a one-hour sandbox: choose "Don't share", never point it at the Barabula repo, and don't install its MCP server.</li>
+    </ul>
+  </section>
+
+  <section class="pass" aria-labelledby="s-app">
+    <header><span class="label">Found on the way</span><h2 id="s-app">Things this touches in the app and handover</h2></header>
+    <ul class="clean">
+      <li><strong>Foursquare v3 is deprecated</strong> (15 May 2026). <span class="mono">src/lib/places.ts</span> still calls <span class="mono">api.foursquare.com/v3/places/search</span> from the chat route.</li>
+      <li><strong>V5 answered:</strong> Foursquare's Pro endpoints are free for 0–500 calls a month since 1 June 2026, then $15 per 1,000. Tips, photos and premium fields such as hours and ratings start at $18.75 per 1,000, with no free calls.</li>
+      <li><strong>Nominatim forbids autocomplete.</strong> The phase 16 "Where to?" picker must never call it per keystroke. GeoNames in Postgres fits instead.</li>
+      <li><strong>ODbL:</strong> storing Nominatim coordinates one place at a time is fine. Copying OSM opening hours onto FSQ places can trigger share-alike, so fetch them on demand.</li>
+    </ul>
+    <span class="label">Lines the Credits page would need</span>
+    <div class="credits" role="list">
+      <span role="listitem">Weather data by Open-Meteo.com (CC BY 4.0) · Data from MET Norway</span>
+      <span role="listitem">Climate normals: Meteostat and its data providers (CC BY 4.0)</span>
+      <span role="listitem">Holiday data: date-holidays (CC BY-SA 3.0) · Exchange rates: European Central Bank via Frankfurter</span>
+      <span role="listitem">City intros from Wikivoyage / Wikipedia (CC BY-SA 4.0), shortened</span>
+      <span role="listitem">Routing and map data © OpenStreetMap contributors (ODbL) · Fix the map · City list: GeoNames (CC BY 4.0)</span>
+    </div>
+  </section>
+
+  <section class="pass" aria-labelledby="s-q">
+    <header><span class="label">Proposed for handover §25</span><h2 id="s-q">Decisions for you</h2></header>
+    <ol class="qs">
+      <li><span class="qn">1</span><p><strong>Weather after phase 20:</strong> MET Norway plus stored normals (free), or Open-Meteo's paid Professional plan?</p></li>
+      <li><span class="qn">2</span><p><strong>City picker:</strong> load the GeoNames city list (about 25K rows) into Postgres? It's a new table, so it needs your OK.</p></li>
+      <li><span class="qn">3</span><p><strong>Trip card:</strong> add the "Know before you go" card (closures, money, time, intro) to phase 16.1?</p></li>
+      <li><span class="qn">4</span><p><strong>Foursquare:</strong> move <span class="mono">places.ts</span> off v3 now, or drop live ratings until phase 16.2?</p></li>
+      <li><span class="qn">5</span><p><strong>Walking times:</strong> use the FOSSGIS router at hobby scale, and re-check its policy before charging money?</p></li>
+    </ol>
+  </section>
+
+  <section class="pass" aria-labelledby="s-list">
+    <header><span class="label">42 rows · from triage.json</span><h2 id="s-list">The full shortlist</h2></header>
+    <div class="filters" id="filters" role="group" aria-label="Filter by verdict"></div>
+    <div class="list-scroll"><table class="list"><thead><tr><th>API</th><th>Need</th><th>Status</th><th>Phase</th><th>Why</th><th>Terms</th></tr></thead><tbody id="rows"></tbody></table></div>
+  </section>
+
+  <footer class="foot">
+    <p><strong>How this was checked.</strong> Every row of the list was parsed. 453 rows in 10 relevant categories were screened by hand, and their doc links were checked live. Survivors' terms were read on each provider's own pages by three research subagents, and I re-read every line that decided a verdict. The strongest candidates were called live from a local test server in spikes 002–004. Open Design was reviewed through the GitHub API and its docs only; nothing was installed.</p>
+    <p><strong>Not verified:</strong> Open-Meteo's euro prices (they aren't in the page text); whether Anthropic's terms allow a third-party app to drive Claude Code headless; Geoapify's unstated production limits on its free plan.</p>
+    <p>Spike files: <span class="mono">.planning/spikes/</span> (001–005, MANIFEST.md, CONVENTIONS.md). Run the demos with <span class="mono">node .planning/spikes/lab/server.mjs</span>.</p>
+  </footer>
+</div>
+
+<script>
+const TRIAGE = {"checked": "2026-10-06", "source": "github.com/public-apis/public-apis README (last commit 2026-10-05)", "verdicts": {"use": "Use: fits the rules; build it in the phase shown", "later": "Later: useful, but for a later phase or only after a check", "have": "Already decided or in the app", "skip": "Skip: terms, coverage, cost or a dead service rule it out"}, "items": [{"name": "Open-Meteo (forecast + ERA5 archive)", "inList": true, "need": "Weather", "phase": "16.1, 19", "verdict": "use", "why": "Keyless, 16-day forecast plus 10-year 'typical' values; tested on 7 cities, 220 calls, 0 errors after fixes. Free tier is non-commercial only, so switch or pay before phase 20.", "terms": "Non-commercial on free (verified); data CC BY 4.0; historical/climate need the Professional plan commercially", "test": "Spike 002"}, {"name": "MET Norway Locationforecast", "inList": true, "need": "Weather", "phase": "20 (switch)", "verdict": "use", "why": "Free including commercial use; global; ~9.5 days. The forecast to move to before monetising.", "terms": "NLOD 2.0 + CC BY 4.0, commercial OK; identifying User-Agent; honour Expires; 4-decimal coords", "test": "Spike 002"}, {"name": "Meteostat (bulk monthly CSV)", "inList": false, "need": "Weather", "phase": "16 (climate tags)", "verdict": "use", "why": "Station monthly normals for the ~40 curated cities' climate tags; within 0.4–1.4 °C of ERA5 for Lisbon; stays free after monetising.", "terms": "CC BY 4.0, 'even commercially' (verified)", "test": "Spike 002"}, {"name": "date-holidays (npm library)", "inList": false, "need": "Holidays", "phase": "16.1", "verdict": "use", "why": "Offline, any year, lunar/Islamic dates; found every expected holiday in 8 trips. India has fixed dates only (no Diwali, Holi, Eid).", "terms": "ISC code, CC BY-SA 3.0 data (credit line)", "test": "Spike 003"}, {"name": "Frankfurter", "inList": true, "need": "Currency", "phase": "16.1", "verdict": "use", "why": "Keyless ECB rates; commercial use stated. Only ~30 currencies (no MAD, VND, AED).", "terms": "'free for commercial use? Yes' (verified); cite the ECB", "test": "Spike 003"}, {"name": "Currency-api (fawazahmed0)", "inList": true, "need": "Currency", "phase": "16.1", "verdict": "use", "why": "Static JSON on jsDelivr, 340 currencies; fills Frankfurter's gaps; within 0.5% of it.", "terms": "CC0; upstream sources undocumented", "test": "Spike 003"}, {"name": "Wikipedia / Wikivoyage REST summary", "inList": true, "need": "City intro", "phase": "16.1", "verdict": "use", "why": "Found all 8 test cities; short travel-focused intro for the trip card.", "terms": "CC BY-SA 4.0, commercial OK; credit + link + 'shortened'; identifying UA (10 req/min without one)", "test": "Spike 003"}, {"name": "FOSSGIS OSRM foot / Valhalla (OSM)", "inList": false, "need": "Walking times", "phase": "19 (Today)", "verdict": "use", "why": "Real walking times, keyless, ~50–130 ms; allowed while routing is a minor part of a low-traffic app.", "terms": "1 req/s; OSM credit + 'fix the map' link; commercial only if not a substantial part (verified)", "test": "Spike 004"}, {"name": "GeoNames cities15000 dump", "inList": false, "need": "City search", "phase": "16", "verdict": "use", "why": "~25K cities with time zones in Postgres (pg_trgm) for the 'Where to?' picker. Nominatim forbids autocomplete.", "terms": "CC BY 4.0, commercial OK; credit GeoNames", "test": "Research"}, {"name": "Nominatim", "inList": true, "need": "Geocoding", "phase": "14 (in app)", "verdict": "have", "why": "Already used server-side for pins at under 1 req/s. Never for type-ahead.", "terms": "Autocomplete strictly forbidden (verified); 1 req/s; cache results", "test": "Spike 004 (18/18 places found)"}, {"name": "Foursquare Places API", "inList": true, "need": "Place details", "phase": "16.2", "verdict": "have", "why": "In the app (src/lib/places.ts) on the deprecated v3 endpoint. Free tier cut to 500 calls/month; hours and ratings are Premium.", "terms": "0–500 free Pro calls/month since 1 Jun 2026; v3 deprecated 15 May 2026 (verified)", "test": "Research (answers V5)"}, {"name": "Unsplash / Pexels", "inList": true, "need": "Photos", "phase": "16 (deferred)", "verdict": "have", "why": "Already researched in phase 16 (DESIGN-RESEARCH.md); curated set first, API fallback deferred (Q34).", "terms": "See phase 16 research", "test": "—"}, {"name": "OpenRouter", "inList": true, "need": "LLM", "phase": "16.1", "verdict": "have", "why": "Already chosen for the AI phase (Q28).", "terms": "—", "test": "—"}, {"name": "UK FCDO travel advice (GOV.UK Content API)", "inList": false, "need": "Safety", "phase": "19", "verdict": "later", "why": "Per-country alert status and 'getting help' (emergency numbers).", "terms": "OGL v3, commercial OK; keep fresh", "test": "Research (200, 110 ms)"}, {"name": "Nager.Date", "inList": true, "need": "Holidays", "phase": "—", "verdict": "later", "why": "Good where covered, but no India/Thailand/UAE and commercial use needs sponsorship. Fallback only.", "terms": "'For commercial purposes we require active sponsorship' (verified)", "test": "Spike 003"}, {"name": "Geoapify (routing, autocomplete, places)", "inList": true, "need": "Routing / search", "phase": "20+", "verdict": "later", "why": "Keyed upgrade path once FOSSGIS no longer fits; commercial and storage allowed.", "terms": "3,000 credits/day free; storing allowed with attribution", "test": "Research"}, {"name": "openrouteservice (HeiGIT)", "inList": true, "need": "Routing", "phase": "—", "verdict": "later", "why": "Keyed alternative. Old host api.openrouteservice.org shuts 2–6 Nov 2026.", "terms": "2,000 directions/day; commercial wording unverified", "test": "Research"}, {"name": "Overpass API (OSM)", "inList": false, "need": "Opening hours", "phase": "19", "verdict": "later", "why": "OSM opening hours on demand. Storing them on FSQ places risks ODbL share-alike.", "terms": "~100 queries/day for regular use; commercial should self-host", "test": "Research (200, 541 ms)"}, {"name": "ExchangeRate-API open endpoint", "inList": true, "need": "Currency", "phase": "—", "verdict": "later", "why": "Works (166 currencies) but requires a visible attribution link.", "terms": "Commercial OK; attribution required", "test": "Spike 003"}, {"name": "OurAirports data", "inList": false, "need": "Airport codes", "phase": "16 (pass)", "verdict": "later", "why": "IATA codes for Gate Board passes (e.g. LIS) if wanted.", "terms": "Public domain", "test": "Research"}, {"name": "Open Topo Data", "inList": true, "need": "Elevation", "phase": "19", "verdict": "later", "why": "'Steep walk' hints in hilly cities like Lisbon.", "terms": "1 call/s, 1,000/day; commercial not stated", "test": "Research"}, {"name": "India Public Holidays", "inList": true, "need": "Holidays", "phase": "India launch", "verdict": "later", "why": "Covers India's moving holidays; mirror into the DB.", "terms": "MIT; 12.7 s cold start", "test": "Research"}, {"name": "Wikidata", "inList": true, "need": "Country facts", "phase": "16.1 (build step)", "verdict": "later", "why": "Seed a static table of plugs, driving side, emergency numbers; check by hand.", "terms": "CC0", "test": "Research"}, {"name": "REST Countries", "inList": true, "need": "Country facts", "phase": "—", "verdict": "skip", "why": "v3.1 deprecated; v5 needs a key; free plan non-commercial; 3-day cache cap.", "terms": "'Free plan is intended for … non-commercial use' (verified)", "test": "Spike 003"}, {"name": "caldays", "inList": true, "need": "Holidays", "phase": "—", "verdict": "skip", "why": "Returns 2026 for any year asked, without an error.", "terms": "Licence pages disagree", "test": "Spike 003"}, {"name": "OSRM demo server", "inList": false, "need": "Walking times", "phase": "—", "verdict": "skip", "why": "'foot' returns car routes; non-commercial only.", "terms": "'reasonable, non-commercial use-cases' (verified)", "test": "Spike 004"}, {"name": "Pirate Weather", "inList": true, "need": "Weather", "phase": "—", "verdict": "skip", "why": "Personal use only; now needs a key (list says none); doc link 404.", "terms": "Free plan for personal use", "test": "Research"}, {"name": "Tomorrow.io, Weatherbit, Weatherstack, 7Timer!", "inList": true, "need": "Weather", "phase": "—", "verdict": "skip", "why": "Free tiers ban commercial use.", "terms": "Non-commercial", "test": "Research"}, {"name": "APIXU, Meltema", "inList": true, "need": "Weather", "phase": "—", "verdict": "skip", "why": "APIXU is dead (redirects to Weatherstack); Meltema timed out.", "terms": "—", "test": "Research + link check"}, {"name": "WeatherAPI.com, Visual Crossing, OpenWeatherMap", "inList": true, "need": "Weather", "phase": "—", "verdict": "skip", "why": "Keys; caching or storage limits; MET Norway does the job free.", "terms": "Commercial OK but storage limited", "test": "Research"}, {"name": "Mapbox (geocoding, directions)", "inList": true, "need": "Maps", "phase": "—", "verdict": "skip", "why": "Project rule (D6): never store Mapbox results; Navigation results can't be cached.", "terms": "Product Terms §2.7.2, §2.10.1", "test": "Research"}, {"name": "Google Maps APIs", "inList": true, "need": "Maps", "phase": "—", "verdict": "skip", "why": "Paid; no caching; not allowed near a non-Google map (MapLibre). Keep the free 'Open in Google Maps' link.", "terms": "Google Maps Platform terms", "test": "Research"}, {"name": "GraphHopper, Stadia, TomTom, HERE", "inList": true, "need": "Routing", "phase": "—", "verdict": "skip", "why": "Non-commercial free tiers, caching bans or proprietary data.", "terms": "Varies", "test": "Research"}, {"name": "Photon (komoot)", "inList": false, "need": "City search", "phase": "—", "verdict": "skip", "why": "4.8–12.2 s responses today; fair-use only.", "terms": "Unstated limits", "test": "Research"}, {"name": "Yelp, Tripadvisor", "inList": true, "need": "Places", "phase": "—", "verdict": "skip", "why": "Yelp is trial then $229/mo; Tripadvisor Content API deprecated, successor bans caching. Places come from FSQ OS anyway (D6).", "terms": "—", "test": "Research"}, {"name": "Ticketmaster, Eventbrite, SeatGeek, PredictHQ", "inList": true, "need": "Events", "phase": "—", "verdict": "skip", "why": "Ticketmaster bars deriving revenue; Eventbrite search shut 2019; others keyed or paid.", "terms": "—", "test": "Research"}, {"name": "Amadeus, Sabre, flight price APIs", "inList": true, "need": "Flights", "phase": "—", "verdict": "skip", "why": "Flights search is a non-goal; 'Find flights' links to Google Flights (Q38).", "terms": "—", "test": "—"}, {"name": "Can I enter, Orizn Visa", "inList": true, "need": "Entry rules", "phase": "—", "verdict": "skip", "why": "Visa paperwork is out of scope (D10); data trust is partial.", "terms": "Crypto pay-per-check / unnamed operator", "test": "Research"}, {"name": "Microlink, LinkPreview, Scrappa, Serply", "inList": true, "need": "Link previews", "phase": "—", "verdict": "skip", "why": "Fetch or scrape third-party pages. Project rule: no scraping; use official oEmbed only.", "terms": "—", "test": "—"}, {"name": "Teleport, WorldTimeAPI, Warnely, Graph Countries", "inList": true, "need": "Misc", "phase": "—", "verdict": "skip", "why": "Dead or down today (DNS gone, unreachable, 404, 503).", "terms": "—", "test": "Research + link check"}, {"name": "LibreTranslate public instance", "inList": true, "need": "Translation", "phase": "—", "verdict": "skip", "why": "Now needs a key.", "terms": "—", "test": "Research"}, {"name": "IP geolocation APIs (40+)", "inList": true, "need": "Location", "phase": "—", "verdict": "skip", "why": "Not needed: home city is a profile setting; near-me uses the device location on demand.", "terms": "—", "test": "—"}]};
+(() => {
+  const label = { use: 'Use', later: 'Later', have: 'Have', skip: 'Skip' };
+  const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  let f = 'all';
+  const filters = document.getElementById('filters');
+  const counts = TRIAGE.items.reduce((a, x) => ((a[x.verdict] = (a[x.verdict] || 0) + 1), a), {});
+  filters.innerHTML = ['all', 'use', 'later', 'have', 'skip'].map((k) => `<button type="button" data-f="${k}" aria-pressed="${k === f}">${k === 'all' ? 'All ' + TRIAGE.items.length : label[k] + ' ' + (counts[k] || 0)}</button>`).join('');
+  const render = () => {
+    document.getElementById('rows').innerHTML = TRIAGE.items.filter((x) => f === 'all' || x.verdict === f).map((x) =>
+      `<tr><td class="nm">${esc(x.name)}${x.inList ? '' : '<small>Not in the list</small>'}</td><td>${esc(x.need)}</td><td><span class="status ${x.verdict}">${label[x.verdict]}</span></td><td class="mono">${esc(x.phase)}</td><td>${esc(x.why)}</td><td>${esc(x.terms)}</td></tr>`).join('');
+  };
+  filters.addEventListener('click', (e) => { const b = e.target.closest('button'); if (!b) return; f = b.dataset.f; filters.querySelectorAll('button').forEach((x) => x.setAttribute('aria-pressed', String(x === b))); render(); });
+  render();
+})();
+</script>
+
+</body>
+</html>

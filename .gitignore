@@ -230,3 +230,9 @@ e2e/.auth/
 e2e/.fixtures.json
 test-results/
 playwright-report/
+
+# Local tool state (not project files)
+.claude/settings.local.json
+.gsd/
+.impeccable/
+supabase/.branches/

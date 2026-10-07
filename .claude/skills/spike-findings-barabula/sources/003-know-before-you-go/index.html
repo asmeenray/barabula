@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Know before you go</title>
+<style>
+  :root { --bg:#F4F5F7; --paper:#fff; --ink:#16202B; --muted:#5B6672; --line:#DDE2E7; --tag:#F2A900; --navy:#285185; --bad:#B91C1C; --good:#2E8B57; }
+  @media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) { --bg:#0E1318; --paper:#161D24; --ink:#E8EDF2; --muted:#9AA6B2; --line:#26313B; --tag:#FFC233; --navy:#8FB3E8; --bad:#F87171; --good:#4ADE80; } }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--bg); color:var(--ink); font:16px/1.5 system-ui, -apple-system, "Segoe UI", sans-serif; }
+  main { max-width: 760px; margin: 0 auto; padding: 20px 16px 48px; }
+  h1 { font: 600 28px/1.2 ui-monospace, Menlo, monospace; text-transform: uppercase; margin: 0 0 4px; }
+  .lede { color: var(--muted); margin: 0 0 16px; }
+  form { display:grid; grid-template-columns: 1.4fr 1fr 1fr 1fr; gap: 8px; align-items:end; background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:12px; }
+  label { font-size: 12px; color: var(--muted); display:grid; gap:4px; }
+  input, button { font: inherit; padding: 10px 12px; border-radius: 10px; border:1px solid var(--line); background: var(--bg); color: var(--ink); min-height: 44px; }
+  button.primary { grid-column: 1 / -1; background: var(--navy); border-color: var(--navy); color:#fff; font-weight:600; cursor:pointer; }
+  .presets { display:flex; flex-wrap:wrap; gap:8px; margin:10px 0 18px; }
+  .presets button { background: transparent; font-size: 14px; min-height: 36px; padding: 6px 10px; cursor: pointer; }
+  .card { background: var(--paper); border:1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  .card header { padding: 16px; border-bottom: 1px dashed var(--line); }
+  .card header .k { font: 600 12px ui-monospace, Menlo, monospace; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .card header .city { font: 600 28px/1.1 ui-monospace, Menlo, monospace; text-transform: uppercase; }
+  .row { display:grid; grid-template-columns: 120px 1fr; gap: 12px; padding: 12px 16px; border-bottom: 1px solid var(--line); }
+  .row:last-child { border-bottom: 0; }
+  .row .k { font: 600 12px ui-monospace, Menlo, monospace; text-transform: uppercase; color: var(--muted); padding-top: 3px; }
+  .muted { color: var(--muted); font-size: 14px; }
+  .pill { display:inline-block; font: 600 12px ui-monospace, Menlo, monospace; padding: 2px 6px; border-radius: 6px; background: var(--tag); color:#16202B; margin-right: 6px; }
+  ul { margin: 0; padding-left: 18px; }
+  h2 { font: 600 16px system-ui; margin: 24px 0 8px; }
+  table { width:100%; border-collapse: collapse; font-size: 14px; background: var(--paper); border:1px solid var(--line); border-radius: 12px; overflow:hidden; }
+  th, td { text-align:left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font: 600 12px ui-monospace, Menlo, monospace; text-transform: uppercase; color: var(--muted); }
+  .bad { color: var(--bad); } .good { color: var(--good); }
+  .err { color: var(--bad); margin: 8px 0; }
+  @media (max-width: 640px) { form { grid-template-columns: 1fr 1fr; } form label:first-child { grid-column: 1 / -1; } .row { grid-template-columns: 1fr; gap: 2px; } }
+</style>
+</head>
+<body>
+<main>
+  <h1>Know before you go</h1>
+  <p class="lede">Spike 003. The card a trip would show. Below it, what each candidate source returned for the same trip, so gaps are visible.</p>
+  <form id="f">
+    <label>Destination <input id="dest" value="Lisbon" required></label>
+    <label>Home city <input id="home" value="London" required></label>
+    <label>From <input id="start" type="date" value="2026-12-20" required></label>
+    <label>To <input id="end" type="date" value="2027-01-03" required></label>
+    <button class="primary">Build the card</button>
+  </form>
+  <div class="presets" id="presets"></div>
+  <div class="err" id="err"></div>
+  <div id="out"></div>
+</main>
+<script>
+const $ = (id) => document.getElementById(id);
+const presets = [['Lisbon over New Year','Lisbon','London','2026-12-20','2027-01-03'],['Mumbai in January','Mumbai','London','2027-01-20','2027-01-28'],['Marrakesh at Eid','Marrakesh','London','2027-03-08','2027-03-14'],['Hanoi early May','Hanoi','London','2027-04-28','2027-05-03'],['Dubai from Mumbai','Dubai','Mumbai','2026-12-01','2026-12-05'],['Tokyo Golden Week','Tokyo','London','2027-04-29','2027-05-06']];
+$('presets').innerHTML = presets.map((p, i) => `<button type="button" data-i="${i}">${p[0]}</button>`).join('');
+$('presets').onclick = (e) => { const b = e.target.closest('button'); if (!b) return; const p = presets[+b.dataset.i]; [$('dest').value, $('home').value, $('start').value, $('end').value] = p.slice(1); run(); };
+const fmt = (s) => new Date(s + 'T12:00:00Z').toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', timeZone: 'UTC' });
+const esc = (s) => String(s ?? '').replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const hList = (x) => !Array.isArray(x) ? `<span class="bad">Error ${esc(x?.error)}</span>` : x.length ? x.map((h) => `${fmt(h.date)} · ${esc(h.name)}${h.national === false ? ' <span class="muted">(regional)</span>' : ''}`).join('<br>') : '<span class="muted">none in trip</span>';
+
+async function run() {
+  $('err').textContent = ''; $('out').innerHTML = '<p class="muted">Loading…</p>';
+  try {
+    const q = new URLSearchParams({ dest: $('dest').value, home: $('home').value, start: $('start').value, end: $('end').value });
+    const c = await (await fetch('/api/003/card?' + q)).json();
+    if (c.error) throw new Error(c.error);
+    const hol = Array.isArray(c.holidays.offline) ? c.holidays.offline : [];
+    const r = c.currency.rate.currencyApi?.rate ?? c.currency.rate.frankfurter?.rate;
+    const td = c.time.diffHours;
+    const tdText = td == null ? '—' : td === 0 ? 'Same time as home' : `${Math.abs(td)} h ${td > 0 ? 'ahead of' : 'behind'} home`;
+    $('out').innerHTML = `
+      <section class="card">
+        <header><div class="k">Know before you go · ${fmt(c.start)} – ${fmt(c.end)}</div><div class="city">${esc(c.dest.name)}</div><div class="muted">${esc(c.dest.country)}</div></header>
+        <div class="row"><div class="k">Closures</div><div>${hol.length ? hol.map((h) => `<span class="pill">${fmt(h.date)}</span>${esc(h.name)}`).join('<br>') + '<div class="muted">Public holiday: shops and museums may close or change hours.</div>' : '<span class="muted">No public holidays during your trip.</span>'}</div></div>
+        <div class="row"><div class="k">Money</div><div>${c.currency.dest === c.currency.home ? `Same currency as home (${c.currency.dest})` : r ? `1 ${c.currency.home} ≈ ${r >= 100 ? Math.round(r).toLocaleString('en-GB') : r.toFixed(2)} ${c.currency.dest}` : '—'}${c.currency.rate.currencyApi?.date ? `<div class="muted">Rate from ${c.currency.rate.currencyApi.date}. A guide, not a quote.</div>` : ''}</div></div>
+        <div class="row"><div class="k">Time</div><div>${tdText}${c.time.diffHoursToday !== c.time.diffHours ? `<div class="muted">It's ${Math.abs(c.time.diffHoursToday)} h today; clocks change before you go.</div>` : ''}</div></div>
+        ${c.intro ? `<div class="row"><div class="k">About</div><div>${esc(c.intro.extract.split('. ').slice(0, 2).join('. '))}.<div class="muted">From <a href="${esc(c.intro.url)}">${esc(c.intro.host)}</a>, CC BY-SA 4.0</div></div></div>` : ''}
+      </section>
+      <h2>What each source returned</h2>
+      <table>
+        <tr><th>Field</th><th>Source</th><th>Result</th><th>ms</th></tr>
+        <tr><td rowspan="3">Holidays</td><td>date-holidays (offline)</td><td>${hList(c.holidays.offline)}</td><td>${c.timings.dateHolidays}</td></tr>
+        <tr><td>Nager.Date API</td><td>${hList(c.holidays.nager)}</td><td>${c.timings.nager}</td></tr>
+        <tr><td>caldays API</td><td>${hList(c.holidays.caldays)}<div class="muted">Ignores the year; always returns 2026.</div></td><td>${c.timings.caldays}</td></tr>
+        <tr><td rowspan="2">Exchange rate</td><td>Frankfurter (ECB)</td><td>${c.currency.rate.frankfurter ? (c.currency.rate.frankfurter.rate ?? `<span class="bad">${esc(c.currency.rate.frankfurter.error)}</span>`) : '<span class="muted">not needed</span>'}</td><td>${c.timings.frankfurter}</td></tr>
+        <tr><td>currency-api (jsDelivr)</td><td>${c.currency.rate.currencyApi ? (c.currency.rate.currencyApi.rate ?? `<span class="bad">${esc(c.currency.rate.currencyApi.error)}</span>`) : '<span class="muted">not needed</span>'}</td><td>${c.timings.currencyApi}</td></tr>
+        <tr><td rowspan="2">City intro</td><td>Wikivoyage</td><td>${esc(c.introDebug.wikivoyage)}</td><td>${c.timings.wikivoyage}</td></tr>
+        <tr><td>Wikipedia</td><td>${esc(c.introDebug.wikipedia)}</td><td>${c.timings.wikipedia}</td></tr>
+        <tr><td>Total</td><td colspan="2">Parallel calls from the server route</td><td>${c.timings.total}</td></tr>
+      </table>
+      <p class="muted">Call log: <a href="/log">/log</a> (JSON export).</p>`;
+  } catch (e) { $('err').textContent = String(e.message || e); $('out').innerHTML = ''; }
+}
+$('f').onsubmit = (e) => { e.preventDefault(); run(); };
+run();
+</script>
+</body>
+</html>
