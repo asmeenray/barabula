@@ -49,14 +49,14 @@ export function UpcomingPass({ trip }: { trip: HomeTrip }) {
         onFallback={() => setPhotoFailed(true)}
       />
 
-      <dl className="grid grid-cols-[1.4fr_1fr_1fr_auto] border-t-[1.5px] border-dashed border-perf">
+      <dl className="grid grid-cols-[minmax(0,1fr)_auto_auto_auto] border-t-[1.5px] border-dashed border-perf">
         <Field label="When" value={when} />
         <Field label="Days" value={String(trip.dayCount)} />
         <Field label="Places" value={String(trip.placeCount)} />
-        <div className="flex min-w-0 flex-col justify-center gap-1 border-l-[1.5px] border-dashed border-perf px-3 py-2.5">
+        <div className="flex min-w-0 flex-col justify-start gap-1 border-l-[1.5px] border-dashed border-perf py-2.5 pr-4 pl-3 xl:pr-3 xl:pl-2">
           <dt className="font-label text-xs leading-[1.33] font-semibold tracking-[0.16em] text-muted uppercase">Status</dt>
           <dd>
-            <span className="inline-flex h-6 items-center rounded-[4px] border border-field px-1.5 font-label text-xs leading-none font-semibold tracking-[0.16em] whitespace-nowrap text-muted uppercase">
+            <span className="inline-flex h-6 items-center rounded-[4px] border border-field px-1.5 font-label text-xs leading-none font-semibold tracking-[0.16em] whitespace-nowrap text-muted uppercase xl:px-1 xl:tracking-[0.08em]">
               {statusOf(trip)}
             </span>
           </dd>
@@ -70,10 +70,12 @@ export function UpcomingPass({ trip }: { trip: HomeTrip }) {
 
 function Field({ label, value }: { label: string; value: string }) {
   return (
-    <div data-field={label.toLowerCase()} className="flex min-w-0 flex-col justify-center gap-1 px-3 py-2.5 not-first:border-l-[1.5px] not-first:border-dashed not-first:border-perf first:pl-4">
+    <div data-field={label.toLowerCase()} className="flex min-w-0 flex-col justify-start gap-1 px-3 py-2.5 xl:px-2 not-first:border-l-[1.5px] not-first:border-dashed not-first:border-perf first:pl-4 xl:first:pl-3">
       <dt className="font-label text-xs leading-[1.33] font-semibold tracking-[0.16em] text-muted uppercase">{label}</dt>
-      <dd className="truncate font-mono text-base leading-tight font-semibold uppercase tabular-nums" title={value}>
-        {value}
+      <dd className="flex h-6 min-w-0 items-center">
+        <span className="truncate font-mono text-base leading-tight font-semibold uppercase tabular-nums" title={value}>
+          {value}
+        </span>
       </dd>
     </div>
   )

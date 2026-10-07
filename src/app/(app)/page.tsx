@@ -4,16 +4,18 @@ import { getHomeData, isFirstVisit } from '@/lib/home/data'
 import { BlankPass } from '@/components/pass/BlankPass'
 import { NowNextPass } from '@/components/pass/NowNextPass'
 import { UpcomingList } from '@/components/pass/UpcomingPass'
+import { PastPile } from '@/components/pass/PastPile'
+import { CreateTripTile } from '@/components/pass/CreateTripTile'
 import { WhatBarabulaDoes } from '@/components/pass/WhatBarabulaDoes'
 
 // Home = Trips tab (UI-SPEC §2, D-07, D-08). Server Component: the cover city
 // and the user's "today" are worked out on the server per request (D-09,
 // Pitfall 9), so this page is never static. Order: during a trip the Now pass
 // comes first, then the blank pass; otherwise the blank pass, then the Next
-// pass. Then Upcoming, What Barabula does. Laptop row 1 = the two passes side
-// by side as vertical passes; with no Now/Next pass the blank pass spans the
-// row (horizontal). First visit (logged out, or no trips): the pass, one line
-// of guidance and What Barabula does, nothing else.
+// pass. Then Upcoming, Past, Create a new trip and What Barabula does. Laptop
+// row 1 = the two passes side by side as vertical passes; with no Now/Next pass
+// the blank pass spans the row (horizontal). First visit (logged out, or no
+// trips): the pass, one line of guidance and What Barabula does, nothing else.
 export const dynamic = 'force-dynamic'
 
 export default async function HomePage() {
@@ -43,6 +45,8 @@ export default async function HomePage() {
           {firstVisit && <p className="text-base text-muted">Fill the pass to plan your first trip.</p>}
         </div>
         <UpcomingList trips={home.upcoming} />
+        <PastPile trips={home.past} />
+        <CreateTripTile tripCount={home.tripCount} />
         <WhatBarabulaDoes />
       </div>
     </div>

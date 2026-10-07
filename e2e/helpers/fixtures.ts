@@ -8,6 +8,10 @@ export type E2EFixtures = {
   lisbonId: string
   portoId: string
   pragueId: string
+  /** Today is day 2 of 3 (home NOW pass). */
+  madridId: string
+  romeId: string
+  parisId: string
   /** Activity ids per day in position order; key "maybe" holds the Maybe rows. */
   activityIds: Record<string, string[]>
 }

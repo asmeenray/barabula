@@ -136,9 +136,11 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
 
   return (
     <section
+      // "Fill the pass" (CreateTripTile) scrolls here and focuses Where to?
+      id="next-trip-pass"
       aria-label="Next trip"
       data-layout={layout}
-      className={`overflow-hidden rounded-2xl bg-surface shadow-[0_24px_48px_-28px_rgba(0,0,0,.55)] dark:border dark:border-line dark:shadow-none ${
+      className={`scroll-mt-4 overflow-hidden rounded-2xl bg-surface shadow-[0_24px_48px_-28px_rgba(0,0,0,.55)] dark:border dark:border-line dark:shadow-none ${
         horizontal ? 'lg:grid lg:min-h-[440px] lg:grid-cols-[55fr_45fr]' : ''
       }`}
     >

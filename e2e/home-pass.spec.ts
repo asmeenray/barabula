@@ -16,6 +16,16 @@ async function pickCity(page: Page, typed: string, option: string | RegExp) {
 const pass = (page: Page) => page.getByRole('region', { name: 'Next trip' })
 
 test.describe('home blank pass', () => {
+  // Trips made here are deleted after each test, so the home sections
+  // (home.spec.ts) only ever see the seeded trips.
+  const created: string[] = []
+  test.afterEach(async ({ page }) => {
+    for (const id of created.splice(0)) {
+      const res = await page.request.delete(`/api/itineraries/${id}`)
+      expect(res.ok()).toBe(true)
+    }
+  })
+
   test('answer the questions and start planning a trip', async ({ page }) => {
     await page.goto('/')
     await expect(page.getByRole('heading', { level: 1, name: /where to next\?/i })).toBeVisible()
@@ -65,6 +75,7 @@ test.describe('home blank pass', () => {
 
     await page.getByRole('button', { name: 'Start planning' }).click()
     await expect(page).toHaveURL(new RegExp(`/itinerary/${UUID}$`))
+    created.push(new URL(page.url()).pathname.split('/').pop()!)
     await expect(page.getByRole('heading', { name: 'Now boarding: Lisbon' })).toBeVisible()
     await expect(page.getByRole('heading', { level: 1, name: 'Lisbon' })).toBeVisible()
     // The new plan is empty, so it shows no day tabs yet; the stored length

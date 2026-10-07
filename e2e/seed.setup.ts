@@ -187,6 +187,37 @@ setup('reset local database and seed fixtures', async () => {
     activityRow(pragueId, 2, 1, { name: 'Pražský hrad', location: 'Hradčany', kind: 'Castle' }, 'none'),
   ])
 
+  // (4) Madrid: the trip happening today (yesterday → tomorrow, so today is
+  // day 2 of 3), two places by name only. Home shows it as the NOW pass.
+  const madridId = await insertTrip(admin, {
+    user_id: ownerId,
+    title: 'Madrid',
+    destination: 'Madrid',
+    start_date: isoDay(-1),
+    end_date: isoDay(1),
+  })
+  await insertActivities(admin, [
+    activityRow(madridId, 1, 1, { name: 'Plaza Mayor', location: 'Centro', kind: 'Square' }, 'none'),
+    activityRow(madridId, 2, 1, { name: 'Museo del Prado', location: 'Retiro', kind: 'Museum' }, 'none'),
+  ])
+
+  // (5, 6) Rome and Paris: dated upcoming trips with no places, so Upcoming
+  // holds Lisbon, Rome, Paris and (undated, last) Porto.
+  const romeId = await insertTrip(admin, {
+    user_id: ownerId,
+    title: 'Rome',
+    destination: 'Rome',
+    start_date: isoDay(20),
+    end_date: isoDay(22),
+  })
+  const parisId = await insertTrip(admin, {
+    user_id: ownerId,
+    title: 'Paris',
+    destination: 'Paris',
+    start_date: isoDay(30),
+    end_date: isoDay(31),
+  })
+
   const activityIds: Record<string, string[]> = {}
   for (const row of [...lisbonRows].sort((a, b) => a.position - b.position)) {
     const key = row.day_number === null ? 'maybe' : String(row.day_number)
@@ -199,6 +230,9 @@ setup('reset local database and seed fixtures', async () => {
     lisbonId,
     portoId,
     pragueId,
+    madridId,
+    romeId,
+    parisId,
     activityIds,
   }
   mkdirSync(path.dirname(FIXTURES_PATH), { recursive: true })
