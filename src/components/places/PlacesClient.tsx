@@ -13,6 +13,7 @@ import { useRouter } from 'next/navigation'
 import type { Drawer } from '@base-ui/react/drawer'
 import { useAnnounce } from '@/components/a11y/LiveRegion'
 import { BoardStatusLine } from '@/components/board/BoardStatusLine'
+import { PlacesMapLazy } from '@/components/map/PlacesMapLazy'
 import { useUndo } from '@/components/undo/UndoProvider'
 import { LAPTOP_QUERY, useMediaQuery } from '@/lib/client/use-media'
 import { useTripDeletes } from '@/lib/plan/delete-trip'
@@ -118,6 +119,7 @@ export function PlacesClient({ points, trips }: PlacesClientProps) {
 
   const shown = useMemo(() => filterPlaces(all, filters), [all, filters])
   const groups = useMemo(() => groupByTrip(shown, trips), [shown, trips])
+  const located = useMemo(() => shown.filter((p) => p.coords !== null), [shown])
 
   const open = openId === null ? null : (all.find((p) => p.id === openId) ?? null)
 
@@ -163,8 +165,16 @@ export function PlacesClient({ points, trips }: PlacesClientProps) {
     />
   )
 
-  // The clustered map lands in the next commit (16-18 Task 2).
-  const map = <div aria-hidden className="h-full w-full bg-surface-2" />
+  const map = (
+    <PlacesMapLazy
+      points={located}
+      colors={colors}
+      selectedId={open?.coords ? open.id : null}
+      onSelect={(id) => select(id, 'map')}
+      // Phone: keep pins clear of the floating filters and the sheet's peek.
+      inset={isLaptop ? undefined : { top: 136, bottom: 164 }}
+    />
+  )
 
   const list = (variant: 'panel' | 'sheet') => (
     <PlacesList
@@ -211,7 +221,7 @@ export function PlacesClient({ points, trips }: PlacesClientProps) {
             labelledBy={card ? undefined : headingId}
             label={open?.name}
           >
-            {card ? <div className="px-4 pt-2 pb-4">{card}</div> : list('sheet')}
+            {card ? <div className="px-4 pt-1 pb-4">{card}</div> : list('sheet')}
           </PlacesSheet>
         )}
       </div>

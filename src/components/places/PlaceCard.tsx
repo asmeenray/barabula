@@ -64,7 +64,10 @@ export function PlaceCard({ place: p, color, saveFailed, onVisited, onRetry, onB
       id={id}
       role="region"
       aria-labelledby={nameId}
-      className="rounded-2xl border border-board-line bg-surface p-4 text-ink motion-safe:animate-[ticket-in_250ms_var(--ease-out)]"
+      // Laptop: a card under its row. Phone: the sheet is the card, so no second frame.
+      className={`text-ink motion-safe:animate-[ticket-in_250ms_var(--ease-out)] ${
+        onBack ? '' : 'rounded-2xl border border-board-line bg-surface p-4'
+      }`}
     >
       {onBack && (
         <button
