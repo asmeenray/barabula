@@ -158,9 +158,15 @@ type CityOption = { label: string; city: string; create?: boolean }
 export function cityOptions(cities: readonly PassCity[], query: string): CityOption[] {
   const typed = query.trim().slice(0, MAX_STOP_LENGTH)
   const key = normalizeCity(typed)
-  const matches = cities
-    .filter((c) => !key || normalizeCity(c.name).includes(key) || c.names.some((n) => n.includes(key)))
-    .map((c): CityOption => ({ label: c.name, city: c.name }))
+  // Nothing until the user types; then names that start with what was typed
+  // (name, alias or any word of them) first, other contains-matches after.
+  if (!key) return []
+  const names = (c: PassCity) => [normalizeCity(c.name), ...c.names]
+  const starts = (c: PassCity) => names(c).some((n) => n.startsWith(key) || n.split(' ').some((w) => w.startsWith(key)))
+  const hits = cities.filter((c) => names(c).some((n) => n.includes(key)))
+  const matches = [...hits.filter(starts), ...hits.filter((c) => !starts(c))].map(
+    (c): CityOption => ({ label: c.name, city: c.name })
+  )
   const exact = key && findCity(cities, typed)
   if (typed && !exact) matches.push({ label: `Use “${typed}”`, city: typed, create: true })
   return matches

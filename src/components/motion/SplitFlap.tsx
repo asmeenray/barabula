@@ -41,14 +41,16 @@ export function boardFlipDelay(i: number): number | null {
  * on the last frame; spaces stay put; other characters (digits, arrows,
  * accents) show drum letters until they land.
  */
-export function flapFrame(text: string, frame: number, frames: number): string {
-  const left = frames - 1 - frame
-  if (left <= 0) return text
+export function flapFrame(text: string, frame: number, frames: number, cascade = 0): string {
+  if (frame >= flapLength(text, frames, cascade) - 1) return text
   let out = ''
   for (let i = 0; i < text.length; i++) {
     const ch = text[i]
-    if (ch === ' ') {
-      out += ' '
+    // With a cascade, character i lands `cascade` frames after the one before
+    // it, so the text settles left to right like an arrival board.
+    const left = frames + i * cascade - 1 - frame
+    if (ch === ' ' || left <= 0) {
+      out += ch
       continue
     }
     const at = DRUM.indexOf(ch.toUpperCase())
@@ -56,6 +58,11 @@ export function flapFrame(text: string, frame: number, frames: number): string {
     out += at >= 0 ? DRUM[(((at - left) % n) + n) % n] : DRUM[(i * 7 + frame) % 26]
   }
   return out
+}
+
+/** Frames until the last character lands. */
+export function flapLength(text: string, frames: number, cascade = 0): number {
+  return frames + Math.max(0, text.length - 1) * cascade
 }
 
 type Props = {
@@ -66,11 +73,22 @@ type Props = {
   delayMs?: number
   frameMs?: number
   frames?: number
+  /** Extra frames per character: the text settles left to right (arrival board). */
+  cascade?: number
   className?: string
   title?: string
 }
 
-export function SplitFlap({ text, play = true, delayMs = 0, frameMs = 34, frames = 9, className, title }: Props) {
+export function SplitFlap({
+  text,
+  play = true,
+  delayMs = 0,
+  frameMs = 34,
+  frames = 9,
+  cascade = 0,
+  className,
+  title,
+}: Props) {
   const reduced = useReducedMotionConfig() === true
   // Derived from the props of the last render (React's "adjust state when a
   // prop changes" pattern), so a flip starts in the same paint as the change.
@@ -89,12 +107,12 @@ export function SplitFlap({ text, play = true, delayMs = 0, frameMs = 34, frames
     const tick = (now: number) => {
       if (start < 0) start = now + delayMs
       const frame = Math.floor((now - start) / frameMs)
-      if (frame >= frames - 1) {
+      if (frame >= flapLength(text, frames, cascade) - 1) {
         setSeen((s) => (s.run === run ? { ...s, flipping: false } : s))
         return
       }
       if (frame >= 0) {
-        const chars = flapFrame(text, frame, frames)
+        const chars = flapFrame(text, frame, frames, cascade)
         faces.current.forEach((el, i) => {
           if (el && el.textContent !== chars[i]) el.textContent = chars[i]
         })
@@ -104,7 +122,7 @@ export function SplitFlap({ text, play = true, delayMs = 0, frameMs = 34, frames
     raf = requestAnimationFrame(tick)
     // Hidden tabs get no frames, so the loop also stops while hidden (T-16-57).
     return () => cancelAnimationFrame(raf)
-  }, [flipping, seen.run, text, delayMs, frameMs, frames])
+  }, [flipping, seen.run, text, delayMs, frameMs, frames, cascade])
 
   if (!flipping) {
     return (
@@ -114,8 +132,8 @@ export function SplitFlap({ text, play = true, delayMs = 0, frameMs = 34, frames
     )
   }
 
-  const first = flapFrame(text, 0, frames)
-  const total = frames * frameMs
+  const first = flapFrame(text, 0, frames, cascade)
+  const total = flapLength(text, frames, cascade) * frameMs
   // Each word with the index of its first character in the text.
   const words: { word: string; start: number }[] = []
   for (let at = 0; at <= text.length; ) {

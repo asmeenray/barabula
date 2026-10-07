@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, render } from '@testing-library/react'
 import { MotionConfig } from 'motion/react'
-import { DRUM, SplitFlap, flapFrame } from '@/components/motion/SplitFlap'
+import { DRUM, SplitFlap, flapFrame, flapLength } from '@/components/motion/SplitFlap'
 
 // Split-flap text (16-20, D-30, UI-SPEC "Split-flap rules"): the real string
 // as text (sr-only copy while flipping), flipping glyphs aria-hidden, final text at once under
@@ -95,5 +95,24 @@ describe('SplitFlap', () => {
       </MotionConfig>
     )
     expect(flapIn(container).querySelectorAll('[data-glyph]')).toHaveLength(5)
+  })
+})
+
+describe('flapFrame with a cascade (arrival board)', () => {
+  it('lands characters left to right, one cascade step apart', () => {
+    const text = 'ABC'
+    // frames 3, cascade 2: A lands at frame 2, B at 4, C at 6 (flapLength 7).
+    expect(flapLength(text, 3, 2)).toBe(7)
+    expect(flapFrame(text, 2, 3, 2)[0]).toBe('A')
+    expect(flapFrame(text, 2, 3, 2)[1]).not.toBe('B')
+    expect(flapFrame(text, 4, 3, 2).slice(0, 2)).toBe('AB')
+    expect(flapFrame(text, 4, 3, 2)[2]).not.toBe('C')
+    expect(flapFrame(text, 6, 3, 2)).toBe('ABC')
+  })
+
+  it('keeps spaces in place and matches the old behaviour without a cascade', () => {
+    expect(flapFrame('A B', 0, 5, 1)[1]).toBe(' ')
+    expect(flapFrame('WHERE TO', 3, 9)).toBe(flapFrame('WHERE TO', 3, 9, 0))
+    expect(flapLength('WHERE TO', 9)).toBe(9)
   })
 })

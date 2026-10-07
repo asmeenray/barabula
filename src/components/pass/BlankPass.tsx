@@ -9,7 +9,7 @@
 // keeps the answers on the device and asks the user to sign in (D-19, D-41);
 // back here without signing in, the kept answers are shown again.
 
-import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import dynamic from 'next/dynamic'
 import type { CityPhoto } from '@/lib/photos/manifest'
@@ -29,6 +29,8 @@ import { PassCover, PhotoCredit } from './PassCover'
 import { DescribeBox } from './DescribeBox'
 import { QuestionCard, type QuestionStep } from './QuestionCard'
 import { StampLine } from './StampLine'
+
+const noopSubscribe = () => () => {}
 
 /** The laptop plane cursor (D-31): its chunk loads only where it is shown. */
 const PlaneCursor = dynamic(() => import('@/components/motion/PlaneCursor'), { ssr: false })
@@ -98,6 +100,10 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
   // Plane cursor: a mouse or trackpad, and no reduced motion.
   const finePointer = useMediaQuery(FINE_POINTER_QUERY)
   const reducedMotion = useMediaQuery(REDUCED_MOTION_QUERY)
+  // False on the server render, true once hydrated: the title and status line
+  // split-flap in on load like an arrival board (Asmeen, 7 Oct 2026), and the
+  // title flips again whenever the destination changes.
+  const hydrated = useSyncExternalStore(noopSubscribe, () => true, () => false)
   const passRef = useRef<HTMLElement>(null)
   // Stamp lines rise in with Motion (moment 1): fetch its features now, before the first answer.
   useMotionFeatures()
@@ -270,7 +276,8 @@ export function BlankPass({ coverPhoto, photos, signedIn, layout = 'vertical', p
         statusLine={first ? undefined : 'Pick a city to start'}
         priority={priority}
         titleAs="h1"
-        flapTitle={stops.length > 0}
+        flapTitle={hydrated}
+        flapBoard
         transitionId={tripId}
         onFallback={() => photo && setFailedSlug(photo.slug)}
         className={horizontal ? 'lg:h-auto lg:min-h-[440px]' : 'lg:h-70'}

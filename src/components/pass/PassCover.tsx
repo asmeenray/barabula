@@ -73,6 +73,8 @@ type Props = {
    * visit): a SplitFlap `play` value, falsy on the server render.
    */
   flapTitle?: unknown
+  /** Arrival-board settle for the flipped title and status line (blank pass on load). */
+  flapBoard?: boolean
   /**
    * Moment 4: the trip whose cover this is, for the pass → plan header morph.
    * null keeps the transition wrapper without a shared name (the blank pass
@@ -81,6 +83,11 @@ type Props = {
   transitionId?: string | null
   className?: string
 }
+
+// Arrival-board settle (blank pass on load): characters land left to right.
+// "Where to next?" settles in ~1.4 s; the status line starts 0.3 s later.
+const BOARD_TITLE = { frames: 10, frameMs: 40, cascade: 2 } as const
+const BOARD_STATUS = { frames: 8, frameMs: 34, cascade: 1, delayMs: 300 } as const
 
 export function PassCover({
   photo,
@@ -97,6 +104,7 @@ export function PassCover({
   titleAttrs,
   oneLine = false,
   flapTitle,
+  flapBoard = false,
   transitionId,
   className = '',
 }: Props) {
@@ -129,9 +137,23 @@ export function PassCover({
           {...titleAttrs}
           className={`${oneLine ? 'truncate' : 'line-clamp-2 text-balance break-words'} max-w-[85%] font-mono font-semibold uppercase ${TITLE[variant]}`}
         >
-          {flapTitle === undefined ? title : <SplitFlap text={title} play={flapTitle} />}
+          {flapTitle === undefined ? (
+            title
+          ) : flapBoard ? (
+            <SplitFlap text={title} play={flapTitle} {...BOARD_TITLE} />
+          ) : (
+            <SplitFlap text={title} play={flapTitle} />
+          )}
         </Title>
-        {statusLine && <p className="mt-1 truncate font-mono text-base leading-tight tabular-nums">{statusLine}</p>}
+        {statusLine && (
+          <p className="mt-1 truncate font-mono text-base leading-tight tabular-nums">
+            {flapBoard && flapTitle !== undefined ? (
+              <SplitFlap text={statusLine} play={flapTitle} {...BOARD_STATUS} />
+            ) : (
+              statusLine
+            )}
+          </p>
+        )}
       </div>
     </div>
   )
