@@ -1,7 +1,6 @@
 import type { TripState, ConversationPhase } from './schemas'
 import { buildTripPlannerPrompt } from './prompts/trip-planner'
-import type { FlightInputData } from '@/components/chat/FlightsTabPanel'
-import type { HotelSaveData } from '@/components/chat/HotelsTabPanel'
+import type { FlightInputData, HotelSaveData } from './input-types'
 
 function buildUserProvidedContext(
   flightInputData: FlightInputData | null | undefined,
