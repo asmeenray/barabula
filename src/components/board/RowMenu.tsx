@@ -18,6 +18,8 @@ export interface RowActions {
   moveUp?: () => void
   moveDown?: () => void
   remove?: () => void
+  /** The place is not saved yet (just added): the menu is off until it is. */
+  locked?: boolean
 }
 
 export interface RowMenuProps extends RowActions {
@@ -40,7 +42,7 @@ function preload() {
 const OPEN_KEYS = new Set(['Enter', ' ', 'ArrowDown', 'ArrowUp'])
 
 export function RowMenu(props: RowMenuProps) {
-  const canEdit = useCanEdit()
+  const canEdit = useCanEdit() && !props.locked
   const [active, setActive] = useState(false)
   const label = `Actions for ${props.placeName}`
 

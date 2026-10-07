@@ -58,7 +58,8 @@ interface PlaceTicketProps {
 
 export function PlaceTicket({ activity: a, stop, walk, onUpdate, actions }: PlaceTicketProps) {
   const announce = useAnnounce()
-  const canEdit = useCanEdit()
+  // A just-added place can't be edited until its save has answered.
+  const canEdit = useCanEdit() && !actions.locked
 
   const ref = useRef<HTMLDivElement>(null)
 

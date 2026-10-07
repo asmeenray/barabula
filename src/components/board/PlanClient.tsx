@@ -5,18 +5,21 @@
 // an Expand map button; laptop (lg) = 440 px list with every day stacked under
 // clickable day header rows, map filling the rest.
 
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { groupDays } from '@/lib/plan/days'
 import { chipFor, dayTitle, nextStopId, stopsLabel } from '@/lib/plan/board'
 import { dayKm, walkCells } from '@/lib/plan/walk'
 import type { PlanActivity, TripPlan } from '@/lib/plan/types'
 import type { CityPhoto } from '@/lib/photos/manifest'
-import { usePlan, type ActivityUpdate } from '@/lib/plan/use-plan'
+import { isTempId, usePlan, type ActivityUpdate, type NewPlace } from '@/lib/plan/use-plan'
 import { useCanEdit } from '@/lib/client/use-online'
+import { LAPTOP_QUERY, useMediaQuery } from '@/lib/client/use-media'
 import { useUndo } from '@/components/undo/UndoProvider'
 import { useAfterMark } from '@/lib/client/use-after-mark'
 import { TripMapLazy } from '@/components/map/TripMapLazy'
 import { Maximize2Icon, Minimize2Icon } from '@/components/icons'
+import { AddPlaceButton, LazyPlaceForm } from './AddPlaceButton'
+import type { PlaceFormValues } from './PlaceForm'
 import { BoardHead, ColumnHeads } from './BoardHead'
 import { BoardRow } from './BoardRow'
 import type { RowActions } from './RowMenu'
@@ -36,6 +39,24 @@ const MAP_REGION_ID = 'trip-map'
 const MAP_READY_MARK = 'barabula:map-load'
 const PHOTO_HOLD_MAX_MS = 10_000
 
+/** The place form, open in add or edit mode (16-11, D-18). */
+type FormState = { mode: 'add' } | { mode: 'edit'; id: string }
+
+const EMPTY_FORM: PlaceFormValues = { name: '', day: 1, location: '', fixedTime: false, time: '', note: '' }
+
+/** Form values → what usePlan stores (blank optional text = null; a time only with the switch on). */
+export function toNewPlace(v: PlaceFormValues): NewPlace {
+  const time = v.fixedTime ? v.time.trim() || null : null
+  return {
+    day_number: v.day,
+    name: v.name.trim(),
+    location: v.location.trim() || null,
+    description: v.note.trim() || null,
+    time,
+    fixed_time: time !== null,
+  }
+}
+
 const MAP_BUTTON =
   'flex min-h-11 items-center justify-center gap-2 rounded-lg border border-field bg-surface text-ink transition-transform duration-150 ease-out active:scale-[0.97]'
 
@@ -43,6 +64,7 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cit
   const { trip } = plan
   const {
     activities: all,
+    addActivity,
     updateActivity,
     moveActivity,
     moveUp,
@@ -69,6 +91,38 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cit
   const expandRef = useRef<HTMLButtonElement>(null)
   const shrinkRef = useRef<HTMLButtonElement>(null)
   const toggledRef = useRef(false)
+  const isLaptop = useMediaQuery(LAPTOP_QUERY)
+  const fabRef = useRef<HTMLButtonElement>(null)
+  const barRef = useRef<HTMLButtonElement>(null)
+  const [form, setForm] = useState<FormState | null>(null)
+  /** The control that opened the form; focus goes back to it on close. */
+  const openerRef = useRef<HTMLElement | null>(null)
+  const refocusRef = useRef(false)
+
+  function openForm(next: FormState, opener: HTMLElement | null) {
+    openerRef.current = opener
+    setForm(next)
+  }
+
+  function closeForm() {
+    refocusRef.current = true
+    setForm(null)
+  }
+
+  // Inline (laptop) forms unmount on close; put focus back on the opener.
+  // The phone sheet does this itself (Drawer finalFocus).
+  useEffect(() => {
+    if (form !== null || !refocusRef.current) return
+    refocusRef.current = false
+    openerRef.current?.focus()
+  }, [form])
+
+  function submitAdd(values: PlaceFormValues) {
+    const place = toNewPlace(values)
+    // Phone shows one day: follow the place to its day so it is seen landing.
+    setSelected(place.day_number ?? 'maybe')
+    void addActivity(place)
+  }
 
   function toggleMap(expanded: boolean) {
     toggledRef.current = true
@@ -90,6 +144,8 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cit
   // Move up / Move down are left out (shown disabled) at the ends of a bucket.
   const actionsFor = (a: PlanActivity, index: number, rows: PlanActivity[]): RowActions => ({
     dayCount: days.length,
+    // Not saved yet (temporary id): nothing to move or remove on the server.
+    locked: isTempId(a.id),
     move: (toDay) => moveActivity(a.id, toDay),
     moveUp: index > 0 ? () => moveUp(a.id) : undefined,
     moveDown: index < rows.length - 1 ? () => moveDown(a.id) : undefined,
@@ -153,86 +209,129 @@ export function PlanClient({ plan, photo = null }: { plan: TripPlan; photo?: Cit
         )}
       </div>
 
+      {/* The board panel; the phone FAB floats over its bottom-right corner. */}
       <div
-        className={`min-h-0 flex-1 overflow-y-auto overscroll-contain bg-board text-board-ink lg:col-start-1 lg:row-start-1 lg:block lg:border-r lg:border-line ${
+        className={`relative flex min-h-0 flex-1 flex-col lg:col-start-1 lg:row-start-1 lg:border-r lg:border-line ${
           mapExpanded ? 'max-lg:hidden' : ''
         }`}
       >
-        <PlanHeader trip={trip} photo={photo} holdPhoto={!mapReady} />
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain bg-board text-board-ink">
+          <PlanHeader trip={trip} photo={photo} holdPhoto={!mapReady} />
 
-        {isEmpty ? (
-          <div className="px-4 pt-12 pb-8">
-            <h2 className="text-[22px] leading-[1.2] font-semibold">Now boarding: {city}</h2>
-            <p className="mt-2 max-w-[60ch] text-base text-board-muted">
-              Your plan is empty. Add the places you want to see, then arrange them by day.
-            </p>
-          </div>
-        ) : (
-          <>
-            {/* Sticky at the top of the board panel: the DELAYED line (D-33) while a
-                save has failed, then the day tabs (phone only). */}
-            <div className="sticky top-0 z-10 bg-board">
-              {error && (
-                <BoardStatusLine
-                  message={error.message}
-                  onRetry={error.retry}
-                  retryDisabled={!canEdit}
-                  className="border-b border-board-line px-4 py-2"
-                />
-              )}
-              {tabs({ className: 'border-b border-board-line px-4 py-2 lg:hidden' })}
+          {isEmpty ? (
+            <div className="px-4 pt-12 pb-8">
+              <h2 className="text-[22px] leading-[1.2] font-semibold">Now boarding: {city}</h2>
+              <p className="mt-2 max-w-[60ch] text-base text-board-muted">
+                Your plan is empty. Add the places you want to see, then arrange them by day.
+              </p>
             </div>
+          ) : (
+            <>
+              {/* Sticky at the top of the board panel: the DELAYED line (D-33) while a
+                  save has failed, then the day tabs (phone only). */}
+              <div className="sticky top-0 z-10 bg-board">
+                {error && (
+                  <BoardStatusLine
+                    message={error.message}
+                    onRetry={error.retry}
+                    retryDisabled={!canEdit}
+                    className="border-b border-board-line px-4 py-2"
+                  />
+                )}
+                {tabs({ className: 'border-b border-board-line px-4 py-2 lg:hidden' })}
+              </div>
 
-            {days.map((rows, i) => {
-              const n = i + 1
-              return (
-                <DaySection
-                  key={n}
-                  day={n}
-                  city={city}
-                  startDate={trip.start_date}
-                  selected={selected === n}
-                  onSelect={() => setSelected(n)}
-                  rows={rows}
-                  openId={openId}
-                  onOpen={setOpenId}
-                  unsaved={unsaved}
-                  onUpdate={updateActivity}
-                  actionsFor={actionsFor}
-                  empty={
-                    <>
-                      <p className="font-mono text-base font-semibold uppercase">No stops yet</p>
-                      <p className="mt-1 text-base text-board-muted">Add a place to this day, or drag one here.</p>
-                    </>
-                  }
-                />
-              )
-            })}
+              {days.map((rows, i) => {
+                const n = i + 1
+                return (
+                  <DaySection
+                    key={n}
+                    day={n}
+                    city={city}
+                    startDate={trip.start_date}
+                    selected={selected === n}
+                    onSelect={() => setSelected(n)}
+                    rows={rows}
+                    openId={openId}
+                    onOpen={setOpenId}
+                    unsaved={unsaved}
+                    onUpdate={updateActivity}
+                    actionsFor={actionsFor}
+                    empty={
+                      <>
+                        <p className="font-mono text-base font-semibold uppercase">No stops yet</p>
+                        <p className="mt-1 text-base text-board-muted">Add a place to this day, or drag one here.</p>
+                      </>
+                    }
+                  />
+                )
+              })}
 
-            <DaySection
-              day="maybe"
-              city={city}
-              startDate={trip.start_date}
-              selected={selected === 'maybe'}
-              onSelect={() => setSelected('maybe')}
-              rows={maybe}
-              openId={openId}
-              onOpen={setOpenId}
-              unsaved={unsaved}
-              onUpdate={updateActivity}
-              actionsFor={actionsFor}
-              empty={
-                <p className="text-base text-board-muted">
-                  Nothing in Maybe. Move a place here to keep it without planning it.
-                </p>
-              }
-            />
-          </>
-        )}
+              <DaySection
+                day="maybe"
+                city={city}
+                startDate={trip.start_date}
+                selected={selected === 'maybe'}
+                onSelect={() => setSelected('maybe')}
+                rows={maybe}
+                openId={openId}
+                onOpen={setOpenId}
+                unsaved={unsaved}
+                onUpdate={updateActivity}
+                actionsFor={actionsFor}
+                empty={
+                  <p className="text-base text-board-muted">
+                    Nothing in Maybe. Move a place here to keep it without planning it.
+                  </p>
+                }
+              />
+            </>
+          )}
 
-        {/* Clears the Add place opener (16-07) under the last row. */}
-        <div className="h-24" aria-hidden />
+          {/* Laptop: the inline add form takes the Add place bar's place (UI-SPEC §9). */}
+          {form?.mode === 'add' && isLaptop ? (
+            <Suspense fallback={null}>
+              <LazyPlaceForm
+                mode="add"
+                variant="inline"
+                dayCount={days.length}
+                initial={{ ...EMPTY_FORM, day: selected === 'maybe' ? null : selected }}
+                onSubmit={submitAdd}
+                onClose={closeForm}
+              />
+            </Suspense>
+          ) : (
+            <div className="sticky bottom-0 z-10 bg-board px-4 pt-2 pb-4 max-lg:hidden">
+              <AddPlaceButton variant="bar" onOpen={() => openForm({ mode: 'add' }, barRef.current)} ref={barRef} />
+            </div>
+          )}
+
+          {/* Phone: clears the Add place FAB under the last row (UI-SPEC §7 item 8). */}
+          <div className="h-24 lg:hidden" aria-hidden />
+        </div>
+
+        <AddPlaceButton
+          variant="fab"
+          ref={fabRef}
+          onOpen={() => openForm({ mode: 'add' }, fabRef.current)}
+          className="absolute right-4 bottom-4 z-20 lg:hidden"
+        />
       </div>
+
+      {/* Phone: the place form is a bottom sheet (Drawer). */}
+      {form && !isLaptop && (
+        <Suspense fallback={null}>
+          <LazyPlaceForm
+            mode={form.mode}
+            variant="sheet"
+            dayCount={days.length}
+            initial={{ ...EMPTY_FORM, day: selected === 'maybe' ? null : selected }}
+            onSubmit={submitAdd}
+            onClose={closeForm}
+            returnFocus={openerRef}
+          />
+        </Suspense>
+      )}
     </div>
   )
 }

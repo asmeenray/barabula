@@ -5,6 +5,7 @@
 import {
   ArrowLeft,
   Check,
+  ChevronDown,
   ChevronRight,
   CircleUser,
   Ellipsis,
@@ -49,4 +50,5 @@ export const WifiOffIcon = seam(WifiOff, 'WifiOffIcon')
 export const CheckIcon = seam(Check, 'CheckIcon')
 export const XIcon = seam(X, 'XIcon')
 export const ChevronRightIcon = seam(ChevronRight, 'ChevronRightIcon')
+export const ChevronDownIcon = seam(ChevronDown, 'ChevronDownIcon')
 export const Trash2Icon = seam(Trash2, 'Trash2Icon')

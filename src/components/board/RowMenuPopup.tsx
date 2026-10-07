@@ -71,10 +71,11 @@ export default function RowMenuPopup({
   moveUp,
   moveDown,
   remove,
+  locked = false,
   className = '',
   defaultOpen = false,
 }: RowMenuProps & { defaultOpen?: boolean }) {
-  const canEdit = useCanEdit()
+  const canEdit = useCanEdit() && !locked
   const inMaybe = day === null
   const triggerId = useId()
 

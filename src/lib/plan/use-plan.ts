@@ -12,6 +12,10 @@
 // Remove from trip hides the row at once and holds the DELETE until the Undo
 // toast closes (D-27 pattern); if it then fails, the row comes back with the
 // DELAYED line, so a failure never loses data.
+// Add place (16-11, D-18) shows the row at once with a temporary id, POSTs it
+// (the server picks the final position) and swaps in the saved row. Its Undo
+// removes the row and DELETEs the created id; a failed POST keeps the row as
+// "Not saved yet" and Retry sends it again.
 
 import { useCallback, useMemo, useRef, useState } from 'react'
 import { useAnnounce } from '@/components/a11y/LiveRegion'
@@ -39,6 +43,61 @@ export interface PlanError {
 }
 
 export const SAVE_ERROR = "Couldn't save."
+
+/** A place typed into the place form (16-11). */
+export interface NewPlace {
+  /** null = Maybe. */
+  day_number: number | null
+  name: string
+  location: string | null
+  description: string | null
+  time: string | null
+  fixed_time: boolean
+}
+
+/** POST /api/activities body (mirrors ActivityCreateSchema). */
+interface CreateBody {
+  itinerary_id: string
+  day_number: number | null
+  name: string
+  location: string | null
+  description: string | null
+  time: string | null
+  extra_data?: { fixed_time: boolean }
+}
+
+const TEMP_PREFIX = 'new-'
+
+/** Rows added on this page that the server has not confirmed yet. */
+export function isTempId(id: string): boolean {
+  return id.startsWith(TEMP_PREFIX)
+}
+
+let tempSeq = 0
+function tempId(): string {
+  tempSeq += 1
+  return `${TEMP_PREFIX}${Date.now().toString(36)}-${tempSeq}`
+}
+
+/** Undo toast text for an add (UI-SPEC Copywriting "Undo toasts"). */
+export function addedLabel(day: number | null, lastInDay: string | null): string {
+  if (day === null) return 'Added to Maybe'
+  return lastInDay ? `Added to day ${day}, after ${lastInDay}` : `Added to day ${day}`
+}
+
+async function sendCreate(body: CreateBody): Promise<PlanActivity | null> {
+  try {
+    const res = await fetch('/api/activities', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok) return null
+    return (await res.json()) as PlanActivity
+  } catch {
+    return null
+  }
+}
 
 function mergeUpdates(a: ActivityUpdate | undefined, b: ActivityUpdate): ActivityUpdate {
   if (!a) return b
@@ -136,6 +195,17 @@ export function usePlan(initial: TripPlan) {
   const removed = useRef(new Map<string, PlanActivity>())
   /** Removals whose DELETE failed; Retry removes them again (with Undo). */
   const failedRemovals = useRef(new Set<string>())
+  /** Adds whose POST failed, by temporary id; Retry sends them again. */
+  const failedCreates = useRef(new Map<string, CreateBody>())
+  /** Adds undone before their POST answered; the created row is deleted. */
+  const cancelledCreates = useRef(new Set<string>())
+  /** Saved rows per temporary id, so an Undo after the save deletes the real id. */
+  const createdRows = useRef(new Map<string, PlanActivity>())
+
+  const settled = useCallback(
+    () => pending.current.size === 0 && failedRemovals.current.size === 0 && failedCreates.current.size === 0,
+    []
+  )
 
   const markUnsaved = useCallback((id: string, saved: boolean) => {
     setUnsaved((prev) => {
@@ -171,10 +241,10 @@ export function usePlan(initial: TripPlan) {
       setActivities((prev) => sortActivities(prev.map((a) => (a.id === id ? applyUpdate(a, update) : a))))
       const ok = await save(id, update)
       if (!ok) setFailed(true)
-      else if (pending.current.size === 0 && failedRemovals.current.size === 0) setFailed(false)
+      else if (settled()) setFailed(false)
       return ok
     },
-    [save]
+    [save, settled]
   )
 
   /** Applies several changes locally at once, then saves them one after another. */
@@ -189,10 +259,10 @@ export function usePlan(initial: TripPlan) {
         if (!(await save(c.id, c.update))) allSaved = false
       }
       if (!allSaved) setFailed(true)
-      else if (pending.current.size === 0 && failedRemovals.current.size === 0) setFailed(false)
+      else if (settled()) setFailed(false)
       return allSaved
     },
-    [save]
+    [save, settled]
   )
 
   /**
@@ -291,7 +361,109 @@ export function usePlan(initial: TripPlan) {
     [activities, undo, restore, announce]
   )
 
+  /** POSTs an add; swaps the temporary row for the saved one, or marks it unsaved. */
+  const create = useCallback(
+    (temp: string, body: CreateBody): Promise<PlanActivity | null> => {
+      const run = sendCreate(body).then((row) => {
+        if (cancelledCreates.current.has(temp)) {
+          cancelledCreates.current.delete(temp)
+          // Undone while the POST was in flight: remove what was created.
+          if (row) void sendDelete(row.id)
+          return null
+        }
+        if (!row) {
+          failedCreates.current.set(temp, body)
+          markUnsaved(temp, false)
+          setFailed(true)
+          return null
+        }
+        createdRows.current.set(temp, row)
+        failedCreates.current.delete(temp)
+        markUnsaved(temp, true)
+        setActivities((prev) => sortActivities(prev.map((a) => (a.id === temp ? row : a))))
+        if (settled()) setFailed(false)
+        return row
+      })
+      return run
+    },
+    [markUnsaved, settled]
+  )
+
+  /**
+   * Adds a place at the end of its day (or Maybe) at once and saves it.
+   * One Undo toast removes it again. Resolves with the saved row, or null
+   * when the save failed or was undone.
+   */
+  const addActivity = useCallback(
+    (place: NewPlace): Promise<PlanActivity | null> => {
+      const bucket = bucketOf(activities, place.day_number)
+      const last = bucket.at(-1)
+      const temp = tempId()
+      const fixed = place.fixed_time && place.time !== null
+      const row: PlanActivity = {
+        id: temp,
+        itinerary_id: initial.trip.id,
+        day_number: place.day_number,
+        position: (last?.position ?? bucket.length) + 1,
+        name: place.name,
+        time: place.time,
+        description: place.description,
+        location: place.location,
+        activity_type: null,
+        extra_data: fixed ? { fixed_time: true } : {},
+        duration: null,
+        tips: null,
+      }
+      const body: CreateBody = {
+        itinerary_id: initial.trip.id,
+        day_number: place.day_number,
+        name: place.name,
+        location: place.location,
+        description: place.description,
+        time: place.time,
+        ...(fixed ? { extra_data: { fixed_time: true } } : {}),
+      }
+      setActivities((prev) => sortActivities([...prev, row]))
+      const saved = create(temp, body)
+
+      undo.run({
+        id: temp,
+        label: addedLabel(place.day_number, last?.name ?? null),
+        commit: () => {},
+        undo: () => {
+          // Hide it now; whatever the POST does next, the add is cancelled.
+          const wasFailed = failedCreates.current.delete(temp)
+          markUnsaved(temp, true)
+          setActivities((prev) => prev.filter((a) => a.id !== temp))
+          if (settled()) setFailed(false)
+          const created = createdRows.current.get(temp)
+          if (!created) {
+            // Still in flight: create deletes it when it answers. Failed: nothing to delete.
+            if (!wasFailed) cancelledCreates.current.add(temp)
+            return
+          }
+          createdRows.current.delete(temp)
+          setActivities((prev) => prev.filter((a) => a.id !== created.id))
+          void sendDelete(created.id).then((gone) => {
+            if (gone) return
+            // Safe direction: the place comes back, explained by DELAYED; Retry removes it.
+            setActivities((prev) => (prev.some((a) => a.id === created.id) ? prev : sortActivities([...prev, created])))
+            failedRemovals.current.add(created.id)
+            setFailed(true)
+          })
+        },
+      })
+      return saved
+    },
+    [activities, initial.trip.id, create, undo, markUnsaved, settled]
+  )
+
   const retry = useCallback(async () => {
+    // Adds that failed are sent again.
+    for (const [temp, body] of [...failedCreates.current.entries()]) {
+      failedCreates.current.delete(temp)
+      void create(temp, body)
+    }
     // A removal that failed is offered again, with its own Undo.
     const removals = [...failedRemovals.current]
     failedRemovals.current.clear()
@@ -299,13 +471,23 @@ export function usePlan(initial: TripPlan) {
     const entries = [...pending.current.entries()]
     // Retrying an entry merges it with itself; pass an empty update.
     const results = await Promise.all(entries.map(([id]) => save(id, {})))
-    setFailed(results.some((ok) => !ok) || pending.current.size > 0 || failedRemovals.current.size > 0)
-  }, [save, removeActivity])
+    setFailed(results.some((ok) => !ok) || !settled())
+  }, [save, removeActivity, create, settled])
 
   const error: PlanError | null = useMemo(
     () => (failed ? { message: SAVE_ERROR, retry: () => void retry() } : null),
     [failed, retry]
   )
 
-  return { activities, updateActivity, moveActivity, moveUp, moveDown, removeActivity, unsaved, error }
+  return {
+    activities,
+    addActivity,
+    updateActivity,
+    moveActivity,
+    moveUp,
+    moveDown,
+    removeActivity,
+    unsaved,
+    error,
+  }
 }
