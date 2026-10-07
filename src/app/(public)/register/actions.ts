@@ -14,5 +14,5 @@ export async function signUp(formData: FormData) {
     },
   })
   if (error) return { error: error.message }
-  redirect('/dashboard')
+  redirect('/')
 }

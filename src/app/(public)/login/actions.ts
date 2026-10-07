@@ -10,7 +10,7 @@ export async function signIn(formData: FormData) {
     password: formData.get('password') as string,
   })
   if (error) return { error: error.message }
-  redirect('/dashboard')
+  redirect('/')
 }
 
 export async function signInWithGoogle() {

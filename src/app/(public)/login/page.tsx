@@ -15,7 +15,7 @@ export default function LoginPage() {
       setError(result.error)
       setLoading(false)
     }
-    // On success, signIn() calls redirect('/dashboard') — no state update needed
+    // On success, signIn() calls redirect('/'), the home pass, which resumes a kept trip
   }
 
   async function handleGoogle() {
