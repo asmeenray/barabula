@@ -1,5 +1,6 @@
 import { ShellTopBar, SignedInProvider } from './TopBar'
 import { TabBar } from './TabBar'
+import { ThemeSync } from './ThemeSync'
 
 // Phase 16 shell (UI-SPEC Layout §1, D-35). Tab roots (/, /places, /you) get
 // the root top bar here; inner pages (trip plan, credits, not found) render
@@ -18,6 +19,7 @@ interface AppShellProps {
 export function AppShell({ children, signedIn }: AppShellProps) {
   return (
     <SignedInProvider signedIn={signedIn}>
+      <ThemeSync />
       <div className={`flex h-dvh flex-col overflow-hidden bg-bg text-ink ${signedIn ? TAB_BAR_PADDING : ''}`}>
         <ShellTopBar />
         <main className="flex min-h-0 flex-1 flex-col">{children}</main>

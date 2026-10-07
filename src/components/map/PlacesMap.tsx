@@ -15,6 +15,7 @@ import type { ExpressionSpecification, GeoJSONSource, Map as MapLibreMap, StyleS
 import 'maplibre-gl/dist/maplibre-gl.css'
 import type { PlacePoint } from '@/lib/places-tab/filter'
 import { BoardStatusLine } from '@/components/board/BoardStatusLine'
+import { useResolvedTheme } from '@/lib/theme/use-theme'
 import { MAPLIBRE_WORKER_URL, loadMapLib, loadStyle } from './maplibre-loader'
 import { drawCluster, loadClusterFont, parseClusterImageId } from './clusterImages'
 import type { PinTheme } from './pinImages'
@@ -75,8 +76,10 @@ function reducedMotion(): boolean {
 }
 
 export default function PlacesMap({ points, colors, selectedId, onSelect, inset }: PlacesMapProps) {
-  // Theme at mount; live switching lands with the theme setting (16-19).
-  const [theme] = useState<PinTheme>(() => (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'))
+  // Follows html data-theme live (D-03): a change swaps the OpenFreeMap style
+  // (setStyle); react-map-gl re-adds the Source/Layer children and the pin
+  // resolver stays on the map across the swap (A1, checked in e2e/you.spec.ts).
+  const theme: PinTheme = useResolvedTheme()
   const [failed, setFailed] = useState(false)
   const [ready, setReady] = useState(false)
   const [attempt, setAttempt] = useState(0)

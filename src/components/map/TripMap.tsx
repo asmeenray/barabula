@@ -12,6 +12,7 @@ import 'maplibre-gl/dist/maplibre-gl.css'
 import type { PlanActivity } from '@/lib/plan/types'
 import { LAPTOP_QUERY, useMediaQuery } from '@/lib/client/use-media'
 import { BoardStatusLine } from '@/components/board/BoardStatusLine'
+import { useResolvedTheme } from '@/lib/theme/use-theme'
 import { MAPLIBRE_WORKER_URL, loadMapLib, loadStyle } from './maplibre-loader'
 import { dayRoute, drawPin, loadPinFont, parsePinImageId, pinFeatures, PIN_COLOURS, type PinFeature, type PinTheme } from './pinImages'
 
@@ -81,8 +82,10 @@ export default function TripMap({
   onPinHover,
   onPinSelect,
 }: TripMapProps) {
-  // Theme at mount; live switching lands with the theme setting (16-19).
-  const [theme] = useState<PinTheme>(() => (document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light'))
+  // Follows html data-theme live (D-03): a change swaps the OpenFreeMap style
+  // (setStyle); react-map-gl re-adds the Source/Layer children and the pin
+  // resolver stays on the map across the swap (A1, checked in e2e/you.spec.ts).
+  const theme: PinTheme = useResolvedTheme()
   const isLaptop = useMediaQuery(LAPTOP_QUERY)
   const [failed, setFailed] = useState(false)
   /** The pin resolver is registered on this map; pin layers can mount. */
